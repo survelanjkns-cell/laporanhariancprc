@@ -1,4 +1,4 @@
-python-docx
-Flask
+streamlit
 pandas
-openpyxl  # Required by pandas to read Excel files
+python-docx
+openpyxl
