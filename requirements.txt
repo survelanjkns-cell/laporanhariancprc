@@ -1,2 +1,4 @@
 python-docx
 Flask
+pandas
+openpyxl  # Required by pandas to read Excel files
