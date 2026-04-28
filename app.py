@@ -81,7 +81,7 @@ def generate_docx(matrix_df, col_sums, wabak_df):
 
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
-    # 3. Green Table
+    # 3. Green Header Table
     info_table = doc.add_table(rows=1, cols=2)
     info_table.alignment = WD_ALIGN_PARAGRAPH.CENTER
     info_table.width = Inches(5.8) 
@@ -105,7 +105,7 @@ def generate_docx(matrix_df, col_sums, wabak_df):
     h11_text = f"1.1 Sejumlah {total_notifications} input notifikasi telah diterima pada {yesterday.strftime('%d %B %Y')} dengan pecahan mengikut penyakit seperti dalam jadual 1."
     apply_font(p11.add_run(h11_text), 10, bold=False)
 
-    # --- Table 1 ---
+    # Table 1
     t1 = doc.add_table(rows=len(matrix_df) + 2, cols=len(TEMPLATE_PKDS) + 2)
     t1.style = 'Table Grid'
     t1.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -157,11 +157,9 @@ def generate_docx(matrix_df, col_sums, wabak_df):
         set_cell_background(cell, "FFFF00")
         cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    # --- Table 1 Caption ---
     doc.add_paragraph()
     p1_cap = doc.add_paragraph()
     p1_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    # UNBOLD and SIZE 10 as requested
     apply_font(p1_cap.add_run("Jadual 1 : Senarai Input eNotifikasi"), 10, bold=False)
 
     # --- SECTION 2.0 ---
@@ -212,7 +210,6 @@ def generate_docx(matrix_df, col_sums, wabak_df):
     doc.add_paragraph()
     p_cap = doc.add_paragraph()
     p_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    # UNBOLD and SIZE 10 as requested
     apply_font(p_cap.add_run("Jadual 2 : Senarai Notifikasi Wabak"), 10, bold=False)
 
     target = io.BytesIO()
@@ -230,6 +227,7 @@ file2 = st.file_uploader("📂 Upload Outbreak Listing Excel", type="xlsx")
 if file1 and file2:
     if st.button("🚀 Generate Final Report"):
         try:
+            # Section 1.0
             df1 = pd.read_excel(file1)
             df1 = df1[df1['Notifikasi Status'] != 'Abai Notifikasi']
             df1 = df1[df1['Pejabat Kesihatan'].isin(TEMPLATE_PKDS)]
@@ -238,10 +236,20 @@ if file1 and file2:
             matrix = matrix.sort_values(by='Grand Total', ascending=False)
             col_totals = matrix.sum(axis=0)
 
+            # Section 2.0
             df2 = pd.read_excel(file2)
             cutoff = date(2026, 1, 4)
             df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date
             df2 = df2[df2['Tarikh Isytihar Wabak'] >= cutoff]
+            
+            # --- COMBINATION LOGIC FOR ILI/INFLUENZA ---
+            def group_influenza(disease_name):
+                name = str(disease_name).upper()
+                if "INFLUENZA" in name or "ILI" in name:
+                    return "ILI/INFLUENZA"
+                return disease_name
+
+            df2['PENYAKIT'] = df2['PENYAKIT'].apply(group_influenza)
             
             yesterday = date.today() - timedelta(days=1)
             unique_d = df2['PENYAKIT'].unique()
