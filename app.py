@@ -103,7 +103,7 @@ def generate_docx(matrix_df, col_sums, wabak_df):
     total_notifications = int(col_sums['Grand Total'])
     p11 = doc.add_paragraph()
     # Penambahan ayat sebelum "Sejumlah..."
-    h11_text = f"Jadual di bawah menunjukkan jumlah input enotifikasi di negeri Selangor. Sejumlah {total_notifications} input notifikasi telah diterima pada {yesterday.strftime('%d %B %Y')} dengan pecahan mengikut penyakit seperti dalam jadual 1."
+    h11_text = f"1.1 Jadual di bawah menunjukkan jumlah input enotifikasi di negeri Selangor. Sejumlah {total_notifications} input notifikasi telah diterima pada {yesterday.strftime('%d %B %Y')} dengan pecahan mengikut penyakit seperti dalam jadual 1."
     apply_font(p11.add_run(h11_text), 10, bold=False)
 
     # Table 1
@@ -172,7 +172,7 @@ def generate_docx(matrix_df, col_sums, wabak_df):
     p21 = doc.add_paragraph()
     yesterday_str = yesterday.strftime('%d %B %Y')
     # Penambahan ayat mengikut permintaan
-    h21_text = f"Jadual di bawah menunjukkan jumlah wabak harian dan kumulatif di negeri Selangor. {'Sejumlah ' + str(harian_total) + ' input notifikasi wabak' if harian_total > 0 else 'Tiada wabak dilaporkan'} diterima pada {yesterday_str}."
+    h21_text = f"2.1 Jadual di bawah menunjukkan jumlah wabak harian dan kumulatif di negeri Selangor. {'Sejumlah ' + str(harian_total) + ' input notifikasi wabak' if harian_total > 0 else 'Tiada wabak dilaporkan'} diterima pada {yesterday_str}."
     apply_font(p21.add_run(h21_text), 10, bold=False)
 
     t2 = doc.add_table(rows=len(wabak_df) + 2, cols=3)
