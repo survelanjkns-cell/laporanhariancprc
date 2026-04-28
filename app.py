@@ -27,12 +27,9 @@ def set_cell_background(cell, hex_color):
     cell._tc.get_or_add_tcPr().append(shading_elm)
 
 def set_cell_paddings(cell, top=None, start=None, bottom=None, end=None):
-    """Menambah ruang dalam (padding) pada sel jadual dengan namespace yang betul"""
     tc = cell._tc
     tcPr = tc.get_or_add_tcPr()
     tcMar = parse_xml(r'<w:tcMar {}/>'.format(nsdecls('w')))
-    
-    # Margin mapping: top, left (start), bottom, right (end)
     for margin, value in [('top', top), ('left', start), ('bottom', bottom), ('right', end)]:
         if value is not None:
             node = parse_xml(r'<w:{} {} w:w="{}" w:type="dxa"/>'.format(margin, nsdecls('w'), value))
@@ -154,7 +151,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
     p1_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
     apply_font(p1_cap.add_run("Jadual 1 : Senarai Input eNotifikasi"), 10, bold=False)
 
-    # --- SECTION 2.0 ---
+    # --- SECTION 2.0 (Page break dikekalkan untuk 1.0 ke 2.0) ---
     doc.add_page_break()
     apply_font(doc.add_paragraph().add_run("2.0 Ringkasan Laporan Notifikasi Wabak"), 11, bold=True)
     harian_total = int(wabak_df['HARIAN'].sum())
@@ -191,8 +188,8 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
     p2_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
     apply_font(p2_cap.add_run("Jadual 2 : Senarai Notifikasi Wabak"), 10, bold=False)
 
-    # --- SECTION 3.0 ---
-    doc.add_page_break()
+    # --- SECTION 3.0 (Page break dibuang untuk merapatkan 2.0 dan 3.0) ---
+    doc.add_paragraph() # Ruang kecil pemisah teks
     apply_font(doc.add_paragraph().add_run("3.0 Ringkasan Laporan Wabak Vektor"), 11, bold=True)
     try:
         xx = int(float(vector_df.iloc[-1, 1]) + float(vector_df.iloc[-1, 3]) + float(vector_df.iloc[-1, 5]))
@@ -205,8 +202,8 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
     t3.style = 'Table Grid'
     t3.alignment = WD_TABLE_ALIGNMENT.CENTER
     
-    # Lebarkan daerah secara spesifik
-    col_widths = [Inches(2.2), Inches(0.6), Inches(0.6), Inches(0.6), Inches(0.6), Inches(0.6), Inches(0.6)]
+    # Lebar kolom DAERAH dilebarkan lagi (2.3) untuk jaminan satu baris
+    col_widths = [Inches(2.3), Inches(0.55), Inches(0.55), Inches(0.55), Inches(0.55), Inches(0.55), Inches(0.55)]
     
     h3_r1 = t3.rows[0].cells
     h3_r1[0].merge(t3.rows[1].cells[0]).text = "DAERAH"
@@ -268,7 +265,6 @@ f2 = st.file_uploader("📂 Muat Naik Excel Penyenaraian Wabak (2.0)", type="xls
 if f1 and f2:
     if st.button("🚀 Jana Laporan Lengkap (1.0 + 2.0 + 3.0)"):
         try:
-            # S1
             df1 = pd.read_excel(f1)
             df1 = df1[df1['Notifikasi Status'] != 'Abai Notifikasi']
             df1 = df1[df1['Pejabat Kesihatan'].isin(TEMPLATE_PKDS)]
@@ -277,7 +273,6 @@ if f1 and f2:
             matrix = matrix.sort_values(by='Grand Total', ascending=False)
             col_totals = matrix.sum(axis=0)
 
-            # S2
             df2 = pd.read_excel(f2)
             df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date
             df2 = df2[df2['Tarikh Isytihar Wabak'] >= date(2026, 1, 4)]
@@ -293,7 +288,6 @@ if f1 and f2:
                 wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'KUMULATIF': k})
             wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
-            # S3
             raw_gs = pd.read_csv(GSHEET_URL, header=None)
             mask = raw_gs.apply(lambda r: r.astype(str).str.contains('PETALING').any(), axis=1)
             if mask.any():
