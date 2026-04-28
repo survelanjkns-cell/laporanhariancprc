@@ -50,7 +50,7 @@ def generate_docx(matrix_df, col_sums, wabak_df):
     today = date.today()
     yesterday = today - timedelta(days=1)
     
-    # Margins (Top/Bottom: 2.54cm, Left/Right: 3.18cm)
+    # Margins
     section = doc.sections[0]
     section.top_margin = Cm(2.54)
     section.bottom_margin = Cm(2.54)
@@ -102,10 +102,11 @@ def generate_docx(matrix_df, col_sums, wabak_df):
     
     total_notifications = int(col_sums['Grand Total'])
     p11 = doc.add_paragraph()
-    h11_text = f"1.1 Sejumlah {total_notifications} input notifikasi telah diterima pada {yesterday.strftime('%d %B %Y')} dengan pecahan mengikut penyakit seperti dalam jadual 1."
+    # Penambahan ayat sebelum "Sejumlah..."
+    h11_text = f"Jadual di bawah menunjukkan jumlah input enotifikasi di negeri Selangor. Sejumlah {total_notifications} input notifikasi telah diterima pada {yesterday.strftime('%d %B %Y')} dengan pecahan mengikut penyakit seperti dalam jadual 1."
     apply_font(p11.add_run(h11_text), 10, bold=False)
 
-    # --- Table 1 ---
+    # Table 1
     t1 = doc.add_table(rows=len(matrix_df) + 2, cols=len(TEMPLATE_PKDS) + 2)
     t1.style = 'Table Grid'
     t1.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -129,7 +130,6 @@ def generate_docx(matrix_df, col_sums, wabak_df):
         set_cell_background(cell, "BFDFFF")
         cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
         
-    # Changed "Grand Total" to "Jumlah" here
     run_gt = h_cells[-1].paragraphs[0].add_run("Jumlah")
     apply_font(run_gt, 7, bold=True)
     set_cell_background(h_cells[-1], "FFFF00")
@@ -148,7 +148,6 @@ def generate_docx(matrix_df, col_sums, wabak_df):
             if (c_idx + 1) == (len(row_data)): set_cell_background(cell, "FFFFB3")
 
     f_cells = t1.rows[-1].cells
-    # Changed "Grand Total" to "Jumlah" here
     run_fgt = f_cells[0].paragraphs[0].add_run("Jumlah")
     apply_font(run_fgt, 7.5, bold=True)
     set_cell_background(f_cells[0], "FFFF00")
@@ -172,7 +171,8 @@ def generate_docx(matrix_df, col_sums, wabak_df):
     harian_total = int(wabak_df['HARIAN'].sum())
     p21 = doc.add_paragraph()
     yesterday_str = yesterday.strftime('%d %B %Y')
-    h21_text = f"2.1 {'Sejumlah ' + str(harian_total) + ' input notifikasi wabak' if harian_total > 0 else 'Tiada wabak dilaporkan'} diterima pada {yesterday_str}."
+    # Penambahan ayat mengikut permintaan
+    h21_text = f"Jadual di bawah menunjukkan jumlah wabak harian dan kumulatif di negeri Selangor. {'Sejumlah ' + str(harian_total) + ' input notifikasi wabak' if harian_total > 0 else 'Tiada wabak dilaporkan'} diterima pada {yesterday_str}."
     apply_font(p21.add_run(h21_text), 10, bold=False)
 
     t2 = doc.add_table(rows=len(wabak_df) + 2, cols=3)
@@ -220,17 +220,14 @@ def generate_docx(matrix_df, col_sums, wabak_df):
     return target
 
 # --- STREAMLIT UI ---
-if 'file1' not in st.session_state: st.session_state.file1 = None
-if 'file2' not in st.session_state: st.session_state.file2 = None
-
 st.set_page_config(page_title="BWKK Report Generator", layout="centered")
 st.title("📊 BWKK Report Generator")
 
-file1 = st.file_uploader("📂 Upload Daily Notification Excel (Section 1.0)", type="xlsx")
-file2 = st.file_uploader("📂 Upload Outbreak Listing Excel (Section 2.0)", type="xlsx")
+file1 = st.file_uploader("📂 Muat Naik Excel Notifikasi Harian", type="xlsx")
+file2 = st.file_uploader("📂 Muat Naik Excel Penyenaraian Wabak", type="xlsx")
 
 if file1 and file2:
-    if st.button("🚀 Generate Final Report"):
+    if st.button("🚀 Jana Laporan Akhir"):
         try:
             # Section 1.0
             df1 = pd.read_excel(file1)
@@ -267,6 +264,6 @@ if file1 and file2:
             wabak_df = pd.DataFrame(wabak_summary).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
             doc_out = generate_docx(matrix, col_totals, wabak_df)
-            st.download_button("⬇️ Download Final Word Report", data=doc_out, file_name=f"Laporan_BWKK_{date.today()}.docx")
+            st.download_button("⬇️ Muat Turun Laporan Word Akhir", data=doc_out, file_name=f"Laporan_BWKK_{date.today()}.docx")
         except Exception as e:
-            st.error(f"Error: {e}")
+            st.error(f"Ralat: {e}")
