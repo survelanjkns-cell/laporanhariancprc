@@ -61,11 +61,11 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
         run_logo = p_logo.add_run()
         run_logo.add_picture(logo_path, width=Inches(2.0))
 
-    # 2. Tajuk Utama (Main Title)
+    # 2. Tajuk Utama (Saiz font dikurangkan ke 11pt supaya muat satu baris)
     titles = [
-        ("LAPORAN HARIAN KEJADIAN BENCANA, WABAK, KECEMASAN, KRISIS (BWKK)", 12),
-        ("PUSAT KESIAPSIAGAAN DAN TINDAKCEPAT KRISIS (CPRC)", 12),
-        ("JABATAN KESIHATAN NEGERI SELANGOR", 12)
+        ("LAPORAN HARIAN KEJADIAN BENCANA, WABAK, KECEMASAN, KRISIS (BWKK)", 11),
+        ("PUSAT KESIAPSIAGAAN DAN TINDAKCEPAT KRISIS (CPRC)", 11),
+        ("JABATAN KESIHATAN NEGERI SELANGOR", 11)
     ]
     doc.add_paragraph()
     for text, size in titles:
