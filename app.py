@@ -23,7 +23,6 @@ def set_cell_background(cell, hex_color):
     cell._tc.get_or_add_tcPr().append(shading_elm)
 
 def get_epi_week(target_date):
-    # Standard Epid 1 start for 2026 as per user logic
     start_date = date(2026, 1, 4)
     if target_date < start_date: return "N/A"
     days_diff = (target_date - start_date).days
@@ -46,8 +45,7 @@ def generate_docx(matrix_df, col_sums):
     section.left_margin = section.right_margin = Inches(0.5)
     section.top_margin = section.bottom_margin = Inches(0.4)
 
-    # 1. Logo Handling (3x Bigger as requested)
-    # Note: Updated to match your GitHub filename 'logo.png.jpg'
+    # 1. Logo Handling (3.0 Inches Wide)
     logo_path = "logo.png.jpg" 
     if os.path.exists(logo_path):
         p_logo = doc.add_paragraph()
@@ -55,17 +53,16 @@ def generate_docx(matrix_df, col_sums):
         run_logo = p_logo.add_run()
         run_logo.add_picture(logo_path, width=Inches(3.0))
     else:
-        st.warning(f"Logo '{logo_path}' not found in the root directory.")
+        st.warning(f"Logo '{logo_path}' not found in GitHub. Please check filename.")
 
-    # 2. Header Titles (KKM line removed as requested)
+    # 2. Header Titles
     titles = [
         ("LAPORAN HARIAN KEJADIAN BENCANA, WABAK, KECEMASAN, KRISIS (BWKK)", 12),
         ("PUSAT KESIAPSIAGAAN DAN TINDAKCEPAT KRISIS (CPRC)", 12),
         ("JABATAN KESIHATAN NEGERI SELANGOR", 12)
     ]
     
-    # Spacer after logo
-    doc.add_paragraph()
+    doc.add_paragraph() # Initial spacer
 
     for text, size in titles:
         para = doc.add_paragraph()
@@ -103,7 +100,6 @@ def generate_docx(matrix_df, col_sums):
     yesterday = today - timedelta(days=1)
     total_notifications = int(col_sums['Grand Total'])
     
-    # Text uses yesterday's date
     yesterday_str = yesterday.strftime('%d %B %Y')
     h11_text = f"1.1 Sejumlah {total_notifications} input notifikasi telah diterima pada {yesterday_str} dengan pecahan mengikut penyakit seperti dalam jadual 1."
     doc.add_paragraph().add_run(h11_text)
@@ -125,7 +121,7 @@ def generate_docx(matrix_df, col_sums):
     
     for i, pkd in enumerate(TEMPLATE_PKDS):
         cell = header_cells[i+1]
-        cell.text = pkd.replace("PKD ", "") # Shorter names
+        cell.text = pkd.replace("PKD ", "")
         set_cell_background(cell, "BFDFFF")
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         p = cell.paragraphs[0]
@@ -140,11 +136,10 @@ def generate_docx(matrix_df, col_sums):
     header_cells[-1].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
     header_cells[-1].paragraphs[0].runs[0].font.bold = True
 
-    # Data Rows (Input is sorted descending)
+    # Data Rows (Sorted Descending)
     for r_idx, (penyakit, row_data) in enumerate(matrix_df.iterrows()):
         row = table.rows[r_idx + 1].cells
         
-        # Col 0: Penyakit (Left Aligned)
         row[0].text = str(penyakit)
         set_cell_background(row[0], "D9E9FF")
         row[0].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
@@ -152,7 +147,6 @@ def generate_docx(matrix_df, col_sums):
         p_name.alignment = WD_ALIGN_PARAGRAPH.LEFT
         p_name.runs[0].font.size = Pt(8)
         
-        # Values (Center Aligned)
         for c_idx, val in enumerate(row_data):
             cell = row[c_idx + 1]
             cell.text = str(int(val))
@@ -162,12 +156,11 @@ def generate_docx(matrix_df, col_sums):
             run_val = p_val.runs[0]
             run_val.font.size = Pt(9)
             
-            # Highlight Grand Total column
             if (c_idx + 1) == (num_cols - 1):
                 set_cell_background(cell, "FFFFB3")
                 run_val.font.bold = True
 
-    # Footer Row: Grand Total
+    # Footer Row
     footer_cells = table.rows[-1].cells
     footer_cells[0].text = "Grand Total"
     set_cell_background(footer_cells[0], "FFFF00")
@@ -189,7 +182,6 @@ def generate_docx(matrix_df, col_sums):
     p_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_cap.add_run("Jadual 1 : Senarai Input Enotifikasi")
 
-    # Buffer for download
     target = io.BytesIO()
     doc.save(target)
     target.seek(0)
@@ -203,35 +195,27 @@ st.markdown("""
     .main { background-color: #f5f5f5; }
     .stButton>button { width: 100%; background-color: #28a745; color: white; }
     </style>
-    """, unsafe_allow_ Harris=True)
+    """, unsafe_allow_html=True) # FIXED HERE
 
 st.title("📊 BWKK Report Generator")
-st.info("Upload the Excel file with columns: 'Diagnosis', 'Pejabat Kesihatan', and 'Notifikasi Status'.")
+st.info("Upload Excel with: 'Diagnosis', 'Pejabat Kesihatan', and 'Notifikasi Status'.")
 
 uploaded_file = st.file_uploader("Choose Excel File", type="xlsx")
 
 if uploaded_file:
     try:
         df = pd.read_excel(uploaded_file)
-        
-        # 1. Filter Out Abai Notifikasi
         df = df[df['Notifikasi Status'] != 'Abai Notifikasi']
-        
-        # 2. Extract only required PKDs
         df = df[df['Pejabat Kesihatan'].isin(TEMPLATE_PKDS)]
         
-        # 3. Create Pivot Matrix
         matrix = pd.crosstab(df['Diagnosis'], df['Pejabat Kesihatan'])
         matrix = matrix.reindex(columns=TEMPLATE_PKDS, fill_value=0)
         
-        # 4. Sorting logic
         matrix['Grand Total'] = matrix.sum(axis=1)
         matrix = matrix.sort_values(by='Grand Total', ascending=False)
         
-        # 5. Column Totals
         col_totals = matrix.sum(axis=0)
 
-        # 6. Generate Docx
         final_doc = generate_docx(matrix, col_totals)
         
         st.success("Report generated successfully!")
