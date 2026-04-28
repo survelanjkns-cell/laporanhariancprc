@@ -45,13 +45,13 @@ def generate_docx(matrix_df, col_sums):
     section.left_margin = section.right_margin = Inches(0.5)
     section.top_margin = section.bottom_margin = Inches(0.4)
 
-    # 1. Logo Handling (3.0 Inches Wide)
+    # 1. Logo Handling (Reduced to 2.0 Inches)
     logo_path = "logo.png.jpg" 
     if os.path.exists(logo_path):
         p_logo = doc.add_paragraph()
         p_logo.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run_logo = p_logo.add_run()
-        run_logo.add_picture(logo_path, width=Inches(3.0))
+        run_logo.add_picture(logo_path, width=Inches(2.0))
     else:
         st.warning(f"Logo '{logo_path}' not found in GitHub. Please check filename.")
 
@@ -195,7 +195,7 @@ st.markdown("""
     .main { background-color: #f5f5f5; }
     .stButton>button { width: 100%; background-color: #28a745; color: white; }
     </style>
-    """, unsafe_allow_html=True) # FIXED HERE
+    """, unsafe_allow_html=True)
 
 st.title("📊 BWKK Report Generator")
 st.info("Upload Excel with: 'Diagnosis', 'Pejabat Kesihatan', and 'Notifikasi Status'.")
