@@ -157,11 +157,12 @@ def generate_docx(matrix_df, col_sums, wabak_df):
         set_cell_background(cell, "FFFF00")
         cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    # --- Table 1 Caption (Updated here) ---
+    # --- Table 1 Caption ---
     doc.add_paragraph()
     p1_cap = doc.add_paragraph()
     p1_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    apply_font(p1_cap.add_run("Jadual 1 : Senarai Input eNotifikasi"), 11, bold=True)
+    # UNBOLD and SIZE 10 as requested
+    apply_font(p1_cap.add_run("Jadual 1 : Senarai Input eNotifikasi"), 10, bold=False)
 
     # --- SECTION 2.0 ---
     doc.add_page_break()
@@ -211,7 +212,8 @@ def generate_docx(matrix_df, col_sums, wabak_df):
     doc.add_paragraph()
     p_cap = doc.add_paragraph()
     p_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    apply_font(p_cap.add_run("Jadual 2 : Senarai Notifikasi Wabak"), 11, bold=True)
+    # UNBOLD and SIZE 10 as requested
+    apply_font(p_cap.add_run("Jadual 2 : Senarai Notifikasi Wabak"), 10, bold=False)
 
     target = io.BytesIO()
     doc.save(target)
