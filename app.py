@@ -17,12 +17,6 @@ TEMPLATE_PKDS = [
     'PKD SABAK BERNAM', 'PKD SEPANG'
 ]
 
-# Standard list for Table 2 (Add or remove as needed)
-DISEASE_LIST_WABAK = [
-    'HFMD', 'KERACUNAN MAKANAN', 'CHICKENPOX', 'ROTAVIRUS', 
-    'LEPTOSPIROSIS', 'MUMPS', 'MEASLES', 'DENGUE'
-]
-
 # --- HELPERS ---
 def set_cell_background(cell, hex_color):
     shading_elm = parse_xml(r'<w:shd {} w:fill="{}"/>'.format(nsdecls('w'), hex_color))
@@ -73,9 +67,9 @@ def generate_docx(matrix_df, col_sums, wabak_df):
         run.font.size = Pt(size)
         para.paragraph_format.space_after = Pt(0)
 
-    doc.add_paragraph().paragraph_format.space_after = Pt(12)
+    doc.add_paragraph().paragraph_format.space_after = Pt(18)
 
-    # 3. Green Table Box
+    # 3. Green Header Table
     info_table = doc.add_table(rows=1, cols=2)
     info_table.alignment = WD_ALIGN_PARAGRAPH.CENTER
     info_table.width = Inches(6.8)
@@ -98,12 +92,10 @@ def generate_docx(matrix_df, col_sums, wabak_df):
     doc.add_paragraph().add_run(h11_text)
 
     # Table 1 (Matrix)
-    num_rows = len(matrix_df) + 2
-    num_cols = len(TEMPLATE_PKDS) + 2
-    t1 = doc.add_table(rows=num_rows, cols=num_cols)
+    t1 = doc.add_table(rows=len(matrix_df) + 2, cols=len(TEMPLATE_PKDS) + 2)
     t1.style = 'Table Grid'
     
-    # Headers
+    # Headers Table 1
     h_cells = t1.rows[0].cells
     h_cells[0].text = "PENYAKIT"
     set_cell_background(h_cells[0], "BFDFFF")
@@ -111,23 +103,26 @@ def generate_docx(matrix_df, col_sums, wabak_df):
         cell = h_cells[i+1]
         cell.text = pkd.replace("PKD ", "")
         set_cell_background(cell, "BFDFFF")
-        cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-        cell.paragraphs[0].runs[0].font.size = Pt(8)
+        p = cell.paragraphs[0]
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p.runs[0].font.size = Pt(8)
     h_cells[-1].text = "Grand Total"
     set_cell_background(h_cells[-1], "FFFF00")
 
-    # Data rows
+    # Data rows Table 1
     for r_idx, (penyakit, row_data) in enumerate(matrix_df.iterrows()):
         row = t1.rows[r_idx + 1].cells
         row[0].text = str(penyakit)
         set_cell_background(row[0], "D9E9FF")
+        row[0].paragraphs[0].runs[0].font.size = Pt(8)
         for c_idx, val in enumerate(row_data):
             cell = row[c_idx+1]
             cell.text = str(int(val))
+            cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
             cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-            if (c_idx + 1) == (num_cols - 1): set_cell_background(cell, "FFFFB3")
+            if (c_idx + 1) == (len(row_data)): set_cell_background(cell, "FFFFB3")
 
-    # Footer
+    # Footer Table 1
     f_cells = t1.rows[-1].cells
     f_cells[0].text = "Grand Total"
     set_cell_background(f_cells[0], "FFFF00")
@@ -141,7 +136,7 @@ def generate_docx(matrix_df, col_sums, wabak_df):
     doc.add_page_break()
     doc.add_paragraph().add_run("2.0 Ringkasan Laporan Notifikasi Wabak").bold = True
     
-    harian_total = wabak_df['HARIAN'].sum()
+    harian_total = int(wabak_df['HARIAN'].sum())
     yesterday_str = yesterday.strftime('%d %B %Y')
     
     if harian_total > 0:
@@ -151,14 +146,14 @@ def generate_docx(matrix_df, col_sums, wabak_df):
     
     doc.add_paragraph().add_run(h21_text)
 
-    # Table 2 (Wabak)
+    # Table 2 (Dynamic Wabak Table)
     t2 = doc.add_table(rows=len(wabak_df) + 2, cols=3)
     t2.style = 'Table Grid'
     t2.alignment = WD_ALIGN_PARAGRAPH.CENTER
     
-    # Headers
-    h2 = ["PENYAKIT", "HARIAN", "KUMULATIF"]
-    for i, h in enumerate(h2):
+    # Headers Table 2
+    h2_titles = ["PENYAKIT", "HARIAN", "KUMULATIF"]
+    for i, h in enumerate(h2_titles):
         cell = t2.cell(0, i)
         cell.text = h
         set_cell_background(cell, "BFDFFF")
@@ -166,16 +161,20 @@ def generate_docx(matrix_df, col_sums, wabak_df):
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p.runs[0].font.bold = True
 
-    # Data
+    # Data Rows Table 2
     for i, (penyakit, row_data) in enumerate(wabak_df.iterrows()):
         cells = t2.rows[i+1].cells
         cells[0].text = str(penyakit)
         set_cell_background(cells[0], "D9E9FF")
+        cells[0].paragraphs[0].runs[0].font.size = Pt(9)
+        
         cells[1].text = str(int(row_data['HARIAN']))
         cells[2].text = str(int(row_data['KUMULATIF']))
+        
+        cells[1].vertical_alignment = cells[2].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         cells[1].paragraphs[0].alignment = cells[2].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    # Footer
+    # Footer Table 2
     f2 = t2.rows[-1].cells
     f2[0].text = "JUMLAH"
     set_cell_background(f2[0], "FFFF00")
@@ -204,14 +203,13 @@ st.markdown("### Step 1: Upload Required Files")
 file1 = st.file_uploader("📂 Upload Daily Notification Excel (Section 1.0)", type="xlsx")
 file2 = st.file_uploader("📂 Upload Outbreak Listing Excel (Section 2.0)", type="xlsx")
 
-# THE BUTTON ONLY APPEARS IF BOTH FILES ARE UPLOADED
 if file1 and file2:
     st.markdown("---")
-    st.success("Both files uploaded! You can now generate the report.")
+    st.success("Both files uploaded! Ready to generate.")
     
     if st.button("🚀 Generate & Download Report"):
         try:
-            # Section 1.0 Processing
+            # --- Section 1.0 Data Processing ---
             df1 = pd.read_excel(file1)
             df1 = df1[df1['Notifikasi Status'] != 'Abai Notifikasi']
             df1 = df1[df1['Pejabat Kesihatan'].isin(TEMPLATE_PKDS)]
@@ -220,29 +218,35 @@ if file1 and file2:
             matrix = matrix.sort_values(by='Grand Total', ascending=False)
             col_totals = matrix.sum(axis=0)
 
-            # Section 2.0 Processing
+            # --- Section 2.0 Data Processing (DYNAMIC) ---
             df2 = pd.read_excel(file2)
             yesterday = date.today() - timedelta(days=1)
             df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date
             
+            # Extract all unique diseases found in the Excel
+            unique_diseases = df2['PENYAKIT'].unique()
             wabak_summary = []
-            for dis in DISEASE_LIST_WABAK:
-                harian = len(df2[(df2['PENYAKIT'] == dis) & (df2['Tarikh Isytihar Wabak'] == yesterday)])
-                kumulatif = len(df2[df2['PENYAKIT'] == dis])
-                wabak_summary.append({'PENYAKIT': dis, 'HARIAN': harian, 'KUMULATIF': kumulatif})
+            
+            for dis in unique_diseases:
+                if pd.isna(dis): continue
+                h_count = len(df2[(df2['PENYAKIT'] == dis) & (df2['Tarikh Isytihar Wabak'] == yesterday)])
+                k_count = len(df2[df2['PENYAKIT'] == dis])
+                wabak_summary.append({'PENYAKIT': dis, 'HARIAN': h_count, 'KUMULATIF': k_count})
             
             wabak_df = pd.DataFrame(wabak_summary).set_index('PENYAKIT')
+            # Sort by Kumulatif descending to match your pivot
+            wabak_df = wabak_df.sort_values(by='KUMULATIF', ascending=False)
 
-            # DOCX Generation
+            # Generate Docx
             doc_out = generate_docx(matrix, col_totals, wabak_df)
             
             st.download_button(
-                label="⬇️ Click here to save Laporan_BWKK.docx",
+                label="⬇️ Download Full Laporan_BWKK.docx",
                 data=doc_out,
                 file_name=f"Laporan_BWKK_{date.today()}.docx",
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             )
         except Exception as e:
-            st.error(f"An error occurred: {e}")
+            st.error(f"Error processing data: {e}")
 else:
-    st.info("Please upload both Excel files above to enable the 'Generate' button.")
+    st.info("Upload both files to enable report generation.")
