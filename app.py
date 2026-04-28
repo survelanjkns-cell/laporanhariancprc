@@ -93,7 +93,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
 
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
-    # --- SECTION 1.0 ---
+    # --- SECTION 1.0 (Kekal) ---
     apply_font(doc.add_paragraph().add_run("1.0 Ringkasan Laporan Input Enotifikasi"), 11, bold=True)
     total_notifications = int(col_sums['Grand Total'])
     h11_text = f"Jadual di bawah menunjukkan jumlah input enotifikasi di negeri Selangor. Sejumlah {total_notifications} input notifikasi telah diterima pada {yesterday.strftime('%d %B %Y')} dengan pecahan mengikut penyakit seperti dalam jadual 1."
@@ -133,7 +133,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
         set_cell_background(cell, "FFFF00")
         cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    # Caption Jadual 1 - CENTERED
     p1_cap = doc.add_paragraph()
     p1_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
     apply_font(p1_cap.add_run("Jadual 1 : Senarai Input eNotifikasi"), 10, bold=False)
@@ -169,12 +168,11 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
     for c in range(3): set_cell_background(f2_cells[c], "FFFF00")
     f2_cells[1].paragraphs[0].alignment = f2_cells[2].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    # Caption Jadual 2 - CENTERED
     p2_cap = doc.add_paragraph()
     p2_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
     apply_font(p2_cap.add_run("Jadual 2 : Senarai Notifikasi Wabak"), 10, bold=False)
 
-    # --- SECTION 3.0 ---
+    # --- SECTION 3.0 (VECTOR - REVISED FOR SINGLE LINE) ---
     doc.add_page_break()
     apply_font(doc.add_paragraph().add_run("3.0 Ringkasan Laporan Wabak Vektor"), 11, bold=True)
     try:
@@ -188,7 +186,10 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
     t3.style = 'Table Grid'
     t3.alignment = WD_TABLE_ALIGNMENT.CENTER
     
-    col_widths = [Inches(2.0), Inches(0.65), Inches(0.65), Inches(0.65), Inches(0.65), Inches(0.65), Inches(0.65)]
+    # PELARASAN KRITIKAL: Melebarkan DAERAH supaya teks muat sebaris
+    col_widths = [Inches(2.2), Inches(0.6), Inches(0.6), Inches(0.6), Inches(0.6), Inches(0.6), Inches(0.6)]
+    
+    # Row 1 Headers
     h3_r1 = t3.rows[0].cells
     h3_r1[0].merge(t3.rows[1].cells[0]).text = "DAERAH"
     h3_r1[1].merge(h3_r1[2]).text = "DENGGI"
@@ -200,8 +201,9 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
         h3_r1[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         p = h3_r1[i].paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        apply_font(p.runs[0], 8.5, bold=True)
+        apply_font(p.runs[0], 8, bold=True)
 
+    # Row 2 Headers
     h3_r2 = t3.rows[1].cells
     for i in range(1, 7):
         h3_r2[i].text = "HARIAN" if i % 2 != 0 else "KUM"
@@ -211,22 +213,32 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         apply_font(p.runs[0], 7.5, bold=True)
 
+    # Data Rows
     for i in range(len(vector_df)):
         row_cells = t3.rows[i+2].cells
         for j in range(7):
             val = vector_df.iloc[i, j]
             try: display_val = str(int(float(val))) if j > 0 else str(val)
             except: display_val = str(val)
+            
             row_cells[j].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+            row_cells[j].width = col_widths[j]
             p = row_cells[j].paragraphs[0]
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT if j == 0 else WD_ALIGN_PARAGRAPH.CENTER
             run = p.add_run(display_val)
-            f_size = 7.5 if j == 0 else 8 
-            if i == len(vector_df)-1: set_cell_background(row_cells[j], "FFFF00")
-            elif j == 0: set_cell_background(row_cells[j], "FCE4D6")
-            apply_font(run, f_size, bold=True)
+            
+            # Gunakan saiz 7.5pt untuk pastikan muat
+            f_size = 7.5
+            
+            if i == len(vector_df)-1: # Jumlah
+                set_cell_background(row_cells[j], "FFFF00")
+                apply_font(run, f_size, bold=True)
+            elif j == 0: # Daerah
+                set_cell_background(row_cells[j], "FCE4D6")
+                apply_font(run, f_size, bold=True)
+            else:
+                apply_font(run, f_size, bold=True)
 
-    # Caption Jadual 3 - CENTERED
     p3_cap = doc.add_paragraph()
     p3_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
     apply_font(p3_cap.add_run("Jadual 3 : Senarai Notifikasi Wabak Vektor"), 10, bold=False)
@@ -236,7 +248,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
     target.seek(0)
     return target
 
-# --- STREAMLIT UI ---
+# --- UI (Sama) ---
 st.set_page_config(page_title="BWKK Report Generator", layout="centered")
 st.title("📊 BWKK Report Generator")
 
@@ -246,7 +258,6 @@ f2 = st.file_uploader("📂 Muat Naik Excel Penyenaraian Wabak (2.0)", type="xls
 if f1 and f2:
     if st.button("🚀 Jana Laporan Lengkap (1.0 + 2.0 + 3.0)"):
         try:
-            # S1
             df1 = pd.read_excel(f1)
             df1 = df1[df1['Notifikasi Status'] != 'Abai Notifikasi']
             df1 = df1[df1['Pejabat Kesihatan'].isin(TEMPLATE_PKDS)]
@@ -255,7 +266,6 @@ if f1 and f2:
             matrix = matrix.sort_values(by='Grand Total', ascending=False)
             col_totals = matrix.sum(axis=0)
 
-            # S2
             df2 = pd.read_excel(f2)
             df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date
             df2 = df2[df2['Tarikh Isytihar Wabak'] >= date(2026, 1, 4)]
@@ -271,7 +281,6 @@ if f1 and f2:
                 wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'KUMULATIF': k})
             wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
-            # S3
             raw_gs = pd.read_csv(GSHEET_URL, header=None)
             mask = raw_gs.apply(lambda r: r.astype(str).str.contains('PETALING').any(), axis=1)
             if mask.any():
