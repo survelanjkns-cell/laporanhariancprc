@@ -10,7 +10,7 @@ from docx.oxml.ns import nsdecls
 import io
 import os
 
-# --- CONSTANTS ---
+# --- KONSTAN ---
 TEMPLATE_PKDS = [
     'PKD GOMBAK', 'PKD HULU LANGAT', 'PKD HULU SELANGOR', 'PKD KLANG',
     'PKD KUALA LANGAT', 'PKD KUALA SELANGOR', 'PKD PETALING', 
@@ -22,7 +22,7 @@ SHEET_ID = "1bjyNcntm-I6nRaIVkVdJqJRAzn5r2tYFfjUAN0emv9w"
 GID = "0"
 GSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
 
-# --- HELPERS ---
+# --- PEMBANTU (HELPERS) ---
 def set_cell_background(cell, hex_color):
     shading_elm = parse_xml(r'<w:shd {} w:fill="{}"/>'.format(nsdecls('w'), hex_color))
     cell._tc.get_or_add_tcPr().append(shading_elm)
@@ -46,12 +46,21 @@ def apply_font(run, size, bold=True):
 # --- DOCX GENERATOR ---
 def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
     doc = Document()
+    
+    # Global Style
+    style = doc.styles['Normal']
+    style.font.name = 'Arial'
+    style.font.size = Pt(11)
+
     today = date.today()
     yesterday = today - timedelta(days=1)
     
+    # Page setup
     section = doc.sections[0]
-    section.top_margin = section.bottom_margin = Cm(2.54)
-    section.left_margin = section.right_margin = Cm(3.18)
+    section.top_margin = Cm(2.54)
+    section.bottom_margin = Cm(2.54)
+    section.left_margin = Cm(3.18)
+    section.right_margin = Cm(3.18)
 
     # 1. Logo
     logo_path = "logo.png.jpg" 
@@ -61,7 +70,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
         run_logo = p_logo.add_run()
         run_logo.add_picture(logo_path, width=Inches(2.0))
 
-    # 2. Header Titles
+    # 2. Tajuk Header
     titles = [
         ("LAPORAN HARIAN KEJADIAN BENCANA, WABAK, KECEMASAN, KRISIS (BWKK)", 11),
         ("PUSAT KESIAPSIAGAAN DAN TINDAKCEPAT KRISIS (CPRC)", 11),
@@ -77,7 +86,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
 
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
-    # 3. Green Table Box
+    # 3. Jadual Hijau (Tarikh/Minggu Epi)
     info_table = doc.add_table(rows=1, cols=2)
     info_table.alignment = WD_ALIGN_PARAGRAPH.CENTER
     info_table.width = Inches(5.8) 
@@ -91,7 +100,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
         run = p.add_run(txt)
         apply_font(run, 10, bold=True)
 
-    # --- SECTION 1.0 ---
+    # --- SEKSYEN 1.0 ---
     doc.add_paragraph()
     apply_font(doc.add_paragraph().add_run("1.0 Ringkasan Laporan Input Enotifikasi"), 11, bold=True)
     
@@ -135,7 +144,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
 
     apply_font(doc.add_paragraph().add_run("Jadual 1 : Senarai Input eNotifikasi"), 10, bold=False)
 
-    # --- SECTION 2.0 ---
+    # --- SEKSYEN 2.0 ---
     doc.add_page_break()
     apply_font(doc.add_paragraph().add_run("2.0 Ringkasan Laporan Notifikasi Wabak"), 11, bold=True)
     harian_total = int(wabak_df['HARIAN'].sum())
@@ -166,22 +175,22 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
 
     apply_font(doc.add_paragraph().add_run("Jadual 2 : Senarai Notifikasi Wabak"), 10, bold=False)
 
-    # --- SECTION 3.0 ---
+    # --- SEKSYEN 3.0 ---
     doc.add_page_break()
     apply_font(doc.add_paragraph().add_run("3.0 Ringkasan Laporan Wabak Vektor"), 11, bold=True)
     
-    # Safe calc for xx
     try:
+        # Kira XX dari total Harian (Kolom 1, 3, 5 dalam vector_df)
         xx = int(float(vector_df.iloc[-1, 1]) + float(vector_df.iloc[-1, 3]) + float(vector_df.iloc[-1, 5]))
     except: xx = 0
 
     h31_text = f"Jadual di bawah menunjukkan jumlah wabak vektor harian dan kumulatif di negeri Selangor. Sejumlah {xx} input notifikasi wabak vektor telah diterima pada {yesterday.strftime('%d %B %Y')} dengan pecahan mengikut penyakit seperti dalam jadual 3."
     apply_font(doc.add_paragraph().add_run(h31_text), 10, bold=False)
 
-    t3 = doc.add_table(rows=13, cols=7)
+    t3 = doc.add_table(rows=len(vector_df) + 2, cols=7)
     t3.style = 'Table Grid'
     
-    # Header Row 1
+    # Header Row 1 (Merged)
     h3_row1 = t3.rows[0].cells
     apply_font(h3_row1[0].paragraphs[0].add_run("DAERAH"), 9, bold=True)
     h3_row1[1].merge(h3_row1[2]).text = "DENGGI"
@@ -200,7 +209,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
         set_cell_background(cell, "BFDFFF")
         cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    # Data Rows (SAFE CONVERSION)
+    # Isi Data Vektor
     for i in range(len(vector_df)):
         row_cells = t3.rows[i+2].cells
         for j in range(7):
@@ -231,35 +240,8 @@ f2 = st.file_uploader("📂 Muat Naik Excel Penyenaraian Wabak (2.0)", type="xls
 if f1 and f2:
     if st.button("🚀 Jana Laporan Lengkap (1.0 + 2.0 + 3.0)"):
         try:
-            # S1
+            # --- Proses S1 ---
             df1 = pd.read_excel(f1)
             df1 = df1[df1['Notifikasi Status'] != 'Abai Notifikasi']
             df1 = df1[df1['Pejabat Kesihatan'].isin(TEMPLATE_PKDS)]
             matrix = pd.crosstab(df1['Diagnosis'], df1['Pejabat Kesihatan']).reindex(columns=TEMPLATE_PKDS, fill_value=0)
-            matrix['Grand Total'] = matrix.sum(axis=1)
-            matrix = matrix.sort_values(by='Grand Total', ascending=False)
-            col_totals = matrix.sum(axis=0)
-
-            # S2
-            df2 = pd.read_excel(f2)
-            df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date
-            df2 = df2[df2['Tarikh Isytihar Wabak'] >= date(2026, 1, 4)]
-            def group_inf(n): return "ILI/INFLUENZA" if any(x in str(n).upper() for x in ["INFLUENZA", "ILI"]) else n
-            df2['PENYAKIT'] = df2['PENYAKIT'].apply(group_inf)
-            yes = date.today() - timedelta(days=1)
-            unique_d = df2['PENYAKIT'].unique()
-            wb_sum = []
-            for d in unique_d:
-                if pd.isna(d): continue
-                h = len(df2[(df2['PENYAKIT'] == d) & (df2['Tarikh Isytihar Wabak'] == yes)])
-                k = len(df2[df2['PENYAKIT'] == d])
-                wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'KUMULATIF': k})
-            wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
-
-            # S3 (GSheet)
-            v_data = pd.read_csv(GSHEET_URL, header=None).iloc[20:32, 13:20] 
-
-            # GENERATE
-            doc_out = generate_docx(matrix, col_totals, wabak_df, v_data)
-            st.download_button("⬇️ Muat Turun Laporan", data=doc_out, file_name=f"Laporan_BWKK_{date.today()}.docx")
-        except Exception as e: st.error(f"Ralat: {e}")
