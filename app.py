@@ -7,15 +7,20 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import parse_xml
 from docx.oxml.ns import nsdecls
 import io
+import os
 
-# --- CONFIG & CONSTANTS ---
+# --- CONSTANTS ---
 TEMPLATE_PKDS = [
     'PKD GOMBAK', 'PKD HULU LANGAT', 'PKD HULU SELANGOR', 'PKD KLANG',
     'PKD KUALA LANGAT', 'PKD KUALA SELANGOR', 'PKD PETALING', 
     'PKD SABAK BERNAM', 'PKD SEPANG'
 ]
 
-# --- LOGIC FUNCTIONS ---
+# --- HELPERS ---
+def set_cell_background(cell, hex_color):
+    shading_elm = parse_xml(r'<w:shd {} w:fill="{}"/>'.format(nsdecls('w'), hex_color))
+    cell._tc.get_or_add_tcPr().append(shading_elm)
+
 def get_epi_week(target_date):
     start_date = date(2026, 1, 4)
     if target_date < start_date: return "N/A"
@@ -27,40 +32,46 @@ def get_malay_date(target_date):
     day_name = days_ms.get(target_date.strftime("%A"))
     return target_date.strftime(f"%d %B %Y ({day_name})")
 
-def set_cell_background(cell, hex_color):
-    shading_elm = parse_xml(r'<w:shd {} w:fill="{}"/>'.format(nsdecls('w'), hex_color))
-    cell._tc.get_or_add_tcPr().append(shading_elm)
-
-# --- REPORT GENERATOR ---
+# --- DOCX GENERATOR ---
 def generate_docx(matrix_df, col_sums):
     doc = Document()
-    today = date.today()
-    yesterday = today - timedelta(days=1)
     
-    # Header & Logo (Assuming logo.png is in the repo)
-    try:
+    # Page setup
+    section = doc.sections[0]
+    section.left_margin = section.right_margin = Inches(0.5)
+    section.top_margin = section.bottom_margin = Inches(0.4)
+
+    # 1. Logo (Fixed to match your GitHub filename)
+    logo_path = "logo.png.jpg" 
+    if os.path.exists(logo_path):
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p.add_run().add_picture("logo.png", width=Inches(1.2))
-    except:
-        pass # Skip if logo not found
+        p.add_run().add_picture(logo_path, width=Inches(1.2))
 
-    # Titles
-    titles = ["KEMENTERIAN KESIHATAN MALAYSIA", "", "LAPORAN HARIAN KEJADIAN BENCANA, WABAK, KECEMASAN, KRISIS (BWKK)", "PUSAT KESIAPSIAGAAN DAN TINDAKCEPAT KRISIS (CPRC)", "JABATAN KESIHATAN NEGERI SELANGOR"]
-    for t in titles:
-        if t == "": doc.add_paragraph(); continue
+    # 2. Header Titles
+    titles = [
+        ("KEMENTERIAN KESIHATAN MALAYSIA", 10),
+        ("", 0),
+        ("LAPORAN HARIAN KEJADIAN BENCANA, WABAK, KECEMASAN, KRISIS (BWKK)", 12),
+        ("PUSAT KESIAPSIAGAAN DAN TINDAKCEPAT KRISIS (CPRC)", 12),
+        ("JABATAN KESIHATAN NEGERI SELANGOR", 12)
+    ]
+    for text, size in titles:
         para = doc.add_paragraph()
         para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        run = para.add_run(t)
-        run.bold = True
-        run.font.name = 'Arial'
-        run.font.size = Pt(10 if "KEMENTERIAN" in t else 12)
+        if text != "":
+            run = para.add_run(text)
+            run.bold = True
+            run.font.name = 'Arial'
+            run.font.size = Pt(size)
+        para.paragraph_format.space_after = Pt(0)
 
-    # Green Box
-    table = doc.add_table(rows=1, cols=2)
-    table.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    # 3. Green Table Box
+    today = date.today()
+    info_table = doc.add_table(rows=1, cols=2)
+    info_table.alignment = WD_ALIGN_PARAGRAPH.CENTER
     for i in range(2):
-        cell = table.cell(0, i)
+        cell = info_table.cell(0, i)
         set_cell_background(cell, "C6E0B4")
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -70,55 +81,96 @@ def generate_docx(matrix_df, col_sums):
         run.font.size = Pt(11)
 
     doc.add_paragraph()
-    
-    # Section 1.0 & 1.1
+
+    # 4. Section 1.0
     doc.add_paragraph().add_run("1.0 Ringkasan Laporan Input Enotifikasi").bold = True
-    total_val = int(col_sums['Grand Total'])
-    h11_text = f"1.1 Sejumlah {total_val} input notifikasi telah diterima pada {yesterday.strftime('%d %B %Y')} dengan pecahan mengikut penyakit seperti dalam jadual 1."
+    yesterday = today - timedelta(days=1)
+    total_notifications = int(col_sums['Grand Total'])
+    h11_text = f"1.1 Sejumlah {total_notifications} input notifikasi telah diterima pada {get_malay_date(yesterday).split(' (')[0]} dengan pecahan mengikut penyakit seperti dalam jadual 1."
     doc.add_paragraph().add_run(h11_text)
 
-    # Matrix Table (Similar to previous logic, simplified for brevity)
-    # [Insert table creation logic here - using the matrix_df we prepared]
-    # ... (Same logic as the previous app.py for the matrix table) ...
+    # 5. The Matrix Table
+    num_rows = len(matrix_df) + 2
+    num_cols = len(TEMPLATE_PKDS) + 2
+    
+    table = doc.add_table(rows=num_rows, cols=num_cols)
+    table.style = 'Table Grid'
+    
+    # Header Row
+    header_cells = table.rows[0].cells
+    header_cells[0].text = "PENYAKIT"
+    set_cell_background(header_cells[0], "BFDFFF")
+    
+    for i, pkd in enumerate(TEMPLATE_PKDS):
+        cell = header_cells[i+1]
+        cell.text = pkd.replace("PKD ", "") # Shorten names to fit
+        set_cell_background(cell, "BFDFFF")
+        cell.paragraphs[0].runs[0].font.size = Pt(8)
+        
+    header_cells[-1].text = "Grand Total"
+    set_cell_background(header_cells[-1], "FFFF00")
 
-    # Save to memory buffer
-    bio = io.BytesIO()
-    doc.save(bio)
-    bio.seek(0)
-    return bio
+    # Data Rows
+    for r_idx, (penyakit, row_data) in enumerate(matrix_df.iterrows()):
+        row = table.rows[r_idx + 1].cells
+        row[0].text = str(penyakit)
+        set_cell_background(row[0], "D9E9FF")
+        row[0].paragraphs[0].runs[0].font.size = Pt(8)
+        
+        for c_idx, val in enumerate(row_data):
+            cell = row[c_idx + 1]
+            cell.text = str(int(val))
+            cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+            cell.paragraphs[0].runs[0].font.size = Pt(9)
+            if (c_idx + 1) == (num_cols - 1):
+                set_cell_background(cell, "FFFFB3")
+
+    # Grand Total Row
+    footer_cells = table.rows[-1].cells
+    footer_cells[0].text = "Grand Total"
+    set_cell_background(footer_cells[0], "FFFF00")
+    for i, val in enumerate(col_sums):
+        cell = footer_cells[i+1]
+        cell.text = str(int(val))
+        set_cell_background(cell, "FFFF00")
+        cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    doc.add_paragraph()
+    p_cap = doc.add_paragraph()
+    p_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_cap.add_run("Jadual 1 : Senarai Input Enotifikasi")
+
+    target = io.BytesIO()
+    doc.save(target)
+    target.seek(0)
+    return target
 
 # --- STREAMLIT UI ---
-st.set_page_config(page_title="BWKK Generator", page_icon="📊")
+st.set_page_config(page_title="BWKK Gen", layout="centered")
 st.title("📊 BWKK Report Generator")
 
-uploaded_file = st.file_uploader("Upload Excel File (.xlsx)", type="xlsx")
+uploaded_file = st.file_uploader("Upload Excel (.xlsx)", type="xlsx")
 
 if uploaded_file:
     try:
         df = pd.read_excel(uploaded_file)
-        # Filtering
+        # Filters
         df = df[df['Notifikasi Status'] != 'Abai Notifikasi']
         df = df[df['Pejabat Kesihatan'].isin(TEMPLATE_PKDS)]
         
-        # Pivot
-        matrix_df = pd.crosstab(df['Diagnosis'], df['Pejabat Kesihatan'])
-        matrix_df = matrix_df.reindex(columns=TEMPLATE_PKDS, fill_value=0)
-        matrix_df['Grand Total'] = matrix_df.sum(axis=1)
-        col_sums = matrix_df.sum(axis=0)
+        # Matrix
+        matrix = pd.crosstab(df['Diagnosis'], df['Pejabat Kesihatan'])
+        matrix = matrix.reindex(columns=TEMPLATE_PKDS, fill_value=0)
+        matrix['Grand Total'] = matrix.sum(axis=1)
+        col_totals = matrix.sum(axis=0)
 
-        st.success("Data processed successfully!")
+        output = generate_docx(matrix, col_totals)
         
-        # Preview Data
-        st.write("### Data Preview (Grand Totals per District)")
-        st.bar_chart(col_sums.drop('Grand Total'))
-
-        # Generate Button
-        doc_io = generate_docx(matrix_df, col_sums)
         st.download_button(
-            label="📄 Download Word Report",
-            data=doc_io,
+            label="✅ Download Word Report",
+            data=output,
             file_name=f"Laporan_BWKK_{date.today()}.docx",
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
     except Exception as e:
-        st.error(f"Error: {e}")
+        st.error(f"Error reading file: {e}")
