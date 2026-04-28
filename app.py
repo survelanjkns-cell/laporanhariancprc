@@ -26,6 +26,17 @@ def set_cell_background(cell, hex_color):
     shading_elm = parse_xml(r'<w:shd {} w:fill="{}"/>'.format(nsdecls('w'), hex_color))
     cell._tc.get_or_add_tcPr().append(shading_elm)
 
+def set_cell_paddings(cell, top=None, start=None, bottom=None, end=None):
+    """Menambah ruang dalam (padding) pada sel jadual"""
+    tc = cell._tc
+    tcPr = tc.get_or_add_tcPr()
+    tcMar = parse_xml(r'<w:tcMar {}/>'.format(nsdecls('w')))
+    for margin, value in [('top', top), ('start', start), ('bottom', bottom), ('end', end)]:
+        if value is not None:
+            node = parse_xml(r'<w:{} w:w="{}" w:type="dxa"/>'.format(margin, value))
+            tcMar.append(node)
+    tcPr.append(tcMar)
+
 def get_epi_week(target_date):
     start_date = date(2026, 1, 4)
     if target_date < start_date: return "N/A"
@@ -48,7 +59,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
     today = date.today()
     yesterday = today - timedelta(days=1)
     
-    # Page setup
     section = doc.sections[0]
     section.top_margin = section.bottom_margin = Cm(2.54)
     section.left_margin = section.right_margin = Cm(3.18)
@@ -85,6 +95,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
         cell = info_table.cell(0, i)
         set_cell_background(cell, "C6E0B4")
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+        set_cell_paddings(cell, top=100, bottom=100) # Besarkan header hijau juga
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         txt = f"Tarikh : {get_malay_date(today)}\n(Sehingga jam 10.00 pagi)" if i == 0 else f"\nMinggu Epidemiologi : {get_epi_week(today)}"
@@ -93,17 +104,23 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
 
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
-    # --- SECTION 1.0 (Kekal) ---
+    # --- SECTION 1.0 ---
     apply_font(doc.add_paragraph().add_run("1.0 Ringkasan Laporan Input Enotifikasi"), 11, bold=True)
     total_notifications = int(col_sums['Grand Total'])
     h11_text = f"Jadual di bawah menunjukkan jumlah input enotifikasi di negeri Selangor. Sejumlah {total_notifications} input notifikasi telah diterima pada {yesterday.strftime('%d %B %Y')} dengan pecahan mengikut penyakit seperti dalam jadual 1."
     apply_font(doc.add_paragraph().add_run(h11_text), 10, bold=False)
 
+    # Jadual 1
     t1 = doc.add_table(rows=len(matrix_df) + 2, cols=len(TEMPLATE_PKDS) + 2)
     t1.style = 'Table Grid'
     pkd_map = {'PKD GOMBAK': 'GBK', 'PKD HULU LANGAT': 'HL', 'PKD HULU SELANGOR': 'HS','PKD KLANG': 'KLG', 'PKD KUALA LANGAT': 'KL', 'PKD KUALA SELANGOR': 'KS','PKD PETALING': 'PTG', 'PKD SABAK BERNAM': 'SB', 'PKD SEPANG': 'SPG'}
     
     h_cells = t1.rows[0].cells
+    # BESARKAN HEADER BOX JADUAL 1
+    for i in range(len(h_cells)):
+        set_cell_paddings(h_cells[i], top=150, bottom=150) # Menambah ketinggian visual kotak
+        h_cells[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+
     apply_font(h_cells[0].paragraphs[0].add_run("PENYAKIT"), 7.5, bold=True)
     set_cell_background(h_cells[0], "BFDFFF")
     for i, pkd in enumerate(TEMPLATE_PKDS):
@@ -125,6 +142,10 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
             if (c_idx + 1) == (len(row_data)): set_cell_background(cell, "FFFFB3")
 
     f_cells = t1.rows[-1].cells
+    for i in range(len(f_cells)):
+        set_cell_paddings(f_cells[i], top=100, bottom=100) # Besarkan kotak jumlah bawah
+        f_cells[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+
     apply_font(f_cells[0].paragraphs[0].add_run("Jumlah"), 7.5, bold=True)
     set_cell_background(f_cells[0], "FFFF00")
     for i, val in enumerate(col_sums):
@@ -149,6 +170,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
     t2.alignment = WD_TABLE_ALIGNMENT.CENTER
     for i, h in enumerate(["PENYAKIT", "HARIAN", "KUMULATIF"]):
         cell = t2.cell(0, i)
+        set_cell_paddings(cell, top=120, bottom=120)
         apply_font(cell.paragraphs[0].add_run(h), 9, bold=True)
         set_cell_background(cell, "BFDFFF")
         cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -172,7 +194,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
     p2_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
     apply_font(p2_cap.add_run("Jadual 2 : Senarai Notifikasi Wabak"), 10, bold=False)
 
-    # --- SECTION 3.0 (VECTOR - REVISED FOR SINGLE LINE) ---
+    # --- SECTION 3.0 ---
     doc.add_page_break()
     apply_font(doc.add_paragraph().add_run("3.0 Ringkasan Laporan Wabak Vektor"), 11, bold=True)
     try:
@@ -186,10 +208,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
     t3.style = 'Table Grid'
     t3.alignment = WD_TABLE_ALIGNMENT.CENTER
     
-    # PELARASAN KRITIKAL: Melebarkan DAERAH supaya teks muat sebaris
     col_widths = [Inches(2.2), Inches(0.6), Inches(0.6), Inches(0.6), Inches(0.6), Inches(0.6), Inches(0.6)]
-    
-    # Row 1 Headers
     h3_r1 = t3.rows[0].cells
     h3_r1[0].merge(t3.rows[1].cells[0]).text = "DAERAH"
     h3_r1[1].merge(h3_r1[2]).text = "DENGGI"
@@ -198,46 +217,36 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
     
     for i in [0, 1, 3, 5]:
         set_cell_background(h3_r1[i], "BFDFFF")
+        set_cell_paddings(h3_r1[i], top=100, bottom=100)
         h3_r1[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         p = h3_r1[i].paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         apply_font(p.runs[0], 8, bold=True)
 
-    # Row 2 Headers
     h3_r2 = t3.rows[1].cells
     for i in range(1, 7):
         h3_r2[i].text = "HARIAN" if i % 2 != 0 else "KUM"
         set_cell_background(h3_r2[i], "BFDFFF")
+        set_cell_paddings(h3_r2[i], top=80, bottom=80)
         h3_r2[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         p = h3_r2[i].paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         apply_font(p.runs[0], 7.5, bold=True)
 
-    # Data Rows
     for i in range(len(vector_df)):
         row_cells = t3.rows[i+2].cells
         for j in range(7):
             val = vector_df.iloc[i, j]
             try: display_val = str(int(float(val))) if j > 0 else str(val)
             except: display_val = str(val)
-            
             row_cells[j].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-            row_cells[j].width = col_widths[j]
             p = row_cells[j].paragraphs[0]
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT if j == 0 else WD_ALIGN_PARAGRAPH.CENTER
             run = p.add_run(display_val)
-            
-            # Gunakan saiz 7.5pt untuk pastikan muat
             f_size = 7.5
-            
-            if i == len(vector_df)-1: # Jumlah
-                set_cell_background(row_cells[j], "FFFF00")
-                apply_font(run, f_size, bold=True)
-            elif j == 0: # Daerah
-                set_cell_background(row_cells[j], "FCE4D6")
-                apply_font(run, f_size, bold=True)
-            else:
-                apply_font(run, f_size, bold=True)
+            if i == len(vector_df)-1: set_cell_background(row_cells[j], "FFFF00")
+            elif j == 0: set_cell_background(row_cells[j], "FCE4D6")
+            apply_font(run, f_size, bold=True)
 
     p3_cap = doc.add_paragraph()
     p3_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -248,7 +257,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
     target.seek(0)
     return target
 
-# --- UI (Sama) ---
+# --- UI ---
 st.set_page_config(page_title="BWKK Report Generator", layout="centered")
 st.title("📊 BWKK Report Generator")
 
