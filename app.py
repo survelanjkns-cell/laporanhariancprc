@@ -105,7 +105,7 @@ def generate_docx(matrix_df, col_sums, wabak_df):
     h11_text = f"1.1 Sejumlah {total_notifications} input notifikasi telah diterima pada {yesterday.strftime('%d %B %Y')} dengan pecahan mengikut penyakit seperti dalam jadual 1."
     apply_font(p11.add_run(h11_text), 10, bold=False)
 
-    # Table 1
+    # --- Table 1 ---
     t1 = doc.add_table(rows=len(matrix_df) + 2, cols=len(TEMPLATE_PKDS) + 2)
     t1.style = 'Table Grid'
     t1.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -129,7 +129,8 @@ def generate_docx(matrix_df, col_sums, wabak_df):
         set_cell_background(cell, "BFDFFF")
         cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
         
-    run_gt = h_cells[-1].paragraphs[0].add_run("Grand Total")
+    # Changed "Grand Total" to "Jumlah" here
+    run_gt = h_cells[-1].paragraphs[0].add_run("Jumlah")
     apply_font(run_gt, 7, bold=True)
     set_cell_background(h_cells[-1], "FFFF00")
 
@@ -147,7 +148,8 @@ def generate_docx(matrix_df, col_sums, wabak_df):
             if (c_idx + 1) == (len(row_data)): set_cell_background(cell, "FFFFB3")
 
     f_cells = t1.rows[-1].cells
-    run_fgt = f_cells[0].paragraphs[0].add_run("Grand Total")
+    # Changed "Grand Total" to "Jumlah" here
+    run_fgt = f_cells[0].paragraphs[0].add_run("Jumlah")
     apply_font(run_fgt, 7.5, bold=True)
     set_cell_background(f_cells[0], "FFFF00")
     for i, val in enumerate(col_sums):
@@ -218,11 +220,14 @@ def generate_docx(matrix_df, col_sums, wabak_df):
     return target
 
 # --- STREAMLIT UI ---
+if 'file1' not in st.session_state: st.session_state.file1 = None
+if 'file2' not in st.session_state: st.session_state.file2 = None
+
 st.set_page_config(page_title="BWKK Report Generator", layout="centered")
 st.title("📊 BWKK Report Generator")
 
-file1 = st.file_uploader("📂 Upload Daily Notification Excel", type="xlsx")
-file2 = st.file_uploader("📂 Upload Outbreak Listing Excel", type="xlsx")
+file1 = st.file_uploader("📂 Upload Daily Notification Excel (Section 1.0)", type="xlsx")
+file2 = st.file_uploader("📂 Upload Outbreak Listing Excel (Section 2.0)", type="xlsx")
 
 if file1 and file2:
     if st.button("🚀 Generate Final Report"):
@@ -242,7 +247,6 @@ if file1 and file2:
             df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date
             df2 = df2[df2['Tarikh Isytihar Wabak'] >= cutoff]
             
-            # --- COMBINATION LOGIC FOR ILI/INFLUENZA ---
             def group_influenza(disease_name):
                 name = str(disease_name).upper()
                 if "INFLUENZA" in name or "ILI" in name:
