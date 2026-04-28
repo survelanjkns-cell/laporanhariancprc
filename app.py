@@ -110,7 +110,6 @@ def generate_docx(matrix_df, col_sums, wabak_df):
     t1.style = 'Table Grid'
     t1.alignment = WD_ALIGN_PARAGRAPH.CENTER
     
-    # Updated Map for requested shorts
     pkd_map = {
         'PKD GOMBAK': 'GBK', 'PKD HULU LANGAT': 'HL', 'PKD HULU SELANGOR': 'HS',
         'PKD KLANG': 'KLG', 'PKD KUALA LANGAT': 'KL', 'PKD KUALA SELANGOR': 'KS',
@@ -157,6 +156,12 @@ def generate_docx(matrix_df, col_sums, wabak_df):
         apply_font(run_fval, 8, bold=True)
         set_cell_background(cell, "FFFF00")
         cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    # --- Table 1 Caption (Updated here) ---
+    doc.add_paragraph()
+    p1_cap = doc.add_paragraph()
+    p1_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    apply_font(p1_cap.add_run("Jadual 1 : Senarai Input eNotifikasi"), 11, bold=True)
 
     # --- SECTION 2.0 ---
     doc.add_page_break()
@@ -206,7 +211,7 @@ def generate_docx(matrix_df, col_sums, wabak_df):
     doc.add_paragraph()
     p_cap = doc.add_paragraph()
     p_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    apply_font(p_cap.add_run("Jadual 2 : Senarai Notifikasi Wabak"), 10, bold=False)
+    apply_font(p_cap.add_run("Jadual 2 : Senarai Notifikasi Wabak"), 11, bold=True)
 
     target = io.BytesIO()
     doc.save(target)
@@ -248,6 +253,6 @@ if file1 and file2:
             wabak_df = pd.DataFrame(wabak_summary).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
             doc_out = generate_docx(matrix, col_totals, wabak_df)
-            st.download_button("⬇️ Download Final Word Report", data=doc_out, file_name=f"BWKK_Report_{date.today()}.docx")
+            st.download_button("⬇️ Download Final Word Report", data=doc_out, file_name=f"Laporan_BWKK_{date.today()}.docx")
         except Exception as e:
             st.error(f"Error: {e}")
