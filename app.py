@@ -38,23 +38,71 @@ def apply_font(run, size, bold=True):
     run.font.size = Pt(size)
     run.bold = bold
 
+def get_malay_date(target_date):
+    days_ms = {"Monday": "Isnin", "Tuesday": "Selasa", "Wednesday": "Rabu", "Thursday": "Khamis", "Friday": "Jumaat", "Saturday": "Sabtu", "Sunday": "Ahad"}
+    day_name = days_ms.get(target_date.strftime("%A"))
+    return target_date.strftime(f"%d %B %Y ({day_name})")
+
+def get_epi_week(target_date):
+    start_date = date(2026, 1, 4)
+    if target_date < start_date: return "N/A"
+    days_diff = (target_date - start_date).days
+    return f"{(days_diff // 7) + 1}/{target_date.year}"
+
 # --- DOCX GENERATOR ---
 def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_df, bkk_total_yesterday):
     doc = Document()
     today = date.today()
     yesterday = today - timedelta(days=1)
     
-    # Page setup
     section = doc.sections[0]
-    section.top_margin = section.bottom_margin = Cm(2.0)
-    section.left_margin = section.right_margin = Cm(2.0)
+    section.top_margin = section.bottom_margin = Cm(2.54)
+    section.left_margin = section.right_margin = Cm(3.18)
 
-    # [Logo, Tajuk Utama, Jadual Hijau, S1, S2, S3 kekal sama seperti kod sebelumnya]
-    # (Diringkaskan untuk fokus pada S4)
+    # 1. Logo
+    logo_path = "logo.png.jpg" 
+    if os.path.exists(logo_path):
+        p_logo = doc.add_paragraph()
+        p_logo.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run_logo = p_logo.add_run()
+        run_logo.add_picture(logo_path, width=Inches(1.8))
+
+    # 2. Tajuk Utama
+    titles = [
+        ("LAPORAN HARIAN KEJADIAN BENCANA, WABAK, KECEMASAN, KRISIS (BWKK)", 10.5),
+        ("PUSAT KESIAPSIAGAAN DAN TINDAKCEPAT KRISIS (CPRC)", 10.5),
+        ("JABATAN KESIHATAN NEGERI SELANGOR", 10.5)
+    ]
+    doc.add_paragraph()
+    for text, size in titles:
+        para = doc.add_paragraph()
+        para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run = para.add_run(text)
+        apply_font(run, size, bold=True)
+        para.paragraph_format.space_after = Pt(0)
+
+    # 3. Jadual Tarikh Hijau
+    doc.add_paragraph()
+    info_table = doc.add_table(rows=1, cols=2)
+    info_table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    info_table.width = Inches(5.8) 
+    for i in range(2):
+        cell = info_table.cell(0, i)
+        set_cell_background(cell, "C6E0B4")
+        set_cell_paddings(cell, top=120, bottom=120)
+        cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+        p = cell.paragraphs[0]
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        txt = f"Tarikh : {get_malay_date(today)}\n(Sehingga jam 10.00 pagi)" if i == 0 else f"\nMinggu Epidemiologi : {get_epi_week(today)}"
+        run = p.add_run(txt)
+        apply_font(run, 11, bold=True)
+
+    # --- S1, S2, S3 (Sila masukkan logik jadual 1-3 anda di sini) ---
+    # ... (Kod S1, S2, S3 diringkaskan untuk fokus S4) ...
 
     # --- SECTION 4.0 ---
-    doc.add_paragraph()
-    apply_font(doc.add_paragraph().add_run("4.0 Ringkasan Laporan Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)"), 11, bold=True)
+    doc.add_page_break()
+    apply_font(doc.add_paragraph().add_run("4.0 Ringkasan Laporan Kejadian Insiden Bencana, Kecemasan dan Crisis (BKK)"), 11, bold=True)
     
     yesterday_str = yesterday.strftime('%d %B %Y')
     if bkk_total_yesterday > 0:
@@ -68,66 +116,40 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_df, bkk_total_ye
     t4.style = 'Table Grid'
     t4.alignment = WD_TABLE_ALIGNMENT.CENTER
 
-    # Header
-    h_cells = t4.rows[0].cells
     headers = ["INSIDEN/\nBENCANA"] + BKK_DISTRICTS + ["JUMLAH", "DIISYTIHAR\nOLEH CPRC\nKKM"]
     for i, txt in enumerate(headers):
-        cell = h_cells[i]
+        cell = t4.rows[0].cells[i]
         set_cell_background(cell, "BFDFFF" if i <= len(BKK_DISTRICTS) else "FFFF00" if i == len(BKK_DISTRICTS)+1 else "C6E0B4")
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        run = p.add_run(txt)
-        apply_font(run, 7, bold=True)
-        set_cell_paddings(cell, top=100, bottom=100)
+        apply_font(p.add_run(txt), 7, bold=True)
+        set_cell_paddings(cell, top=80, bottom=80)
 
-    # Data Rows
     for r_idx, (insiden, row_data) in enumerate(bkk_df.iterrows()):
         row = t4.rows[r_idx + 1].cells
-        # Nama Insiden
-        p_name = row[0].paragraphs[0]
-        apply_font(p_name.add_run(str(insiden)), 7, bold=True)
+        apply_font(row[0].paragraphs[0].add_run(str(insiden)), 7, bold=True)
         set_cell_background(row[0], "D9E9FF")
         
-        # Districts
-        for c_idx in range(len(BKK_DISTRICTS)):
-            val = row_data[BKK_DISTRICTS[c_idx]]
+        for c_idx, dist in enumerate(BKK_DISTRICTS):
+            val = row_data[dist]
             p = row[c_idx+1].paragraphs[0]
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
             apply_font(p.add_run(str(int(val)) if val > 0 else "-"), 8, bold=False)
 
-        # Jumlah
-        p_total = row[len(BKK_DISTRICTS)+1].paragraphs[0]
-        p_total.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        apply_font(p_total.add_run(str(int(row_data['JUMLAH']))), 8, bold=True)
+        # Total & KKM
+        row[len(BKK_DISTRICTS)+1].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+        apply_font(row[len(BKK_DISTRICTS)+1].paragraphs[0].add_run(str(int(row_data['JUMLAH']))), 8, bold=True)
         set_cell_background(row[len(BKK_DISTRICTS)+1], "FFFFB3")
 
-        # KKM Declare
-        p_kkm = row[len(BKK_DISTRICTS)+2].paragraphs[0]
-        p_kkm.alignment = WD_ALIGN_PARAGRAPH.CENTER
         kkm_val = row_data['KKM_DECLARE']
-        apply_font(p_kkm.add_run(str(int(kkm_val)) if kkm_val > 0 else "-"), 8, bold=False)
+        row[len(BKK_DISTRICTS)+2].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+        apply_font(row[len(BKK_DISTRICTS)+2].paragraphs[0].add_run(str(int(kkm_val)) if kkm_val > 0 else "-"), 8, bold=False)
         set_cell_background(row[len(BKK_DISTRICTS)+2], "E2EFDA")
 
-    # Bottom Jumlah Row
-    f_cells = t4.rows[-1].cells
-    apply_font(f_cells[0].paragraphs[0].add_run("JUMLAH"), 7.5, bold=True)
-    set_cell_background(f_cells[0], "FFFF00")
-    for i in range(1, len(headers)):
-        col_name = headers[i].replace("\n", " ")
-        if "DIISYTIHAR" in col_name: col_name = "KKM_DECLARE"
-        
-        total_val = bkk_df[col_name].sum() if col_name in bkk_df.columns else 0
-        p = f_cells[i].paragraphs[0]
-        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        apply_font(p.add_run(str(int(total_val))), 8, bold=True)
-        set_cell_background(f_cells[i], "FFFF00")
-
-    p4_cap = doc.add_paragraph()
-    p4_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    apply_font(p4_cap.add_run("Jadual 4 : Senarai Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)"), 10, bold=False)
-
+    # Final Footer
     doc.add_paragraph()
     footer = doc.add_paragraph()
+    footer.alignment = WD_ALIGN_PARAGRAPH.LEFT
     apply_font(footer.add_run(f"*Sumber : Sistem e-notifikasi, Laporan Wabak KKM dimuat turun pada ({today.strftime('%d %B %Y')} @ 10.00 am)"), 9, bold=False)
 
     target = io.BytesIO()
@@ -143,42 +165,46 @@ f1 = st.file_uploader("📂 Muat Naik Excel Notifikasi Harian (1.0)", type="xlsx
 f2 = st.file_uploader("📂 Muat Naik Excel Penyenaraian Wabak (2.0)", type="xlsx")
 
 if f1 and f2:
-    if st.button("🚀 Jana Laporan Penuh (1.0 - 4.0)"):
+    if st.button("🚀 Jana Laporan Lengkap (1.0 - 4.0)"):
         try:
             yesterday = date.today() - timedelta(days=1)
             
-            # [Proses S1, S2, S3 kekal...]
-            # (Contoh ringkas untuk S1 & S2)
-            df1 = pd.read_excel(f1)
-            # ... (logik crosstab sedia ada)
-
-            # --- PROSES S4 (BKK) ---
+            # [PROSES S1 & S2 & S3 ANDA...]
+            # (Pastikan variable matrix, col_totals, wabak_df, vector_data tersedia)
+            
+            # --- PROSES S4 (BKK) DENGAN AUTO-CLEAN ---
             with st.spinner('Menarik data BKK...'):
-                df_bkk = pd.read_csv(SHEET_BKK_URL)
-                # Cleaning
-                df_bkk['TKH LAPOR'] = pd.to_datetime(df_bkk['TKH LAPOR'], dayfirst=True).dt.date
-                df_bkk['KEJADIAN'] = df_bkk['KEJADIAN'].str.upper()
-                df_bkk['DAERAH'] = df_bkk['DAERAH'].str.upper()
+                df_bkk_raw = pd.read_csv(SHEET_BKK_URL)
+                # Auto-Clean Column Names (Buang ruang kosong & tukar ke uppercase)
+                df_bkk_raw.columns = df_bkk_raw.columns.str.strip().str.upper()
                 
-                # Kira XX (Total Notifikasi Semalam)
-                bkk_total_yesterday = len(df_bkk[df_bkk['TKH LAPOR'] == yesterday])
+                # Gunakan nama kolom yang dibersihkan
+                col_tkh = 'TKH LAPOR'
+                col_kejadian = 'KEJADIAN'
+                col_daerah = 'DAERAH'
+                col_kkm = 'KKM DECLARE'
+
+                df_bkk_raw[col_tkh] = pd.to_datetime(df_bkk_raw[col_tkh], dayfirst=True).dt.date
+                df_bkk_raw[col_kejadian] = df_bkk_raw[col_kejadian].str.strip().str.upper()
+                df_bkk_raw[col_daerah] = df_bkk_raw[col_daerah].str.strip().str.upper()
                 
-                # Sediakan Matrix (Tapis Tahun 2026 jika perlu, tapi kita ambil semua dalam sheet)
-                # Matrix Daerah
-                matrix_bkk = pd.crosstab(df_bkk['KEJADIAN'], df_bkk['DAERAH']).reindex(columns=BKK_DISTRICTS, fill_value=0)
+                bkk_total_yesterday = len(df_bkk_raw[df_bkk_raw[col_tkh] == yesterday])
                 
-                # KKM Declare (Lajur N)
-                kkm_counts = df_bkk[df_bkk['KKM DECLARE'].notna()].groupby('KEJADIAN').size()
+                # Crosstab
+                matrix_bkk = pd.crosstab(df_bkk_raw[col_kejadian], df_bkk_raw[col_daerah]).reindex(columns=BKK_DISTRICTS, fill_value=0)
+                
+                # KKM Declare
+                kkm_counts = df_bkk_raw[df_bkk_raw[col_kkm].notna()].groupby(col_kejadian).size()
                 matrix_bkk['KKM_DECLARE'] = kkm_counts
                 matrix_bkk['KKM_DECLARE'] = matrix_bkk['KKM_DECLARE'].fillna(0)
                 
                 matrix_bkk['JUMLAH'] = matrix_bkk[BKK_DISTRICTS].sum(axis=1)
                 matrix_bkk = matrix_bkk.sort_values('JUMLAH', ascending=False)
 
-            # Jana Document
+            # Jana (Pastikan semua parameter dimasukkan)
             # doc_out = generate_docx(matrix, col_totals, wabak_df, vector_data, matrix_bkk, bkk_total_yesterday)
-            # ...
-            st.success("Laporan berjaya dijana!")
-            
+            # st.download_button("⬇️ Muat Turun Laporan", data=doc_out, file_name=f"Laporan_BWKK_{date.today()}.docx")
+            st.success("Logik BKK sedia! Sila cantumkan dengan kod utama anda.")
+
         except Exception as e:
             st.error(f"Ralat: {e}")
