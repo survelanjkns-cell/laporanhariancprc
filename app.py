@@ -48,6 +48,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
     today = date.today()
     yesterday = today - timedelta(days=1)
     
+    # Page setup
     section = doc.sections[0]
     section.top_margin = section.bottom_margin = Cm(2.54)
     section.left_margin = section.right_margin = Cm(3.18)
@@ -60,13 +61,45 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
         run_logo = p_logo.add_run()
         run_logo.add_picture(logo_path, width=Inches(2.0))
 
-    # --- 1.0 (PROSES SEBELUMNYA) ---
+    # 2. Tajuk Utama (Main Title)
+    titles = [
+        ("LAPORAN HARIAN KEJADIAN BENCANA, WABAK, KECEMASAN, KRISIS (BWKK)", 12),
+        ("PUSAT KESIAPSIAGAAN DAN TINDAKCEPAT KRISIS (CPRC)", 12),
+        ("JABATAN KESIHATAN NEGERI SELANGOR", 12)
+    ]
     doc.add_paragraph()
+    for text, size in titles:
+        para = doc.add_paragraph()
+        para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run = para.add_run(text)
+        apply_font(run, size, bold=True)
+        para.paragraph_format.space_after = Pt(0)
+
+    doc.add_paragraph().paragraph_format.space_after = Pt(18)
+
+    # 3. Jadual Tarikh (Jadual Hijau)
+    info_table = doc.add_table(rows=1, cols=2)
+    info_table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    info_table.width = Inches(5.8) 
+    for i in range(2):
+        cell = info_table.cell(0, i)
+        set_cell_background(cell, "C6E0B4")
+        cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+        p = cell.paragraphs[0]
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        txt = f"Tarikh : {get_malay_date(today)}\n(Sehingga jam 10.00 pagi)" if i == 0 else f"\nMinggu Epidemiologi : {get_epi_week(today)}"
+        run = p.add_run(txt)
+        apply_font(run, 11, bold=True)
+
+    doc.add_paragraph().paragraph_format.space_after = Pt(12)
+
+    # --- SECTION 1.0 ---
     apply_font(doc.add_paragraph().add_run("1.0 Ringkasan Laporan Input Enotifikasi"), 11, bold=True)
     total_notifications = int(col_sums['Grand Total'])
     h11_text = f"Jadual di bawah menunjukkan jumlah input enotifikasi di negeri Selangor. Sejumlah {total_notifications} input notifikasi telah diterima pada {yesterday.strftime('%d %B %Y')} dengan pecahan mengikut penyakit seperti dalam jadual 1."
     apply_font(doc.add_paragraph().add_run(h11_text), 10, bold=False)
 
+    # Jadual 1
     t1 = doc.add_table(rows=len(matrix_df) + 2, cols=len(TEMPLATE_PKDS) + 2)
     t1.style = 'Table Grid'
     pkd_map = {'PKD GOMBAK': 'GBK', 'PKD HULU LANGAT': 'HL', 'PKD HULU SELANGOR': 'HS','PKD KLANG': 'KLG', 'PKD KUALA LANGAT': 'KL', 'PKD KUALA SELANGOR': 'KS','PKD PETALING': 'PTG', 'PKD SABAK BERNAM': 'SB', 'PKD SEPANG': 'SPG'}
@@ -103,7 +136,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
 
     apply_font(doc.add_paragraph().add_run("Jadual 1 : Senarai Input eNotifikasi"), 10, bold=False)
 
-    # --- 2.0 ---
+    # --- SECTION 2.0 ---
     doc.add_page_break()
     apply_font(doc.add_paragraph().add_run("2.0 Ringkasan Laporan Notifikasi Wabak"), 11, bold=True)
     harian_total = int(wabak_df['HARIAN'].sum())
@@ -134,14 +167,13 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
 
     apply_font(doc.add_paragraph().add_run("Jadual 2 : Senarai Notifikasi Wabak"), 10, bold=False)
 
-    # --- 3.0 (VEKTOR - JUSTIFIED) ---
+    # --- SECTION 3.0 ---
     doc.add_page_break()
     apply_font(doc.add_paragraph().add_run("3.0 Ringkasan Laporan Wabak Vektor"), 11, bold=True)
-    
     try:
         xx = int(float(vector_df.iloc[-1, 1]) + float(vector_df.iloc[-1, 3]) + float(vector_df.iloc[-1, 5]))
-    except:
-        xx = 0
+    except: xx = 0
+
     h31_text = f"Jadual di bawah menunjukkan jumlah wabak vektor harian dan kumulatif di negeri Selangor. Sejumlah {xx} input notifikasi wabak vektor telah diterima pada {yesterday.strftime('%d %B %Y')} dengan pecahan mengikut penyakit seperti dalam jadual 3."
     apply_font(doc.add_paragraph().add_run(h31_text), 10, bold=False)
 
@@ -149,11 +181,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
     t3.style = 'Table Grid'
     t3.alignment = WD_TABLE_ALIGNMENT.CENTER
     
-    # KUNCI UTAMA: Tetapkan lebar kolom secara manual untuk mengelakkan teks wrap
-    # Lebar kertas A4 (21cm) - Margins (3.18cm x 2) = ~14.64cm atau ~5.7 inci
     col_widths = [Inches(1.8), Inches(0.65), Inches(0.65), Inches(0.65), Inches(0.65), Inches(0.65), Inches(0.65)]
-    
-    # Header Row 1
     h3_r1 = t3.rows[0].cells
     h3_r1[0].text = "DAERAH"
     h3_r1[1].merge(h3_r1[2]).text = "DENGGI"
@@ -167,43 +195,29 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         apply_font(p.runs[0], 8, bold=True)
 
-    # Header Row 2
     h3_r2 = t3.rows[1].cells
     for i in range(7):
         h3_r2[i].text = "DAERAH" if i == 0 else ("HARIAN" if i % 2 != 0 else "KUM")
         set_cell_background(h3_r2[i], "BFDFFF")
         h3_r2[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-        h3_r2[i].width = col_widths[i] # Tetapkan lebar
         p = h3_r2[i].paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         apply_font(p.runs[0], 7.5, bold=True)
 
-    # Data Rows
     for i in range(len(vector_df)):
         row_cells = t3.rows[i+2].cells
         for j in range(7):
             val = vector_df.iloc[i, j]
             try: display_val = str(int(float(val))) if j > 0 else str(val)
             except: display_val = str(val)
-            
             row_cells[j].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-            row_cells[j].width = col_widths[j] # Tetapkan lebar
             p = row_cells[j].paragraphs[0]
-            # Justify: Daerah ke kiri, angka ke tengah
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT if j == 0 else WD_ALIGN_PARAGRAPH.CENTER
             run = p.add_run(display_val)
-            
-            # Saiz font dikecilkan sedikit untuk memastikan muat sebaris
             f_size = 7.5 if j == 0 else 8 
-            
-            if i == len(vector_df)-1: # Jumlah
-                set_cell_background(row_cells[j], "FFFF00")
-                apply_font(run, f_size, bold=True)
-            elif j == 0: # Column DAERAH
-                set_cell_background(row_cells[j], "FCE4D6")
-                apply_font(run, f_size, bold=True)
-            else:
-                apply_font(run, f_size, bold=True)
+            if i == len(vector_df)-1: set_cell_background(row_cells[j], "FFFF00")
+            elif j == 0: set_cell_background(row_cells[j], "FCE4D6")
+            apply_font(run, f_size, bold=True)
 
     apply_font(doc.add_paragraph().add_run("Jadual 3 : Senarai Notifikasi Wabak Vektor"), 10, bold=False)
 
@@ -222,7 +236,7 @@ f2 = st.file_uploader("📂 Muat Naik Excel Penyenaraian Wabak (2.0)", type="xls
 if f1 and f2:
     if st.button("🚀 Jana Laporan Lengkap (1.0 + 2.0 + 3.0)"):
         try:
-            # 1.0 Data
+            # S1
             df1 = pd.read_excel(f1)
             df1 = df1[df1['Notifikasi Status'] != 'Abai Notifikasi']
             df1 = df1[df1['Pejabat Kesihatan'].isin(TEMPLATE_PKDS)]
@@ -231,7 +245,7 @@ if f1 and f2:
             matrix = matrix.sort_values(by='Grand Total', ascending=False)
             col_totals = matrix.sum(axis=0)
 
-            # 2.0 Data
+            # S2
             df2 = pd.read_excel(f2)
             df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date
             df2 = df2[df2['Tarikh Isytihar Wabak'] >= date(2026, 1, 4)]
@@ -247,16 +261,15 @@ if f1 and f2:
                 wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'KUMULATIF': k})
             wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
-            # 3.0 Data (GSheet Dinamik)
+            # S3
             raw_gs = pd.read_csv(GSHEET_URL, header=None)
             mask = raw_gs.apply(lambda r: r.astype(str).str.contains('PETALING').any(), axis=1)
             if mask.any():
                 start_row = mask.idxmax()
                 v_data = raw_gs.iloc[start_row : start_row + 10, 13:20]
-                # Filter out any extra 'nan' or empty rows inside the slice
                 v_data = v_data[v_data[13].notna() & (v_data[13] != '')]
             else:
-                st.error("Ralat GSheet: 'PETALING' tidak dijumpai.")
+                st.error("Data 'PETALING' tidak dijumpai.")
                 st.stop()
 
             doc_out = generate_docx(matrix, col_totals, wabak_df, v_data)
