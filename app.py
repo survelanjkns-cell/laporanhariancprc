@@ -33,7 +33,8 @@ def get_malay_date(target_date):
     day_name = days_ms.get(target_date.strftime("%A"))
     return target_date.strftime(f"%d %B %Y ({day_name})")
 
-def apply_font(run, size, bold=False):
+def apply_font(run, size, bold=True):
+    """Modified to default to bold=True for table consistency."""
     run.font.name = 'Arial'
     run.font.size = Pt(size)
     run.bold = bold
@@ -42,7 +43,7 @@ def apply_font(run, size, bold=False):
 def generate_docx(matrix_df, col_sums, wabak_df):
     doc = Document()
     
-    # Global Arial
+    # Global Style
     style = doc.styles['Normal']
     style.font.name = 'Arial'
     style.font.size = Pt(11)
@@ -50,7 +51,7 @@ def generate_docx(matrix_df, col_sums, wabak_df):
     today = date.today()
     yesterday = today - timedelta(days=1)
     
-    # --- ADJUSTED MARGINS (AS PER IMAGE) ---
+    # Margins (Top/Bottom: 2.54cm, Left/Right: 3.18cm)
     section = doc.sections[0]
     section.top_margin = Cm(2.54)
     section.bottom_margin = Cm(2.54)
@@ -65,9 +66,9 @@ def generate_docx(matrix_df, col_sums, wabak_df):
         run_logo = p_logo.add_run()
         run_logo.add_picture(logo_path, width=Inches(2.0))
 
-    # 2. Titles
+    # 2. Header Titles
     titles = [
-        ("LAPORAN HARIAN KEJADIAN BENCANA, WABAK, KECEMASAN, KRISIS (BWKK)", 11), # Reduced size to fit
+        ("LAPORAN HARIAN KEJADIAN BENCANA, WABAK, KECEMASAN, KRISIS (BWKK)", 11),
         ("PUSAT KESIAPSIAGAAN DAN TINDAKCEPAT KRISIS (CPRC)", 11),
         ("JABATAN KESIHATAN NEGERI SELANGOR", 11)
     ]
@@ -84,7 +85,6 @@ def generate_docx(matrix_df, col_sums, wabak_df):
     # 3. Green Table
     info_table = doc.add_table(rows=1, cols=2)
     info_table.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    # Width adjusted to fit between 3.18cm margins on A4
     info_table.width = Inches(5.8) 
     for i in range(2):
         cell = info_table.cell(0, i)
@@ -104,21 +104,21 @@ def generate_docx(matrix_df, col_sums, wabak_df):
     total_notifications = int(col_sums['Grand Total'])
     p11 = doc.add_paragraph()
     h11_text = f"1.1 Sejumlah {total_notifications} input notifikasi telah diterima pada {yesterday.strftime('%d %B %Y')} dengan pecahan mengikut penyakit seperti dalam jadual 1."
-    apply_font(p11.add_run(h11_text), 10)
+    apply_font(p11.add_run(h11_text), 10, bold=False) # Keep prose text normal
 
-    # Table 1 (Matrix) - Font Size Reduced to fit narrower content area
+    # Table 1 (Matrix) - ALL BOLD
     t1 = doc.add_table(rows=len(matrix_df) + 2, cols=len(TEMPLATE_PKDS) + 2)
     t1.style = 'Table Grid'
     
     h_cells = t1.rows[0].cells
     run_penyakit = h_cells[0].paragraphs[0].add_run("PENYAKIT")
-    apply_font(run_penyakit, 8, bold=True) # Reduced
+    apply_font(run_penyakit, 8, bold=True)
     set_cell_background(h_cells[0], "BFDFFF")
     
     for i, pkd in enumerate(TEMPLATE_PKDS):
         cell = h_cells[i+1]
         run_pkd = cell.paragraphs[0].add_run(pkd.replace("PKD ", ""))
-        apply_font(run_pkd, 7, bold=True) # Reduced to 7pt to avoid overflow
+        apply_font(run_pkd, 7, bold=True)
         set_cell_background(cell, "BFDFFF")
         cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
         
@@ -129,12 +129,12 @@ def generate_docx(matrix_df, col_sums, wabak_df):
     for r_idx, (penyakit, row_data) in enumerate(matrix_df.iterrows()):
         row = t1.rows[r_idx + 1].cells
         run_name = row[0].paragraphs[0].add_run(str(penyakit))
-        apply_font(run_name, 7)
+        apply_font(run_name, 7, bold=True) # Data set to Bold
         set_cell_background(row[0], "D9E9FF")
         for c_idx, val in enumerate(row_data):
             cell = row[c_idx+1]
             run_val = cell.paragraphs[0].add_run(str(int(val)))
-            apply_font(run_val, 8)
+            apply_font(run_val, 8, bold=True) # Numbers set to Bold
             cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
             cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
             if (c_idx + 1) == (len(row_data)): set_cell_background(cell, "FFFFB3")
@@ -159,7 +159,7 @@ def generate_docx(matrix_df, col_sums, wabak_df):
     p21 = doc.add_paragraph()
     yesterday_str = yesterday.strftime('%d %B %Y')
     h21_text = f"2.1 {'Sejumlah ' + str(harian_total) + ' input notifikasi wabak' if harian_total > 0 else 'Tiada wabak dilaporkan'} diterima pada {yesterday_str}."
-    apply_font(p21.add_run(h21_text), 10)
+    apply_font(p21.add_run(h21_text), 10, bold=False)
 
     t2 = doc.add_table(rows=len(wabak_df) + 2, cols=3)
     t2.style = 'Table Grid'
@@ -176,12 +176,15 @@ def generate_docx(matrix_df, col_sums, wabak_df):
     for i, (penyakit, row_data) in enumerate(wabak_df.iterrows()):
         cells = t2.rows[i+1].cells
         run_p2 = cells[0].paragraphs[0].add_run(str(penyakit))
-        apply_font(run_p2, 8)
+        apply_font(run_p2, 8, bold=True) # Disease names set to Bold
         set_cell_background(cells[0], "D9E9FF")
+        
         run_h = cells[1].paragraphs[0].add_run(str(int(row_data['HARIAN'])))
-        apply_font(run_h, 8)
+        apply_font(run_h, 8, bold=True) # Harian set to Bold
+        
         run_k = cells[2].paragraphs[0].add_run(str(int(row_data['KUMULATIF'])))
-        apply_font(run_k, 8)
+        apply_font(run_k, 8, bold=True) # Kumulatif set to Bold
+        
         cells[1].paragraphs[0].alignment = cells[2].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     f2 = t2.rows[-1].cells
@@ -198,7 +201,7 @@ def generate_docx(matrix_df, col_sums, wabak_df):
     doc.add_paragraph()
     p_cap = doc.add_paragraph()
     p_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    apply_font(p_cap.add_run("Jadual 2 : Senarai Notifikasi Wabak"), 10)
+    apply_font(p_cap.add_run("Jadual 2 : Senarai Notifikasi Wabak"), 10, bold=False)
 
     target = io.BytesIO()
     doc.save(target)
@@ -213,9 +216,9 @@ file1 = st.file_uploader("📂 Upload Daily Notification Excel", type="xlsx")
 file2 = st.file_uploader("📂 Upload Outbreak Listing Excel", type="xlsx")
 
 if file1 and file2:
-    if st.button("🚀 Generate Final Report"):
+    if st.button("🚀 Generate Final Bold Report"):
         try:
-            # S1
+            # S1 Processing
             df1 = pd.read_excel(file1)
             df1 = df1[df1['Notifikasi Status'] != 'Abai Notifikasi']
             df1 = df1[df1['Pejabat Kesihatan'].isin(TEMPLATE_PKDS)]
@@ -224,7 +227,7 @@ if file1 and file2:
             matrix = matrix.sort_values(by='Grand Total', ascending=False)
             col_totals = matrix.sum(axis=0)
 
-            # S2
+            # S2 Processing
             df2 = pd.read_excel(file2)
             cutoff = date(2026, 1, 4)
             df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date
@@ -242,6 +245,6 @@ if file1 and file2:
             wabak_df = pd.DataFrame(wabak_summary).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
             doc_out = generate_docx(matrix, col_totals, wabak_df)
-            st.download_button("⬇️ Download Report", data=doc_out, file_name=f"BWKK_Report_{date.today()}.docx")
+            st.download_button("⬇️ Download BOLD Report", data=doc_out, file_name=f"BWKK_Report_{date.today()}.docx")
         except Exception as e:
             st.error(f"Error: {e}")
