@@ -218,23 +218,33 @@ if file1 and file2:
             matrix = matrix.sort_values(by='Grand Total', ascending=False)
             col_totals = matrix.sum(axis=0)
 
-            # --- Section 2.0 Data Processing (DYNAMIC) ---
+            # --- Section 2.0 Data Processing ---
             df2 = pd.read_excel(file2)
-            yesterday = date.today() - timedelta(days=1)
+            today = date.today()
+            yesterday = today - timedelta(days=1)
+            
+            # Epid Week 1 Start Date (Cutoff)
+            cutoff_date = date(2026, 1, 4)
+            
+            # Process Dates
             df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date
             
-            # Extract all unique diseases found in the Excel
+            # CRITICAL FILTER: Only include outbreaks from 04/01/2026 onwards
+            df2 = df2[df2['Tarikh Isytihar Wabak'] >= cutoff_date]
+            
+            # Extract all unique diseases found in the filtered 2026 data
             unique_diseases = df2['PENYAKIT'].unique()
             wabak_summary = []
             
             for dis in unique_diseases:
                 if pd.isna(dis): continue
+                # Harian: Count matches for yesterday
                 h_count = len(df2[(df2['PENYAKIT'] == dis) & (df2['Tarikh Isytihar Wabak'] == yesterday)])
+                # Kumulatif: Count all remaining matches (which are now all >= 04/01/26)
                 k_count = len(df2[df2['PENYAKIT'] == dis])
                 wabak_summary.append({'PENYAKIT': dis, 'HARIAN': h_count, 'KUMULATIF': k_count})
             
             wabak_df = pd.DataFrame(wabak_summary).set_index('PENYAKIT')
-            # Sort by Kumulatif descending to match your pivot
             wabak_df = wabak_df.sort_values(by='KUMULATIF', ascending=False)
 
             # Generate Docx
