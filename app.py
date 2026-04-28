@@ -110,28 +110,28 @@ def generate_docx(matrix_df, col_sums, wabak_df):
     t1.style = 'Table Grid'
     t1.alignment = WD_ALIGN_PARAGRAPH.CENTER
     
-    # Fix PKD Names Mapping
+    # Updated Map for requested shorts
     pkd_map = {
-        'PKD GOMBAK': 'GOMB', 'PKD HULU LANGAT': 'H.LGT', 'PKD HULU SELANGOR': 'H.SEL',
-        'PKD KLANG': 'KLANG', 'PKD KUALA LANGAT': 'K.LGT', 'PKD KUALA SELANGOR': 'K.SEL',
-        'PKD PETALING': 'PET', 'PKD SABAK BERNAM': 'S.BNM', 'PKD SEPANG': 'SEP'
+        'PKD GOMBAK': 'GBK', 'PKD HULU LANGAT': 'HL', 'PKD HULU SELANGOR': 'HS',
+        'PKD KLANG': 'KLG', 'PKD KUALA LANGAT': 'KL', 'PKD KUALA SELANGOR': 'KS',
+        'PKD PETALING': 'PTG', 'PKD SABAK BERNAM': 'SB', 'PKD SEPANG': 'SPG'
     }
 
     h_cells = t1.rows[0].cells
     run_penyakit = h_cells[0].paragraphs[0].add_run("PENYAKIT")
-    apply_font(run_penyakit, 7, bold=True)
+    apply_font(run_penyakit, 7.5, bold=True)
     set_cell_background(h_cells[0], "BFDFFF")
     
     for i, pkd in enumerate(TEMPLATE_PKDS):
         cell = h_cells[i+1]
         short_pkd = pkd_map.get(pkd, pkd)
         run_pkd = cell.paragraphs[0].add_run(short_pkd)
-        apply_font(run_pkd, 6, bold=True) # Very small to prevent wrap
+        apply_font(run_pkd, 7, bold=True) 
         set_cell_background(cell, "BFDFFF")
         cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
         
     run_gt = h_cells[-1].paragraphs[0].add_run("Grand Total")
-    apply_font(run_gt, 6, bold=True)
+    apply_font(run_gt, 7, bold=True)
     set_cell_background(h_cells[-1], "FFFF00")
 
     for r_idx, (penyakit, row_data) in enumerate(matrix_df.iterrows()):
@@ -142,19 +142,19 @@ def generate_docx(matrix_df, col_sums, wabak_df):
         for c_idx, val in enumerate(row_data):
             cell = row[c_idx+1]
             run_val = cell.paragraphs[0].add_run(str(int(val)))
-            apply_font(run_val, 7.5, bold=True)
+            apply_font(run_val, 8, bold=True)
             cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
             cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
             if (c_idx + 1) == (len(row_data)): set_cell_background(cell, "FFFFB3")
 
     f_cells = t1.rows[-1].cells
     run_fgt = f_cells[0].paragraphs[0].add_run("Grand Total")
-    apply_font(run_fgt, 7, bold=True)
+    apply_font(run_fgt, 7.5, bold=True)
     set_cell_background(f_cells[0], "FFFF00")
     for i, val in enumerate(col_sums):
         cell = f_cells[i+1]
         run_fval = cell.paragraphs[0].add_run(str(int(val)))
-        apply_font(run_fval, 7.5, bold=True)
+        apply_font(run_fval, 8, bold=True)
         set_cell_background(cell, "FFFF00")
         cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
