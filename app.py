@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import date, timedelta
 from docx import Document
-from docx.shared import Pt, Inches
+from docx.shared import Pt, Inches, Cm
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_ALIGN_VERTICAL
 from docx.oxml import parse_xml
@@ -34,7 +34,6 @@ def get_malay_date(target_date):
     return target_date.strftime(f"%d %B %Y ({day_name})")
 
 def apply_font(run, size, bold=False):
-    """Utility to strictly apply Arial and font size."""
     run.font.name = 'Arial'
     run.font.size = Pt(size)
     run.bold = bold
@@ -43,7 +42,7 @@ def apply_font(run, size, bold=False):
 def generate_docx(matrix_df, col_sums, wabak_df):
     doc = Document()
     
-    # Set Global Default Font to Arial
+    # Global Arial
     style = doc.styles['Normal']
     style.font.name = 'Arial'
     style.font.size = Pt(11)
@@ -51,10 +50,12 @@ def generate_docx(matrix_df, col_sums, wabak_df):
     today = date.today()
     yesterday = today - timedelta(days=1)
     
-    # Page setup
+    # --- ADJUSTED MARGINS (AS PER IMAGE) ---
     section = doc.sections[0]
-    section.left_margin = section.right_margin = Inches(0.5)
-    section.top_margin = section.bottom_margin = Inches(0.4)
+    section.top_margin = Cm(2.54)
+    section.bottom_margin = Cm(2.54)
+    section.left_margin = Cm(3.18)
+    section.right_margin = Cm(3.18)
 
     # 1. Logo
     logo_path = "logo.png.jpg" 
@@ -66,9 +67,9 @@ def generate_docx(matrix_df, col_sums, wabak_df):
 
     # 2. Titles
     titles = [
-        ("LAPORAN HARIAN KEJADIAN BENCANA, WABAK, KECEMASAN, KRISIS (BWKK)", 12),
-        ("PUSAT KESIAPSIAGAAN DAN TINDAKCEPAT KRISIS (CPRC)", 12),
-        ("JABATAN KESIHATAN NEGERI SELANGOR", 12)
+        ("LAPORAN HARIAN KEJADIAN BENCANA, WABAK, KECEMASAN, KRISIS (BWKK)", 11), # Reduced size to fit
+        ("PUSAT KESIAPSIAGAAN DAN TINDAKCEPAT KRISIS (CPRC)", 11),
+        ("JABATAN KESIHATAN NEGERI SELANGOR", 11)
     ]
     doc.add_paragraph()
     for text, size in titles:
@@ -78,12 +79,13 @@ def generate_docx(matrix_df, col_sums, wabak_df):
         apply_font(run, size, bold=True)
         para.paragraph_format.space_after = Pt(0)
 
-    doc.add_paragraph().paragraph_format.space_after = Pt(18)
+    doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
-    # 3. Green Header Table
+    # 3. Green Table
     info_table = doc.add_table(rows=1, cols=2)
     info_table.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    info_table.width = Inches(6.8)
+    # Width adjusted to fit between 3.18cm margins on A4
+    info_table.width = Inches(5.8) 
     for i in range(2):
         cell = info_table.cell(0, i)
         set_cell_background(cell, "C6E0B4")
@@ -92,128 +94,111 @@ def generate_docx(matrix_df, col_sums, wabak_df):
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         txt = f"Tarikh : {get_malay_date(today)}\n(Sehingga jam 10.00 pagi)" if i == 0 else f"\nMinggu Epidemiologi : {get_epi_week(today)}"
         run = p.add_run(txt)
-        apply_font(run, 11, bold=True)
+        apply_font(run, 10, bold=True)
 
     # --- SECTION 1.0 ---
     doc.add_paragraph()
     p10 = doc.add_paragraph()
-    apply_font(p10.add_run("1.0 Ringkasan Laporan Input Enotifikasi"), 12, bold=True)
+    apply_font(p10.add_run("1.0 Ringkasan Laporan Input Enotifikasi"), 11, bold=True)
     
     total_notifications = int(col_sums['Grand Total'])
     p11 = doc.add_paragraph()
     h11_text = f"1.1 Sejumlah {total_notifications} input notifikasi telah diterima pada {yesterday.strftime('%d %B %Y')} dengan pecahan mengikut penyakit seperti dalam jadual 1."
-    apply_font(p11.add_run(h11_text), 11)
+    apply_font(p11.add_run(h11_text), 10)
 
-    # Table 1 (Matrix)
+    # Table 1 (Matrix) - Font Size Reduced to fit narrower content area
     t1 = doc.add_table(rows=len(matrix_df) + 2, cols=len(TEMPLATE_PKDS) + 2)
     t1.style = 'Table Grid'
     
-    # Headers Table 1
     h_cells = t1.rows[0].cells
     run_penyakit = h_cells[0].paragraphs[0].add_run("PENYAKIT")
-    apply_font(run_penyakit, 9, bold=True)
+    apply_font(run_penyakit, 8, bold=True) # Reduced
     set_cell_background(h_cells[0], "BFDFFF")
     
     for i, pkd in enumerate(TEMPLATE_PKDS):
         cell = h_cells[i+1]
         run_pkd = cell.paragraphs[0].add_run(pkd.replace("PKD ", ""))
-        apply_font(run_pkd, 8, bold=True)
+        apply_font(run_pkd, 7, bold=True) # Reduced to 7pt to avoid overflow
         set_cell_background(cell, "BFDFFF")
         cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
         
     run_gt = h_cells[-1].paragraphs[0].add_run("Grand Total")
-    apply_font(run_gt, 9, bold=True)
+    apply_font(run_gt, 7, bold=True)
     set_cell_background(h_cells[-1], "FFFF00")
 
-    # Data rows Table 1
     for r_idx, (penyakit, row_data) in enumerate(matrix_df.iterrows()):
         row = t1.rows[r_idx + 1].cells
         run_name = row[0].paragraphs[0].add_run(str(penyakit))
-        apply_font(run_name, 8)
+        apply_font(run_name, 7)
         set_cell_background(row[0], "D9E9FF")
         for c_idx, val in enumerate(row_data):
             cell = row[c_idx+1]
             run_val = cell.paragraphs[0].add_run(str(int(val)))
-            apply_font(run_val, 9)
+            apply_font(run_val, 8)
             cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
             cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
             if (c_idx + 1) == (len(row_data)): set_cell_background(cell, "FFFFB3")
 
-    # Footer Table 1
     f_cells = t1.rows[-1].cells
     run_fgt = f_cells[0].paragraphs[0].add_run("Grand Total")
-    apply_font(run_fgt, 9, bold=True)
+    apply_font(run_fgt, 8, bold=True)
     set_cell_background(f_cells[0], "FFFF00")
     for i, val in enumerate(col_sums):
         cell = f_cells[i+1]
         run_fval = cell.paragraphs[0].add_run(str(int(val)))
-        apply_font(run_fval, 9, bold=True)
+        apply_font(run_fval, 8, bold=True)
         set_cell_background(cell, "FFFF00")
         cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     # --- SECTION 2.0 ---
     doc.add_page_break()
     p20 = doc.add_paragraph()
-    apply_font(p20.add_run("2.0 Ringkasan Laporan Notifikasi Wabak"), 12, bold=True)
+    apply_font(p20.add_run("2.0 Ringkasan Laporan Notifikasi Wabak"), 11, bold=True)
     
     harian_total = int(wabak_df['HARIAN'].sum())
-    yesterday_str = yesterday.strftime('%d %B %Y')
-    
     p21 = doc.add_paragraph()
-    if harian_total > 0:
-        h21_text = f"2.1 Sejumlah {harian_total} input notifikasi wabak telah diterima pada {yesterday_str} dengan pecahan mengikut penyakit seperti dalam jadual 2."
-    else:
-        h21_text = f"2.1 Tiada wabak dilaporkan diterima pada {yesterday_str}."
-    apply_font(p21.add_run(h21_text), 11)
+    yesterday_str = yesterday.strftime('%d %B %Y')
+    h21_text = f"2.1 {'Sejumlah ' + str(harian_total) + ' input notifikasi wabak' if harian_total > 0 else 'Tiada wabak dilaporkan'} diterima pada {yesterday_str}."
+    apply_font(p21.add_run(h21_text), 10)
 
-    # Table 2
     t2 = doc.add_table(rows=len(wabak_df) + 2, cols=3)
     t2.style = 'Table Grid'
     t2.alignment = WD_ALIGN_PARAGRAPH.CENTER
     
-    # Headers Table 2
     h2_titles = ["PENYAKIT", "HARIAN", "KUMULATIF"]
     for i, h in enumerate(h2_titles):
         cell = t2.cell(0, i)
         run_h2 = cell.paragraphs[0].add_run(h)
-        apply_font(run_h2, 10, bold=True)
+        apply_font(run_h2, 9, bold=True)
         set_cell_background(cell, "BFDFFF")
         cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    # Data Rows Table 2
     for i, (penyakit, row_data) in enumerate(wabak_df.iterrows()):
         cells = t2.rows[i+1].cells
         run_p2 = cells[0].paragraphs[0].add_run(str(penyakit))
-        apply_font(run_p2, 9)
+        apply_font(run_p2, 8)
         set_cell_background(cells[0], "D9E9FF")
-        
         run_h = cells[1].paragraphs[0].add_run(str(int(row_data['HARIAN'])))
-        apply_font(run_h, 9)
+        apply_font(run_h, 8)
         run_k = cells[2].paragraphs[0].add_run(str(int(row_data['KUMULATIF'])))
-        apply_font(run_k, 9)
-        
-        cells[1].vertical_alignment = cells[2].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+        apply_font(run_k, 8)
         cells[1].paragraphs[0].alignment = cells[2].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    # Footer Table 2
     f2 = t2.rows[-1].cells
     run_j = f2[0].paragraphs[0].add_run("JUMLAH")
-    apply_font(run_j, 10, bold=True)
+    apply_font(run_j, 9, bold=True)
     set_cell_background(f2[0], "FFFF00")
-    
-    run_jh = f2[1].paragraphs[0].add_run(str(int(wabak_df['HARIAN'].sum())))
-    apply_font(run_jh, 10, bold=True)
-    run_jk = f2[2].paragraphs[0].add_run(str(int(wabak_df['KUMULATIF'].sum())))
-    apply_font(run_jk, 10, bold=True)
-    
-    for c in range(3):
+    for c in range(1, 3):
+        val = wabak_df['HARIAN'].sum() if c == 1 else wabak_df['KUMULATIF'].sum()
+        run_fv = f2[c].paragraphs[0].add_run(str(int(val)))
+        apply_font(run_fv, 9, bold=True)
         set_cell_background(f2[c], "FFFF00")
         f2[c].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     doc.add_paragraph()
     p_cap = doc.add_paragraph()
     p_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    apply_font(p_cap.add_run("Jadual 2 : Senarai Notifikasi Wabak"), 11)
+    apply_font(p_cap.add_run("Jadual 2 : Senarai Notifikasi Wabak"), 10)
 
     target = io.BytesIO()
     doc.save(target)
@@ -224,13 +209,13 @@ def generate_docx(matrix_df, col_sums, wabak_df):
 st.set_page_config(page_title="BWKK Report Generator", layout="centered")
 st.title("📊 BWKK Report Generator")
 
-file1 = st.file_uploader("📂 Upload Daily Notification Excel (Section 1.0)", type="xlsx")
-file2 = st.file_uploader("📂 Upload Outbreak Listing Excel (Section 2.0)", type="xlsx")
+file1 = st.file_uploader("📂 Upload Daily Notification Excel", type="xlsx")
+file2 = st.file_uploader("📂 Upload Outbreak Listing Excel", type="xlsx")
 
 if file1 and file2:
-    if st.button("🚀 Generate & Download Report"):
+    if st.button("🚀 Generate Final Report"):
         try:
-            # Section 1.0
+            # S1
             df1 = pd.read_excel(file1)
             df1 = df1[df1['Notifikasi Status'] != 'Abai Notifikasi']
             df1 = df1[df1['Pejabat Kesihatan'].isin(TEMPLATE_PKDS)]
@@ -239,32 +224,24 @@ if file1 and file2:
             matrix = matrix.sort_values(by='Grand Total', ascending=False)
             col_totals = matrix.sum(axis=0)
 
-            # Section 2.0
+            # S2
             df2 = pd.read_excel(file2)
-            today = date.today()
-            yesterday = today - timedelta(days=1)
-            cutoff_date = date(2026, 1, 4)
+            cutoff = date(2026, 1, 4)
             df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date
-            df2 = df2[df2['Tarikh Isytihar Wabak'] >= cutoff_date]
+            df2 = df2[df2['Tarikh Isytihar Wabak'] >= cutoff]
             
-            unique_diseases = df2['PENYAKIT'].unique()
+            yesterday = date.today() - timedelta(days=1)
+            unique_d = df2['PENYAKIT'].unique()
             wabak_summary = []
-            for dis in unique_diseases:
-                if pd.isna(dis): continue
-                h_count = len(df2[(df2['PENYAKIT'] == dis) & (df2['Tarikh Isytihar Wabak'] == yesterday)])
-                k_count = len(df2[df2['PENYAKIT'] == dis])
-                wabak_summary.append({'PENYAKIT': dis, 'HARIAN': h_count, 'KUMULATIF': k_count})
+            for d in unique_d:
+                if pd.isna(d): continue
+                h = len(df2[(df2['PENYAKIT'] == d) & (df2['Tarikh Isytihar Wabak'] == yesterday)])
+                k = len(df2[df2['PENYAKIT'] == d])
+                wabak_summary.append({'PENYAKIT': d, 'HARIAN': h, 'KUMULATIF': k})
             
-            wabak_df = pd.DataFrame(wabak_summary).set_index('PENYAKIT')
-            wabak_df = wabak_df.sort_values(by='KUMULATIF', ascending=False)
+            wabak_df = pd.DataFrame(wabak_summary).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
             doc_out = generate_docx(matrix, col_totals, wabak_df)
-            
-            st.download_button(
-                label="⬇️ Download Final Arial Report",
-                data=doc_out,
-                file_name=f"Laporan_BWKK_{date.today()}.docx",
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            )
+            st.download_button("⬇️ Download Report", data=doc_out, file_name=f"BWKK_Report_{date.today()}.docx")
         except Exception as e:
             st.error(f"Error: {e}")
