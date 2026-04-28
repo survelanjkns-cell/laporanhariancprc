@@ -20,7 +20,7 @@ def set_cell_background(cell, fill_color):
     shading_elm_1 = parse_xml(r'<w:shd {} w:fill="{}"/>'.format(nsdecls('w'), fill_color))
     cell._tc.get_or_add_tcPr().append(shading_elm_1)
 
-def generate_word_report(output_filename):
+def generate_word_report(output_filename, logo_path="logo.png"):
     doc = Document()
 
     # --- 1. Set Margins ---
@@ -31,25 +31,42 @@ def generate_word_report(output_filename):
         section.left_margin = Inches(0.5)
         section.right_margin = Inches(0.5)
 
-    # --- 2. Title Section ---
+    # --- 2. Logo Section ---
+    if os.path.exists(logo_path):
+        # Adding logo to a centered paragraph
+        logo_para = doc.add_paragraph()
+        logo_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run_logo = logo_para.add_run()
+        run_logo.add_picture(logo_path, width=Inches(1.5)) 
+    else:
+        print(f"Warning: {logo_path} not found. Skipping logo.")
+
+    # --- 3. Title Section ---
     titles = [
+        "KEMENTERIAN KESIHATAN MALAYSIA", # Added sub-logo text
+        "", # Spacer
         "LAPORAN HARIAN KEJADIAN BENCANA, WABAK, KECEMASAN, KRISIS (BWKK)",
         "PUSAT KESIAPSIAGAAN DAN TINDAKCEPAT KRISIS (CPRC)",
         "JABATAN KESIHATAN NEGERI SELANGOR"
     ]
 
     for title in titles:
+        if title == "":
+            doc.add_paragraph()
+            continue
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run = p.add_run(title)
         run.bold = True
-        run.font.size = Pt(12)
+        # Slightly smaller font for Ministry name as per standard JKN layouts
+        size = 10 if title == "KEMENTERIAN KESIHATAN MALAYSIA" else 12
+        run.font.size = Pt(size)
         run.font.name = 'Arial'
-        p.paragraph_format.space_after = Pt(2)
+        p.paragraph_format.space_after = Pt(0)
 
     doc.add_paragraph() # Spacer
 
-    # --- 3. Date & Epi Week Box (Table) ---
+    # --- 4. Date & Epi Week Box (Table) ---
     today = date.today()
     days_ms = {
         "Monday": "Isnin", "Tuesday": "Selasa", "Wednesday": "Rabu",
@@ -90,4 +107,4 @@ def generate_word_report(output_filename):
     print(f"Word report saved as {output_filename}")
 
 if __name__ == "__main__":
-    generate_word_report("Laporan_BWKK.docx")
+    generate_word_report("Laporan_BWKK_with_Logo.docx")
