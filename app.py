@@ -374,15 +374,34 @@ if f1 and f2:
                     st.error("Data 'PETALING' tidak dijumpai.")
                     st.stop()
 
-            # S4 Logic
+       # S4 Logic
             with st.spinner('Menarik data BKK...'):
                 df_bkk_full = pd.read_csv(SHEET_BKK_URL, header=None)
                 bkk_raw = df_bkk_full.iloc[1:, 33:47].dropna(how='all').reset_index(drop=True)
                 bkk_raw.columns = bkk_raw.iloc[0]
                 bkk_table_final = bkk_raw[1:].reset_index(drop=True)
 
+                # --- TAMBAH PEMETAAN NAMA DAERAH DI SINI ---
+                # Kamus pemetaan untuk ringkaskan nama kolum
+                bkk_map = {
+                    'GOMBAK': 'GBK', 
+                    'HULU LANGAT': 'HL', 
+                    'HULU SELANGOR': 'HS',
+                    'KLANG': 'KLG', 
+                    'KUALA LANGAT': 'KL', 
+                    'KUALA SELANGOR': 'KS',
+                    'PETALING': 'PTG', 
+                    'SABAK BERNAM': 'SB', 
+                    'SEPANG': 'SPG',
+                    'PK P.KLANG': 'PK.KLG',
+                    'PK KLIA': 'PK.KLIA'
+                }
+                
+                # Rename kolum berdasarkan kamus di atas
+                bkk_table_final = bkk_table_final.rename(columns=bkk_map)
+                # -------------------------------------------
+
             doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final)
-            st.download_button("⬇️ Muat Turun Laporan", data=doc_out, file_name=f"Laporan_BWKK_{date.today()}.docx")
 
         except Exception as e:
             st.error(f"Ralat: {e}")
