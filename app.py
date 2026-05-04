@@ -52,9 +52,24 @@ def get_epi_week(target_date):
     return f"{(days_diff // 7) + 1}/{target_date.year}"
 
 def get_malay_date(target_date):
-    days_ms = {"Monday": "Isnin", "Tuesday": "Selasa", "Wednesday": "Rabu", "Thursday": "Khamis", "Friday": "Jumaat", "Saturday": "Sabtu", "Sunday": "Ahad"}
+    # Kamus Nama Hari
+    days_ms = {
+        "Monday": "Isnin", "Tuesday": "Selasa", "Wednesday": "Rabu", 
+        "Thursday": "Khamis", "Friday": "Jumaat", "Saturday": "Sabtu", "Sunday": "Ahad"
+    }
+    
+    # Kamus Nama Bulan
+    months_ms = {
+        1: "Januari", 2: "Februari", 3: "Mac", 4: "April", 
+        5: "Mei", 6: "Jun", 7: "Julai", 8: "Ogos", 
+        9: "September", 10: "Oktober", 11: "November", 12: "Disember"
+    }
+    
     day_name = days_ms.get(target_date.strftime("%A"))
-    return target_date.strftime(f"%d %B %Y ({day_name})")
+    month_name = months_ms.get(target_date.month)
+    
+    # Format: 04 Mei 2026 (Isnin)
+    return f"{target_date.day:02d} {month_name} {target_date.year} ({day_name})"
 
 def apply_font(run, size, bold=True):
     run.font.name = 'Arial'
