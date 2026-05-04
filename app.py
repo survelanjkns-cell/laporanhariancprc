@@ -80,7 +80,7 @@ def add_table_title(doc, label, title):
 def add_pkd_note(doc):
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    note_text = "*Nota : GBK, Gombak; HL, Hulu Langat; HS, Hulu Selangor; KLG, Klang; KL, Kuala Langat; KS, Kuala Selangor; PTG, Petaling; SB, Sabak Bernam; SPG, Sepang."
+    note_text = "*Nota : GBK, Gombak; HL, Hulu Langat; HS, Hulu Selangor; KLG, Klang; KL, Kuala Langat; KS, Kuala Selangor; PTG, ; SB, Sabak Bernam; SPG, Sepang."
     run = p.add_run(note_text)
     apply_font(run, 7, bold=False)
     p.paragraph_format.space_after = Pt(12)
@@ -149,7 +149,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     t1 = doc.add_table(rows=len(matrix_df) + 2, cols=len(TEMPLATE_PKDS) + 2)
     t1.style = 'Table Grid'
     t1.width = content_width
-    pkd_map = {'PKD GOMBAK': 'GBK', 'PKD HULU LANGAT': 'HL', 'PKD HULU SELANGOR': 'HS','PKD KLANG': 'KLG', 'PKD KUALA LANGAT': 'KL', 'PKD KUALA SELANGOR': 'KS','PKD PETALING': 'PTG', 'PKD SABAK BERNAM': 'SB', 'PKD SEPANG': 'SPG'}
+    pkd_map = {'PKD GOMBAK': 'GBK', 'PKD HULU LANGAT': 'HL', 'PKD HULU SELANGOR': 'HS','PKD KLANG': 'KLG', 'PKD KUALA LANGAT': 'KL', 'PKD KUALA SELANGOR': 'KS','PKD ': 'PTG', 'PKD SABAK BERNAM': 'SB', 'PKD SEPANG': 'SPG'}
     
     h_cells = t1.rows[0].cells
     for i in range(len(h_cells)):
@@ -403,7 +403,7 @@ if f1 and f2:
 
             with st.spinner('Menarik data vektor...'):
                 raw_gs = pd.read_csv(GSHEET_URL, header=None)
-                mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('PETALING').any(), axis=1)
+                mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
                 if mask_v.any():
                     start_row = mask_v.idxmax()
                     v_data = raw_gs.iloc[start_row : start_row + 10, 13:20]
