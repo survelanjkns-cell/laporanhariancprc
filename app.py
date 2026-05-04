@@ -293,7 +293,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df):
     for i, col_name in enumerate(bkk_table_df.columns):
         cell = t4.rows[0].cells[i]
         cell.width = h4_widths[i] if i < len(h4_widths) else Inches(0.5)
-        cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER # Align Tengah Menegak
+        cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER 
         
         if i < bkk_table_df.shape[1]-2: set_cell_background(cell, "BFDFFF")
         elif i == bkk_table_df.shape[1]-2: set_cell_background(cell, "FFFF00")
@@ -310,7 +310,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df):
         cells = t4.rows[r_idx+1].cells
         is_last_row = (r_idx == bkk_table_df.shape[0] - 1)
         for c_idx, val in enumerate(row_data):
-            cells[c_idx].vertical_alignment = WD_ALIGN_VERTICAL.CENTER # Align Tengah Menegak
+            cells[c_idx].vertical_alignment = WD_ALIGN_VERTICAL.CENTER 
             p = cells[c_idx].paragraphs[0]
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT if c_idx == 0 else WD_ALIGN_PARAGRAPH.CENTER
             run = p.add_run(clean_val(val))
@@ -328,6 +328,29 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df):
     doc.add_paragraph()
     footer = doc.add_paragraph()
     apply_font(footer.add_run(f"*Sumber : Sistem e-notifikasi, Laporan Wabak KKM dimuat turun pada ({get_malay_date(today)} @ 10.00 am)"), 9, bold=False)
+
+    # --- TAMBAHAN: BAHAGIAN TANDATANGAN ---
+    doc.add_paragraph() # Jarak sikit
+    sig_table = doc.add_table(rows=4, cols=2)
+    sig_table.width = Inches(6.0)
+    
+    # Baris 1: Petugas & Ketua Petugas
+    cell_p = sig_table.cell(0, 0)
+    run_p = cell_p.paragraphs[0].add_run("Petugas   :")
+    apply_font(run_p, 10, bold=False)
+    
+    cell_kp = sig_table.cell(2, 0)
+    run_kp = cell_kp.paragraphs[0].add_run("Ketua Petugas :")
+    apply_font(run_kp, 10, bold=False)
+    
+    # Baris 2 & 4: Jawatan
+    cell_j1 = sig_table.cell(1, 0)
+    run_j1 = cell_j1.paragraphs[0].add_run("Jawatan  :")
+    apply_font(run_j1, 10, bold=False)
+    
+    cell_j2 = sig_table.cell(3, 0)
+    run_j2 = cell_j2.paragraphs[0].add_run("Jawatan  :")
+    apply_font(run_j2, 10, bold=False)
 
     target = io.BytesIO()
     doc.save(target)
@@ -389,7 +412,6 @@ if f1 and f2:
                 bkk_raw.columns = bkk_raw.iloc[0]
                 bkk_table_final = bkk_raw[1:].reset_index(drop=True)
 
-                # Mapping Singkatan PKD untuk Jadual 4.0
                 bkk_map = {
                     'GOMBAK': 'GBK', 'HULU LANGAT': 'HL', 'HULU SELANGOR': 'HS',
                     'KLANG': 'KLG', 'KUALA LANGAT': 'KL', 'KUALA SELANGOR': 'KS',
