@@ -213,7 +213,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     # --- SECTION 3.0 ---
     # TAMBAH JARAK ANTARA SEKSYEN 2 DAN 3
     spacer = doc.add_paragraph()
-    spacer.paragraph_format.space_after = Pt(12) 
+    spacer.paragraph_format.space_after = Pt(18) 
 
     p3_head = doc.add_paragraph()
     p3_head.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
