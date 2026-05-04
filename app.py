@@ -49,8 +49,8 @@ def get_malay_date(target_date):
         1: "Januari", 2: "Februari", 3: "Mac", 4: "April", 5: "Mei", 6: "Jun",
         7: "Julai", 8: "Ogos", 9: "September", 10: "Oktober", 11: "November", 12: "Disember"
     }
-    day_name = days_ms.get(target_date.strftime("%A"))
-    month_name = months_ms.get(target_date.month)
+    day_name = days_ms.get(target_date.strftime("%A"), "")
+    month_name = months_ms.get(target_date.month, "")
     return f"{target_date.day:02d} {month_name} {target_date.year} ({day_name})"
 
 def apply_font(run, size, bold=True):
@@ -116,9 +116,9 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
     # --- SECTION 1.0 ---
-    p1 = doc.add_paragraph()
-    p1.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    apply_font(p1.add_run("1.0 Ringkasan Laporan Input Enotifikasi"), 11, bold=True)
+    p1_head = doc.add_paragraph()
+    p1_head.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    apply_font(p1_head.add_run("1.0 Ringkasan Laporan Input Enotifikasi"), 11, bold=True)
     
     total_notifications = int(col_sums['Grand Total'])
     h11 = doc.add_paragraph()
@@ -170,9 +170,9 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     # --- SECTION 2.0 ---
     doc.add_page_break()
-    p2 = doc.add_paragraph()
-    p2.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    apply_font(p2.add_run("2.0 Ringkasan Laporan Notifikasi Wabak"), 11, bold=True)
+    p2_head = doc.add_paragraph()
+    p2_head.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    apply_font(p2_head.add_run("2.0 Ringkasan Laporan Notifikasi Wabak"), 11, bold=True)
     
     harian_total = int(wabak_df['HARIAN'].sum())
     h21 = doc.add_paragraph()
@@ -212,9 +212,9 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     # --- SECTION 3.0 ---
     doc.add_paragraph() 
-    p3 = doc.add_paragraph()
-    p3.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    apply_font(p3.add_run("3.0 Ringkasan Laporan Wabak Vektor"), 11, bold=True)
+    p3_head = doc.add_paragraph()
+    p3_head.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    apply_font(p3_head.add_run("3.0 Ringkasan Laporan Wabak Vektor"), 11, bold=True)
     try: xx_v = int(float(vector_df.iloc[-1, 1]) + float(vector_df.iloc[-1, 3]) + float(vector_df.iloc[-1, 5]))
     except: xx_v = 0
 
@@ -265,9 +265,9 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     # --- SECTION 4.0 (BKK) ---
     doc.add_page_break()
-    p4 = doc.add_paragraph()
-    p4.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    apply_font(p4.add_run("4.0 Ringkasan Laporan Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)"), 11, bold=True)
+    p4_head = doc.add_paragraph()
+    p4_head.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    apply_font(p4_head.add_run("4.0 Ringkasan Laporan Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)"), 11, bold=True)
     
     h41 = doc.add_paragraph()
     h41.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
@@ -322,20 +322,4 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     apply_font(p_petugas.add_run("Petugas   :"), 11, bold=False)
     p_jawatan1 = doc.add_paragraph()
     p_jawatan1.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    apply_font(p_jawatan1.add_run("Jawatan  :"), 11, bold=False)
-    p_jawatan1.paragraph_format.space_after = Pt(36) 
-    
-    p_ketua = doc.add_paragraph()
-    p_ketua.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    apply_font(p_ketua.add_run("Ketua Petugas :"), 11, bold=False)
-    p_jawatan2 = doc.add_paragraph()
-    p_jawatan2.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    apply_font(p_jawatan2.add_run("Jawatan  :"), 11, bold=False)
-
-    target = io.BytesIO()
-    doc.save(target)
-    target.seek(0)
-    return target
-
-# --- STREAMLIT UI (REMAINDER REMAINS SAME) ---
-# ...
+    apply_font(p_jawatan1.add_run("Jawatan  :"),
