@@ -68,20 +68,23 @@ def apply_font(run, size, bold=True):
     run.font.size = Pt(size)
     run.bold = bold
 
+def add_table_title(doc, label, title):
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    run_label = p.add_run(f"{label} : ")
+    apply_font(run_label, 11, bold=True)
+    run_title = p.add_run(title)
+    apply_font(run_title, 11, bold=False)
+    p.paragraph_format.space_after = Pt(6)
+
 # --- DOCX GENERATOR ---
 def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty):
     doc = Document()
     today = date.today()
     yesterday = today - timedelta(days=1)
     
-    # Tetapan Margin
     section = doc.sections[0]
-    section.top_margin = Cm(2.54)
-    section.bottom_margin = Cm(2.54)
-    section.left_margin = Cm(2.54)
-    section.right_margin = Cm(2.54)
-    
-    # Lebar kawasan kandungan (content width)
+    section.top_margin = section.bottom_margin = section.left_margin = section.right_margin = Cm(2.54)
     content_width = section.page_width - section.left_margin - section.right_margin
 
     # 1. Logo
@@ -98,7 +101,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         ("PUSAT KESIAPSIAGAAN DAN TINDAKCEPAT KRISIS (CPRC)", 10.5),
         ("JABATAN KESIHATAN NEGERI SELANGOR", 10.5)
     ]
-    doc.add_paragraph()
     for text, size in titles:
         para = doc.add_paragraph()
         para.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -108,14 +110,12 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     doc.add_paragraph().paragraph_format.space_after = Pt(18)
 
-    # 3. Jadual Tarikh Hijau (Lebar Penuh)
+    # 3. Jadual Tarikh Hijau
     info_table = doc.add_table(rows=1, cols=2)
-    info_table.alignment = WD_TABLE_ALIGNMENT.CENTER
     info_table.width = content_width
     for i in range(2):
         cell = info_table.cell(0, i)
         set_cell_background(cell, "C6E0B4")
-        set_cell_paddings(cell, top=120, bottom=120)
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -136,30 +136,23 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     h11_text = f"Jadual di bawah menunjukkan jumlah input enotifikasi di negeri Selangor. Sejumlah {total_notifications} input notifikasi telah diterima pada {get_malay_date(yesterday)} dengan pecahan mengikut penyakit seperti dalam jadual 1."
     apply_font(h11.add_run(h11_text), 10, bold=False)
 
-    # Tajuk Jadual 1
-    p1_title = doc.add_paragraph()
-    p1_title.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    run_j1_bold = p1_title.add_run("Jadual 1 : ")
-    apply_font(run_j1_bold, 11, bold=True)
-    run_j1_normal = p1_title.add_run("Senarai Input eNotifikasi")
-    apply_font(run_j1_normal, 11, bold=False)
+    add_table_title(doc, "Jadual 1", "Senarai Input eNotifikasi")
 
     t1 = doc.add_table(rows=len(matrix_df) + 2, cols=len(TEMPLATE_PKDS) + 2)
     t1.style = 'Table Grid'
-    t1.width = content_width # Set lebar selari dengan margin
+    t1.width = content_width
     pkd_map = {'PKD GOMBAK': 'GBK', 'PKD HULU LANGAT': 'HL', 'PKD HULU SELANGOR': 'HS','PKD KLANG': 'KLG', 'PKD KUALA LANGAT': 'KL', 'PKD KUALA SELANGOR': 'KS','PKD PETALING': 'PTG', 'PKD SABAK BERNAM': 'SB', 'PKD SEPANG': 'SPG'}
     
     h_cells = t1.rows[0].cells
     for i in range(len(h_cells)):
-        set_cell_paddings(h_cells[i], top=140, bottom=140)
         h_cells[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+        h_cells[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
     apply_font(h_cells[0].paragraphs[0].add_run("PENYAKIT"), 7.5, bold=True)
     set_cell_background(h_cells[0], "BFDFFF")
     for i, pkd in enumerate(TEMPLATE_PKDS):
         cell = h_cells[i+1]
         apply_font(cell.paragraphs[0].add_run(pkd_map.get(pkd, pkd)), 7, bold=True)
         set_cell_background(cell, "BFDFFF")
-        cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
     apply_font(h_cells[-1].paragraphs[0].add_run("Jumlah"), 7, bold=True)
     set_cell_background(h_cells[-1], "FFFF00")
 
@@ -187,9 +180,9 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     # --- SECTION 2.0 ---
     doc.add_page_break()
-    p2_head = doc.add_paragraph()
-    p2_head.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    apply_font(p2_head.add_run("2.0 Ringkasan Laporan Notifikasi Wabak"), 11, bold=True)
+    p2 = doc.add_paragraph()
+    p2.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    apply_font(p2.add_run("2.0 Ringkasan Laporan Notifikasi Wabak"), 11, bold=True)
     
     harian_total = int(wabak_df['HARIAN'].sum())
     h21 = doc.add_paragraph()
@@ -197,13 +190,13 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     h21_text = f"Jadual di bawah menunjukkan jumlah wabak harian dan kumulatif di negeri Selangor. Sejumlah {harian_total} input notifikasi wabak diterima pada {get_malay_date(yesterday)}."
     apply_font(h21.add_run(h21_text), 10, bold=False)
 
+    add_table_title(doc, "Jadual 2", "Senarai Notifikasi Wabak")
+
     t2 = doc.add_table(rows=len(wabak_df) + 2, cols=3)
     t2.style = 'Table Grid'
-    t2.alignment = WD_TABLE_ALIGNMENT.CENTER
     t2.width = content_width
     for i, h in enumerate(["PENYAKIT", "HARIAN", "KUMULATIF"]):
         cell = t2.cell(0, i)
-        set_cell_paddings(cell, top=100, bottom=100)
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         apply_font(cell.paragraphs[0].add_run(h), 9, bold=True)
         set_cell_background(cell, "BFDFFF")
@@ -227,15 +220,11 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         set_cell_background(f2_cells[c], "FFFF00")
         f2_cells[c].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    p2_cap = doc.add_paragraph()
-    p2_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    apply_font(p2_cap.add_run("Jadual 2 : Senarai Notifikasi Wabak"), 10, bold=False)
-
     # --- SECTION 3.0 ---
     doc.add_paragraph() 
-    p3_head = doc.add_paragraph()
-    p3_head.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    apply_font(p3_head.add_run("3.0 Ringkasan Laporan Wabak Vektor"), 11, bold=True)
+    p3 = doc.add_paragraph()
+    p3.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    apply_font(p3.add_run("3.0 Ringkasan Laporan Wabak Vektor"), 11, bold=True)
     try: xx_v = int(float(vector_df.iloc[-1, 1]) + float(vector_df.iloc[-1, 3]) + float(vector_df.iloc[-1, 5]))
     except: xx_v = 0
 
@@ -244,9 +233,10 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     h31_text = f"Jadual di bawah menunjukkan jumlah wabak vektor harian dan kumulatif di negeri Selangor. Sejumlah {xx_v} input notifikasi wabak vektor telah diterima pada {get_malay_date(yesterday)} dengan pecahan mengikut penyakit seperti dalam jadual 3."
     apply_font(h31.add_run(h31_text), 10, bold=False)
 
+    add_table_title(doc, "Jadual 3", "Senarai Notifikasi Wabak Vektor")
+
     t3 = doc.add_table(rows=len(vector_df) + 2, cols=7)
     t3.style = 'Table Grid'
-    t3.alignment = WD_TABLE_ALIGNMENT.CENTER
     t3.width = content_width
     h3_r1 = t3.rows[0].cells
     h3_r1[0].merge(t3.rows[1].cells[0]).text = "DAERAH"
@@ -283,15 +273,11 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             elif j == 0: set_cell_background(row_cells[j], "FCE4D6")
             apply_font(run, 7.5, bold=True)
 
-    p3_cap = doc.add_paragraph()
-    p3_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    apply_font(p3_cap.add_run("Jadual 3 : Senarai Notifikasi Wabak Vektor"), 10, bold=False)
-
     # --- SECTION 4.0 (BKK) ---
     doc.add_page_break()
-    p4_head = doc.add_paragraph()
-    p4_head.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    apply_font(p4_head.add_run("4.0 Ringkasan Laporan Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)"), 11, bold=True)
+    p4 = doc.add_paragraph()
+    p4.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    apply_font(p4.add_run("4.0 Ringkasan Laporan Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)"), 11, bold=True)
     
     prefix_41 = "4.1 Jadual di bawah menunjukkan jumlah kejadian insiden bencana, kecemasan dan krisis (BKK) di negeri Selangor."
     h41 = doc.add_paragraph()
@@ -303,9 +289,10 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         h41_text = f"{prefix_41} Sejumlah {total_val_bkk} input notifikasi Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK) telah diterima pada {get_malay_date(yesterday)} dengan pecahan mengikut jenis insiden seperti dalam jadual 4."
     apply_font(h41.add_run(h41_text), 10, bold=False)
 
+    add_table_title(doc, "Jadual 4", "Senarai Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)")
+
     t4 = doc.add_table(rows=bkk_table_df.shape[0] + 1, cols=bkk_table_df.shape[1])
     t4.style = 'Table Grid'
-    t4.alignment = WD_TABLE_ALIGNMENT.CENTER
     t4.width = content_width
 
     for i, col_name in enumerate(bkk_table_df.columns):
@@ -334,35 +321,27 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             elif c_idx == bkk_table_df.shape[1]-2: set_cell_background(cells[c_idx], "FFFFB3")
             elif c_idx == bkk_table_df.shape[1]-1: set_cell_background(cells[c_idx], "E2EFDA")
 
-    p4_cap = doc.add_paragraph()
-    p4_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    apply_font(p4_cap.add_run("Jadual 4 : Senarai Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)"), 10, bold=False)
-
     doc.add_paragraph()
     footer = doc.add_paragraph()
     footer.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     apply_font(footer.add_run(f"*Sumber : Sistem e-notifikasi, Laporan Wabak KKM dimuat turun pada ({get_malay_date(today)} @ 10.00 am)"), 9, bold=False)
 
-    # --- TANDATANGAN PLAIN TEXT (JUSTIFY) ---
+    # --- TANDATANGAN PLAIN TEXT ---
     doc.add_paragraph()
     p_petugas = doc.add_paragraph()
     p_petugas.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    run_p = p_petugas.add_run("Petugas   :")
-    apply_font(run_p, 10, bold=False)
+    apply_font(p_petugas.add_run("Petugas   :"), 10, bold=False)
     p_jawatan1 = doc.add_paragraph()
     p_jawatan1.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    run_j1 = p_jawatan1.add_run("Jawatan  :")
-    apply_font(run_j1, 10, bold=False)
+    apply_font(p_jawatan1.add_run("Jawatan  :"), 10, bold=False)
     p_jawatan1.paragraph_format.space_after = Pt(36) 
     
     p_ketua = doc.add_paragraph()
     p_ketua.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    run_kp = p_ketua.add_run("Ketua Petugas :")
-    apply_font(run_kp, 10, bold=False)
+    apply_font(p_ketua.add_run("Ketua Petugas :"), 10, bold=False)
     p_jawatan2 = doc.add_paragraph()
     p_jawatan2.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    run_j2 = p_jawatan2.add_run("Jawatan  :")
-    apply_font(run_j2, 10, bold=False)
+    apply_font(p_jawatan2.add_run("Jawatan  :"), 10, bold=False)
 
     target = io.BytesIO()
     doc.save(target)
@@ -382,7 +361,6 @@ if f1 and f2:
             yesterday = date.today() - timedelta(days=1)
             yesterday_str = yesterday.strftime("%d/%m/%Y") 
 
-            # S1
             df1 = pd.read_excel(f1)
             df1 = df1[df1['Notifikasi Status'] != 'Abai Notifikasi']
             df1 = df1[df1['Pejabat Kesihatan'].isin(TEMPLATE_PKDS)]
@@ -391,7 +369,6 @@ if f1 and f2:
             matrix = matrix.sort_values(by='Grand Total', ascending=False)
             col_totals = matrix.sum(axis=0)
 
-            # S2
             df2 = pd.read_excel(f2)
             df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date
             df2 = df2[df2['Tarikh Isytihar Wabak'] >= date(2026, 1, 4)]
@@ -406,7 +383,6 @@ if f1 and f2:
                 wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'KUMULATIF': k})
             wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
-            # S3
             with st.spinner('Menarik data vektor...'):
                 raw_gs = pd.read_csv(GSHEET_URL, header=None)
                 mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('PETALING').any(), axis=1)
@@ -418,7 +394,6 @@ if f1 and f2:
                     st.error("Data 'PETALING' tidak dijumpai.")
                     st.stop()
 
-            # S4
             with st.spinner('Menarik data BKK...'):
                 df_bkk_full = pd.read_csv(SHEET_BKK_URL, header=None)
                 tkh_lapor_col = df_bkk_full.iloc[:, 2].astype(str)
