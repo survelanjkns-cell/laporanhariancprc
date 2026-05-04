@@ -329,28 +329,27 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df):
     footer = doc.add_paragraph()
     apply_font(footer.add_run(f"*Sumber : Sistem e-notifikasi, Laporan Wabak KKM dimuat turun pada ({get_malay_date(today)} @ 10.00 am)"), 9, bold=False)
 
-    # --- TAMBAHAN: BAHAGIAN TANDATANGAN ---
-    doc.add_paragraph() # Jarak sikit
-    sig_table = doc.add_table(rows=4, cols=2)
+    # --- TAMBAHAN: BAHAGIAN TANDATANGAN (Tanpa Garisan & Jarak Luas) ---
+    doc.add_paragraph() 
+    sig_table = doc.add_table(rows=6, cols=2)
     sig_table.width = Inches(6.0)
     
-    # Baris 1: Petugas & Ketua Petugas
-    cell_p = sig_table.cell(0, 0)
-    run_p = cell_p.paragraphs[0].add_run("Petugas   :")
-    apply_font(run_p, 10, bold=False)
+    # Label Tandatangan
+    labels = [
+        (0, "Petugas   :"),
+        (1, "Jawatan  :"),
+        (4, "Ketua Petugas :"),
+        (5, "Jawatan  :")
+    ]
     
-    cell_kp = sig_table.cell(2, 0)
-    run_kp = cell_kp.paragraphs[0].add_run("Ketua Petugas :")
-    apply_font(run_kp, 10, bold=False)
-    
-    # Baris 2 & 4: Jawatan
-    cell_j1 = sig_table.cell(1, 0)
-    run_j1 = cell_j1.paragraphs[0].add_run("Jawatan  :")
-    apply_font(run_j1, 10, bold=False)
-    
-    cell_j2 = sig_table.cell(3, 0)
-    run_j2 = cell_j2.paragraphs[0].add_run("Jawatan  :")
-    apply_font(run_j2, 10, bold=False)
+    for row_idx, text in labels:
+        cell = sig_table.cell(row_idx, 0)
+        p = cell.paragraphs[0]
+        run = p.add_run(text)
+        apply_font(run, 10, bold=False)
+        # Tambah sedikit padding bawah untuk Jawatan supaya ada ruang kosong
+        if "Jawatan" in text:
+            p.paragraph_format.space_after = Pt(12)
 
     target = io.BytesIO()
     doc.save(target)
