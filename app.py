@@ -28,6 +28,16 @@ def set_cell_background(cell, hex_color):
     shading_elm = parse_xml(r'<w:shd {} w:fill="{}"/>'.format(nsdecls('w'), hex_color))
     cell._tc.get_or_add_tcPr().append(shading_elm)
 
+def set_cell_paddings(cell, top=None, start=None, bottom=None, end=None):
+    tc = cell._tc
+    tcPr = tc.get_or_add_tcPr()
+    tcMar = parse_xml(r'<w:tcMar {}/>'.format(nsdecls('w')))
+    for margin, value in [('top', top), ('left', start), ('bottom', bottom), ('right', end)]:
+        if value is not None:
+            node = parse_xml(r'<w:{} {} w:w="{}" w:type="dxa"/>'.format(margin, nsdecls('w'), value))
+            tcMar.append(node)
+    tcPr.append(tcMar)
+
 def clean_val(val):
     if pd.isna(val) or str(val).strip() == "" or str(val).strip() == "-": 
         return "-"
@@ -176,7 +186,8 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         set_cell_background(cell, "FFFF00")
         cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    # NOTA DI BAWAH JADUAL 1
+    # Nota Jadual 1 (Jarak 2 kali Enter)
+    doc.add_paragraph()
     add_pkd_note(doc)
 
     # --- SECTION 2.0 ---
@@ -222,9 +233,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         f2_cells[c].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     # --- SECTION 3.0 ---
-    spacer = doc.add_paragraph()
-    spacer.paragraph_format.space_after = Pt(24) 
-
+    doc.add_paragraph().paragraph_format.space_after = Pt(24) 
     p3_head = doc.add_paragraph()
     p3_head.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     apply_font(p3_head.add_run("3.0 Ringkasan Laporan Wabak Vektor"), 11, bold=True)
@@ -326,7 +335,8 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             elif c_idx == bkk_table_df.shape[1]-2: set_cell_background(cells[c_idx], "FFFFB3")
             elif c_idx == bkk_table_df.shape[1]-1: set_cell_background(cells[c_idx], "E2EFDA")
 
-    # NOTA DI BAWAH JADUAL 4
+    # Nota Jadual 4 (Jarak 2 kali Enter)
+    doc.add_paragraph()
     add_pkd_note(doc)
 
     doc.add_paragraph()
@@ -334,12 +344,11 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     footer.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     apply_font(footer.add_run(f"*Sumber : Sistem e-notifikasi, Laporan Wabak KKM dimuat turun pada ({get_malay_date(today)} @ 10.00 am)"), 9, bold=False)
 
-    # --- TANDATANGAN PLAIN TEXT ---
+    # --- TANDATANGAN ---
     doc.add_paragraph()
     p_petugas = doc.add_paragraph()
     p_petugas.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     apply_font(p_petugas.add_run("Petugas   :"), 11, bold=False)
-    
     p_jawatan1 = doc.add_paragraph()
     p_jawatan1.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     apply_font(p_jawatan1.add_run("Jawatan  :"), 11, bold=False)
@@ -348,7 +357,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     p_ketua = doc.add_paragraph()
     p_ketua.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     apply_font(p_ketua.add_run("Ketua Petugas :"), 11, bold=False)
-    
     p_jawatan2 = doc.add_paragraph()
     p_jawatan2.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     apply_font(p_jawatan2.add_run("Jawatan  :"), 11, bold=False)
@@ -371,7 +379,6 @@ if f1 and f2:
             yesterday = date.today() - timedelta(days=1)
             yesterday_str = yesterday.strftime("%d/%m/%Y") 
 
-            # S1
             df1 = pd.read_excel(f1)
             df1 = df1[df1['Notifikasi Status'] != 'Abai Notifikasi']
             df1 = df1[df1['Pejabat Kesihatan'].isin(TEMPLATE_PKDS)]
@@ -380,7 +387,6 @@ if f1 and f2:
             matrix = matrix.sort_values(by='Grand Total', ascending=False)
             col_totals = matrix.sum(axis=0)
 
-            # S2
             df2 = pd.read_excel(f2)
             df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date
             df2 = df2[df2['Tarikh Isytihar Wabak'] >= date(2026, 1, 4)]
@@ -395,7 +401,6 @@ if f1 and f2:
                 wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'KUMULATIF': k})
             wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
-            # S3
             with st.spinner('Menarik data vektor...'):
                 raw_gs = pd.read_csv(GSHEET_URL, header=None)
                 mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('PETALING').any(), axis=1)
@@ -407,7 +412,6 @@ if f1 and f2:
                     st.error("Data 'PETALING' tidak dijumpai.")
                     st.stop()
 
-            # S4
             with st.spinner('Menarik data BKK...'):
                 df_bkk_full = pd.read_csv(SHEET_BKK_URL, header=None)
                 tkh_lapor_col = df_bkk_full.iloc[:, 2].astype(str)
