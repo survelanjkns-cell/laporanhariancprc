@@ -256,8 +256,8 @@ st.set_page_config(page_title="BWKK Report Generator", layout="centered")
 st.title("📊 BWKK Report Generator")
 
 # MODIFIKASI: Ditambah '.xls' dalam list type
-f1 = st.file_uploader("📂 Muat Naik Excel Notifikasi Harian (1.0)", type=["xlsx", "xls"])
-f2 = st.file_uploader("📂 Muat Naik Excel Penyenaraian Wabak (2.0)", type=["xlsx", "xls"])
+f1 = st.file_uploader("📂 Muat Naik Excel Notifikasi Harian ", type=["xlsx", "xls"])
+f2 = st.file_uploader("📂 Muat Naik Excel Linelisting Wabak ", type=["xlsx", "xls"])
 
 if f1 and f2:
     if st.button("Jana Laporan Lengkap"):
