@@ -260,7 +260,7 @@ f1 = st.file_uploader("📂 Muat Naik Excel Notifikasi Harian (1.0)", type=["xls
 f2 = st.file_uploader("📂 Muat Naik Excel Penyenaraian Wabak (2.0)", type=["xlsx", "xls"])
 
 if f1 and f2:
-    if st.button("🚀 Jana Laporan Lengkap (1.0 + 2.0 + 3.0)"):
+    if st.button("Jana Laporan Lengkap"):
         try:
             # S1
             df1 = pd.read_excel(f1)
