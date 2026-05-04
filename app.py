@@ -329,27 +329,27 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df):
     footer = doc.add_paragraph()
     apply_font(footer.add_run(f"*Sumber : Sistem e-notifikasi, Laporan Wabak KKM dimuat turun pada ({get_malay_date(today)} @ 10.00 am)"), 9, bold=False)
 
-    # --- TAMBAHAN: BAHAGIAN TANDATANGAN (Tanpa Garisan & Jarak Luas) ---
-    doc.add_paragraph() 
-    sig_table = doc.add_table(rows=6, cols=2)
-    sig_table.width = Inches(6.0)
+    # --- TAMBAHAN: BAHAGIAN TANDATANGAN (Plain Text dengan Spacing) ---
+    doc.add_paragraph() # Jarak dari footer
     
-    # Label Tandatangan
-    labels = [
-        (0, "Petugas   :"),
-        (1, "Jawatan  :"),
-        (4, "Ketua Petugas :"),
-        (5, "Jawatan  :")
-    ]
+    # Bahagian Petugas
+    p_petugas = doc.add_paragraph()
+    run_p = p_petugas.add_run("Petugas   :")
+    apply_font(run_p, 10, bold=False)
     
-    for row_idx, text in labels:
-        cell = sig_table.cell(row_idx, 0)
-        p = cell.paragraphs[0]
-        run = p.add_run(text)
-        apply_font(run, 10, bold=False)
-        # Tambah sedikit padding bawah untuk Jawatan supaya ada ruang kosong
-        if "Jawatan" in text:
-            p.paragraph_format.space_after = Pt(12)
+    p_jawatan1 = doc.add_paragraph()
+    run_j1 = p_jawatan1.add_run("Jawatan  :")
+    apply_font(run_j1, 10, bold=False)
+    p_jawatan1.paragraph_format.space_after = Pt(36) # Tambah ruang kosong 3 baris
+    
+    # Bahagian Ketua Petugas
+    p_ketua = doc.add_paragraph()
+    run_kp = p_ketua.add_run("Ketua Petugas :")
+    apply_font(run_kp, 10, bold=False)
+    
+    p_jawatan2 = doc.add_paragraph()
+    run_j2 = p_jawatan2.add_run("Jawatan  :")
+    apply_font(run_j2, 10, bold=False)
 
     target = io.BytesIO()
     doc.save(target)
