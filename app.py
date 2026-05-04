@@ -151,11 +151,11 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
     p1_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
     apply_font(p1_cap.add_run("Jadual 1 : Senarai Input eNotifikasi"), 10, bold=False)
 
-    # --- SECTION 2.0 (Page break dikekalkan untuk 1.0 ke 2.0) ---
+    # --- SECTION 2.0 ---
     doc.add_page_break()
     apply_font(doc.add_paragraph().add_run("2.0 Ringkasan Laporan Notifikasi Wabak"), 11, bold=True)
     harian_total = int(wabak_df['HARIAN'].sum())
-    h21_text = f"Jadual di bawah menunjukkan jumlah wabak harian dan kumulatif di negeri Selangor. {'Sejumlah ' + str(harian_total) + ' input notifikasi wabak' if harian_total > 0 else 'Tiada wabak dilaporkan'} diterima pada {yesterday.strftime('%d %B %Y')}."
+    h21_text = f"Jadual di bawah menunjukkan jumlah wabak harian dan kumulatif di negeri Selangor. Sejumlah {harian_total} input notifikasi wabak diterima pada {yesterday.strftime('%d %B %Y')}."
     apply_font(doc.add_paragraph().add_run(h21_text), 10, bold=False)
 
     t2 = doc.add_table(rows=len(wabak_df) + 2, cols=3)
@@ -188,8 +188,8 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
     p2_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
     apply_font(p2_cap.add_run("Jadual 2 : Senarai Notifikasi Wabak"), 10, bold=False)
 
-    # --- SECTION 3.0 (Page break dibuang untuk merapatkan 2.0 dan 3.0) ---
-    doc.add_paragraph() # Ruang kecil pemisah teks
+    # --- SECTION 3.0 ---
+    doc.add_paragraph() 
     apply_font(doc.add_paragraph().add_run("3.0 Ringkasan Laporan Wabak Vektor"), 11, bold=True)
     try:
         xx = int(float(vector_df.iloc[-1, 1]) + float(vector_df.iloc[-1, 3]) + float(vector_df.iloc[-1, 5]))
@@ -202,9 +202,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
     t3.style = 'Table Grid'
     t3.alignment = WD_TABLE_ALIGNMENT.CENTER
     
-    # Lebar kolom DAERAH dilebarkan lagi (2.3) untuk jaminan satu baris
     col_widths = [Inches(2.3), Inches(0.55), Inches(0.55), Inches(0.55), Inches(0.55), Inches(0.55), Inches(0.55)]
-    
     h3_r1 = t3.rows[0].cells
     h3_r1[0].merge(t3.rows[1].cells[0]).text = "DAERAH"
     h3_r1[1].merge(h3_r1[2]).text = "DENGGI"
@@ -235,9 +233,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
             val = vector_df.iloc[i, j]
             try: display_val = str(int(float(val))) if j > 0 else str(val)
             except: display_val = str(val)
-            
             row_cells[j].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-            row_cells[j].width = col_widths[j]
             p = row_cells[j].paragraphs[0]
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT if j == 0 else WD_ALIGN_PARAGRAPH.CENTER
             run = p.add_run(display_val)
@@ -259,12 +255,14 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
 st.set_page_config(page_title="BWKK Report Generator", layout="centered")
 st.title("📊 BWKK Report Generator")
 
-f1 = st.file_uploader("📂 Muat Naik Excel Notifikasi Harian (1.0)", type="xlsx")
-f2 = st.file_uploader("📂 Muat Naik Excel Penyenaraian Wabak (2.0)", type="xlsx")
+# MODIFIKASI: Ditambah '.xls' dalam list type
+f1 = st.file_uploader("📂 Muat Naik Excel Notifikasi Harian (1.0)", type=["xlsx", "xls"])
+f2 = st.file_uploader("📂 Muat Naik Excel Penyenaraian Wabak (2.0)", type=["xlsx", "xls"])
 
 if f1 and f2:
     if st.button("🚀 Jana Laporan Lengkap (1.0 + 2.0 + 3.0)"):
         try:
+            # S1
             df1 = pd.read_excel(f1)
             df1 = df1[df1['Notifikasi Status'] != 'Abai Notifikasi']
             df1 = df1[df1['Pejabat Kesihatan'].isin(TEMPLATE_PKDS)]
@@ -273,6 +271,7 @@ if f1 and f2:
             matrix = matrix.sort_values(by='Grand Total', ascending=False)
             col_totals = matrix.sum(axis=0)
 
+            # S2
             df2 = pd.read_excel(f2)
             df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date
             df2 = df2[df2['Tarikh Isytihar Wabak'] >= date(2026, 1, 4)]
@@ -288,15 +287,17 @@ if f1 and f2:
                 wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'KUMULATIF': k})
             wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
-            raw_gs = pd.read_csv(GSHEET_URL, header=None)
-            mask = raw_gs.apply(lambda r: r.astype(str).str.contains('PETALING').any(), axis=1)
-            if mask.any():
-                start_row = mask.idxmax()
-                v_data = raw_gs.iloc[start_row : start_row + 10, 13:20]
-                v_data = v_data[v_data[13].notna() & (v_data[13] != '')]
-            else:
-                st.error("Data 'PETALING' tidak dijumpai.")
-                st.stop()
+            # S3
+            with st.spinner('Menarik data vektor...'):
+                raw_gs = pd.read_csv(GSHEET_URL, header=None)
+                mask = raw_gs.apply(lambda r: r.astype(str).str.contains('PETALING').any(), axis=1)
+                if mask.any():
+                    start_row = mask.idxmax()
+                    v_data = raw_gs.iloc[start_row : start_row + 10, 13:20]
+                    v_data = v_data[v_data[13].notna() & (v_data[13] != '')]
+                else:
+                    st.error("Data 'PETALING' tidak dijumpai.")
+                    st.stop()
 
             doc_out = generate_docx(matrix, col_totals, wabak_df, v_data)
             st.download_button("⬇️ Muat Turun Laporan", data=doc_out, file_name=f"Laporan_BWKK_{date.today()}.docx")
