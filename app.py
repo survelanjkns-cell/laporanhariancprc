@@ -398,7 +398,7 @@ if f1 and f2:
             # S3
             with st.spinner('Menarik data vektor...'):
                 raw_gs = pd.read_csv(GSHEET_URL, header=None)
-                mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('PETALING').any(), axis=1)
+                mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
                 if mask_v.any():
                     start_row = mask_v.idxmax()
                     v_data = raw_gs.iloc[start_row : start_row + 10, 13:20]
