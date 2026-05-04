@@ -146,15 +146,20 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df):
 
     for r_idx, (penyakit, row_data) in enumerate(matrix_df.iterrows()):
         row = t1.rows[r_idx + 1].cells
+        row[0].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         apply_font(row[0].paragraphs[0].add_run(str(penyakit)), 7, bold=True)
         set_cell_background(row[0], "D9E9FF")
         for c_idx, val in enumerate(row_data):
             cell = row[c_idx+1]
+            cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
             apply_font(cell.paragraphs[0].add_run(str(int(val))), 8, bold=True)
             cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
             if (c_idx + 1) == (len(row_data)): set_cell_background(cell, "FFFFB3")
 
     f_cells = t1.rows[-1].cells
+    for i in range(len(f_cells)):
+        f_cells[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+        
     apply_font(f_cells[0].paragraphs[0].add_run("Jumlah"), 7.5, bold=True)
     set_cell_background(f_cells[0], "FFFF00")
     for i, val in enumerate(col_sums):
@@ -180,12 +185,14 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df):
     for i, h in enumerate(["PENYAKIT", "HARIAN", "KUMULATIF"]):
         cell = t2.cell(0, i)
         set_cell_paddings(cell, top=100, bottom=100)
+        cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         apply_font(cell.paragraphs[0].add_run(h), 9, bold=True)
         set_cell_background(cell, "BFDFFF")
         cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     for i, (penyakit, row_data) in enumerate(wabak_df.iterrows()):
         cells = t2.rows[i+1].cells
+        for c in range(3): cells[c].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         apply_font(cells[0].paragraphs[0].add_run(str(penyakit)), 8, bold=True)
         set_cell_background(cells[0], "D9E9FF")
         apply_font(cells[1].paragraphs[0].add_run(str(int(row_data['HARIAN']))), 8, bold=True)
@@ -193,6 +200,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df):
         cells[1].paragraphs[0].alignment = cells[2].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     f2_cells = t2.rows[-1].cells
+    for c in range(3): f2_cells[c].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
     apply_font(f2_cells[0].paragraphs[0].add_run("JUMLAH"), 9, bold=True)
     apply_font(f2_cells[1].paragraphs[0].add_run(str(int(wabak_df['HARIAN'].sum()))), 9, bold=True)
     apply_font(f2_cells[2].paragraphs[0].add_run(str(int(wabak_df['KUMULATIF'].sum()))), 9, bold=True)
@@ -281,25 +289,33 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df):
     t4.alignment = WD_TABLE_ALIGNMENT.CENTER
     h4_widths = [Inches(1.5)] + [Inches(0.42)] * (bkk_table_df.shape[1] - 3) + [Inches(0.6), Inches(0.8)]
 
+    # Header Jadual 4.0
     for i, col_name in enumerate(bkk_table_df.columns):
         cell = t4.rows[0].cells[i]
         cell.width = h4_widths[i] if i < len(h4_widths) else Inches(0.5)
+        cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER # Align Tengah Menegak
+        
         if i < bkk_table_df.shape[1]-2: set_cell_background(cell, "BFDFFF")
         elif i == bkk_table_df.shape[1]-2: set_cell_background(cell, "FFFF00")
         else: set_cell_background(cell, "C6E0B4")
+        
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         f_size = 6.5 if 0 < i < bkk_table_df.shape[1]-2 else 7
-        apply_font(p.add_run(str(col_name).replace(" ", "\n")), f_size, bold=True)
+        run = p.add_run(str(col_name).replace(" ", "\n"))
+        apply_font(run, f_size, bold=True)
 
+    # Isi Jadual 4.0
     for r_idx, row_data in enumerate(bkk_table_df.values):
         cells = t4.rows[r_idx+1].cells
         is_last_row = (r_idx == bkk_table_df.shape[0] - 1)
         for c_idx, val in enumerate(row_data):
+            cells[c_idx].vertical_alignment = WD_ALIGN_VERTICAL.CENTER # Align Tengah Menegak
             p = cells[c_idx].paragraphs[0]
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT if c_idx == 0 else WD_ALIGN_PARAGRAPH.CENTER
             run = p.add_run(clean_val(val))
             apply_font(run, 7.5 if c_idx == 0 else 8, bold=is_last_row or c_idx == 0)
+            
             if is_last_row: set_cell_background(cells[c_idx], "FFFF00")
             elif c_idx == 0: set_cell_background(cells[c_idx], "D9E9FF")
             elif c_idx == bkk_table_df.shape[1]-2: set_cell_background(cells[c_idx], "FFFFB3")
@@ -330,7 +346,7 @@ if f1 and f2:
         try:
             yesterday = date.today() - timedelta(days=1)
             
-            # S1
+            # S1 Logic
             df1 = pd.read_excel(f1)
             df1 = df1[df1['Notifikasi Status'] != 'Abai Notifikasi']
             df1 = df1[df1['Pejabat Kesihatan'].isin(TEMPLATE_PKDS)]
@@ -339,7 +355,7 @@ if f1 and f2:
             matrix = matrix.sort_values(by='Grand Total', ascending=False)
             col_totals = matrix.sum(axis=0)
 
-            # S2
+            # S2 Logic
             df2 = pd.read_excel(f2)
             df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date
             df2 = df2[df2['Tarikh Isytihar Wabak'] >= date(2026, 1, 4)]
@@ -354,7 +370,7 @@ if f1 and f2:
                 wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'KUMULATIF': k})
             wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
-            # S3
+            # S3 Logic
             with st.spinner('Menarik data vektor...'):
                 raw_gs = pd.read_csv(GSHEET_URL, header=None)
                 mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('PETALING').any(), axis=1)
