@@ -369,7 +369,7 @@ if f1 and f2:
             df2 = pd.read_excel(f2)
             df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date
             df2 = df2[df2['Tarikh Isytihar Wabak'] >= date(2026, 1, 4)]
-            def group_inf(n): return "ILI/Influenza" if any(x in str(n).upper() for x in ["INFLUENZA", "ILI"]) else n
+            def group_inf(n): return "ILI / Influenza" if any(x in str(n).upper() for x in ["INFLUENZA", "ILI"]) else n
             df2['PENYAKIT'] = df2['PENYAKIT'].apply(group_inf)
             unique_d = df2['PENYAKIT'].unique()
             wb_sum = []
