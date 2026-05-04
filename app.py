@@ -320,6 +320,87 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     p_petugas = doc.add_paragraph()
     p_petugas.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     apply_font(p_petugas.add_run("Petugas   :"), 11, bold=False)
+    
     p_jawatan1 = doc.add_paragraph()
     p_jawatan1.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    apply_font(p_jawatan1.add_run("Jawatan  :"),
+    apply_font(p_jawatan1.add_run("Jawatan  :"), 11, bold=False)
+    p_jawatan1.paragraph_format.space_after = Pt(36) 
+    
+    p_ketua = doc.add_paragraph()
+    p_ketua.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    apply_font(p_ketua.add_run("Ketua Petugas :"), 11, bold=False)
+    
+    p_jawatan2 = doc.add_paragraph()
+    p_jawatan2.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    apply_font(p_jawatan2.add_run("Jawatan  :"), 11, bold=False)
+
+    target = io.BytesIO()
+    doc.save(target)
+    target.seek(0)
+    return target
+
+# --- STREAMLIT UI ---
+st.set_page_config(page_title="BWKK Report Generator", layout="centered")
+st.title("📊 BWKK Report Generator")
+
+f1 = st.file_uploader("📂 Muat Naik Excel Notifikasi Harian", type=["xlsx", "xls"])
+f2 = st.file_uploader("📂 Muat Naik Excel Linelisting Wabak", type=["xlsx", "xls"])
+
+if f1 and f2:
+    if st.button("🚀 Jana Laporan Lengkap"):
+        try:
+            yesterday = date.today() - timedelta(days=1)
+            yesterday_str = yesterday.strftime("%d/%m/%Y") 
+
+            # S1
+            df1 = pd.read_excel(f1)
+            df1 = df1[df1['Notifikasi Status'] != 'Abai Notifikasi']
+            df1 = df1[df1['Pejabat Kesihatan'].isin(TEMPLATE_PKDS)]
+            matrix = pd.crosstab(df1['Diagnosis'], df1['Pejabat Kesihatan']).reindex(columns=TEMPLATE_PKDS, fill_value=0)
+            matrix['Grand Total'] = matrix.sum(axis=1)
+            matrix = matrix.sort_values(by='Grand Total', ascending=False)
+            col_totals = matrix.sum(axis=0)
+
+            # S2
+            df2 = pd.read_excel(f2)
+            df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date
+            df2 = df2[df2['Tarikh Isytihar Wabak'] >= date(2026, 1, 4)]
+            def group_inf(n): return "ILI/INFLUENZA" if any(x in str(n).upper() for x in ["INFLUENZA", "ILI"]) else n
+            df2['PENYAKIT'] = df2['PENYAKIT'].apply(group_inf)
+            unique_d = df2['PENYAKIT'].unique()
+            wb_sum = []
+            for d in unique_d:
+                if pd.isna(d): continue
+                h = len(df2[(df2['PENYAKIT'] == d) & (df2['Tarikh Isytihar Wabak'] == yesterday)])
+                k = len(df2[df2['PENYAKIT'] == d])
+                wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'KUMULATIF': k})
+            wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
+
+            # S3
+            with st.spinner('Menarik data vektor...'):
+                raw_gs = pd.read_csv(GSHEET_URL, header=None)
+                mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('PETALING').any(), axis=1)
+                if mask_v.any():
+                    start_row = mask_v.idxmax()
+                    v_data = raw_gs.iloc[start_row : start_row + 10, 13:20]
+                    v_data = v_data[v_data[13].notna() & (v_data[13] != '')]
+                else:
+                    st.error("Data 'PETALING' tidak dijumpai.")
+                    st.stop()
+
+            # S4
+            with st.spinner('Menarik data BKK...'):
+                df_bkk_full = pd.read_csv(SHEET_BKK_URL, header=None)
+                tkh_lapor_col = df_bkk_full.iloc[:, 2].astype(str)
+                is_bkk_empty = not tkh_lapor_col.str.contains(yesterday_str).any()
+                bkk_raw = df_bkk_full.iloc[1:, 33:47].dropna(how='all').reset_index(drop=True)
+                bkk_raw.columns = bkk_raw.iloc[0]
+                bkk_table_final = bkk_raw[1:].reset_index(drop=True)
+                bkk_map = {'GOMBAK':'GBK','HULU LANGAT':'HL','HULU SELANGOR':'HS','KLANG':'KLG','KUALA LANGAT':'KL','KUALA SELANGOR':'KS','PETALING':'PTG','SABAK BERNAM':'SB','SEPANG':'SPG','PK P.KLANG':'PK.KLG','PK KLIA':'PK.KLIA'}
+                bkk_table_final = bkk_table_final.rename(columns=bkk_map)
+
+            doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, is_bkk_empty)
+            st.download_button("⬇️ Muat Turun Laporan", data=doc_out, file_name=f"Laporan_BWKK_{date.today()}.docx")
+
+        except Exception as e:
+            st.error(f"Ralat: {e}")
