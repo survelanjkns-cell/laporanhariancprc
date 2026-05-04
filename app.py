@@ -103,6 +103,99 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
 
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
+    def clean_val(val):
+    """Membuang kandungan dalam kurungan, cth: '2 (1)' -> '2'"""
+    if pd.isna(val) or str(val).strip() == "" or str(val).strip() == "-": 
+        return "-"
+    # Regex untuk buang kandungan dalam kurungan
+    cleaned = re.sub(r'\s*\(.*?\)', '', str(val)).strip()
+    return cleaned if cleaned != "" else "-"
+
+# --- DI DALAM FUNGSI generate_docx ---
+def generate_docx(..., bkk_table_df):
+    # ... (kod sedia ada)
+
+    # --- SECTION 4.0 ---
+    doc.add_page_break()
+    t_40 = doc.add_paragraph()
+    apply_font(t_40.add_run("4.0 Ringkasan Laporan Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)"), 11, bold=True)
+    
+    # Ambil nilai jumlah dari baris terakhir DataFrame
+    total_val = clean_val(bkk_table_df.iloc[-1]['JUMLAH'])
+    yesterday_str = get_malay_date(date.today() - timedelta(days=1))
+    
+    # Logik ayat dinamik
+    prefix_41 = "4.1 Jadual di bawah menunjukkan jumlah kejadian insiden bencana, kecemasan dan krisis (BKK) di negeri Selangor."
+    if total_val == "0" or total_val == "-":
+        h41_text = f"{prefix_41} Tiada Kejadian Insiden dilaporkan pada {yesterday_str}."
+    else:
+        h41_text = f"{prefix_41} Sejumlah {total_val} input notifikasi Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK) telah diterima pada {yesterday_str} dengan pecahan mengikut penyakit seperti dalam jadual 4."
+    
+    apply_font(doc.add_paragraph().add_run(h41_text), 10, bold=False)
+
+    # Bina Jadual
+    t4 = doc.add_table(rows=bkk_table_df.shape[0] + 1, cols=bkk_table_df.shape[1])
+    t4.style = 'Table Grid'
+    t4.alignment = WD_TABLE_ALIGNMENT.CENTER
+    
+    # Sizing Column (Justified)
+    # Kolom 0 (Insiden) lebar, Kolom Daerah kecil, Kolom Jumlah & KKM sederhana
+    h4_widths = [Inches(1.5)] + [Inches(0.42)] * (bkk_table_df.shape[1] - 3) + [Inches(0.6), Inches(0.8)]
+
+    # Headers
+    for i, col_name in enumerate(bkk_table_df.columns):
+        cell = t4.rows[0].cells[i]
+        cell.width = h4_widths[i] if i < len(h4_widths) else Inches(0.5)
+        # Warna Header: Biru untuk daerah, Kuning untuk Jumlah, Hijau untuk KKM
+        if i < bkk_table_df.shape[1]-2:
+            set_cell_background(cell, "BFDFFF")
+        elif i == bkk_table_df.shape[1]-2:
+            set_cell_background(cell, "FFFF00")
+        else:
+            set_cell_background(cell, "C6E0B4")
+            
+        p = cell.paragraphs[0]
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        # Kecilkan font daerah supaya sebaris
+        f_size = 6.5 if 0 < i < bkk_table_df.shape[1]-2 else 7
+        apply_font(p.add_run(str(col_name).replace(" ", "\n")), f_size, bold=True)
+
+    # Data Rows
+    for r_idx, row_data in enumerate(bkk_table_df.values):
+        cells = t4.rows[r_idx+1].cells
+        is_last_row = (r_idx == bkk_table_df.shape[0] - 1)
+        
+        for c_idx, val in enumerate(row_data):
+            p = cells[c_idx].paragraphs[0]
+            p.alignment = WD_ALIGN_PARAGRAPH.LEFT if c_idx == 0 else WD_ALIGN_PARAGRAPH.CENTER
+            
+            cleaned_txt = clean_val(val)
+            run = p.add_run(cleaned_txt)
+            
+            # Font data
+            apply_font(run, 7.5 if c_idx == 0 else 8, bold=is_last_row or c_idx == 0)
+            
+            # Warna Sel
+            if is_last_row:
+                set_cell_background(cells[c_idx], "FFFF00")
+            elif c_idx == 0:
+                set_cell_background(cells[c_idx], "D9E9FF")
+            elif c_idx == bkk_table_df.shape[1]-2: # Kolom JUMLAH
+                set_cell_background(cells[c_idx], "FFFFB3")
+            elif c_idx == bkk_table_df.shape[1]-1: # Kolom KKM Declare
+                set_cell_background(cells[c_idx], "E2EFDA")
+
+    # Tajuk Bawah Jadual
+    p4_cap = doc.add_paragraph()
+    p4_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    apply_font(p4_cap.add_run("Jadual 4 : Senarai Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)"), 10, bold=False)
+
+    # Footer Sumber (Tarikh Today)
+    doc.add_paragraph()
+    footer = doc.add_paragraph()
+    today_str = get_malay_date(date.today())
+    apply_font(footer.add_run(f"*Sumber : Sistem e-notifikasi, Laporan Wabak KKM dimuat turun pada ({today_str} @ 10.00 am)"), 9, bold=False)
+
     # --- SECTION 1.0 ---
     apply_font(doc.add_paragraph().add_run("1.0 Ringkasan Laporan Input Enotifikasi"), 11, bold=True)
     total_notifications = int(col_sums['Grand Total'])
@@ -250,6 +343,33 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df):
     doc.save(target)
     target.seek(0)
     return target
+
+    # --- LOGIK DATA SEKSYEN 4.0 ---
+try:
+    # 1. Tarikh rujukan
+    today = date.today()
+    yesterday = today - timedelta(days=1)
+    
+    # 2. Tarik data dari GSheet (Sheet: table 2026, GID: 1342717767)
+    # GID ini merujuk terus kepada tab "table 2026"
+    sheet_bkk_url = "https://docs.google.com/spreadsheets/d/1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c/export?format=csv&gid=1342717767"
+    df_bkk_full = pd.read_csv(sheet_bkk_url, header=None)
+
+    # 3. Extract Range AH2:AU (Kolum index 33 hingga 46)
+    # Kita ambil dari baris index 1 (iaitu AH2)
+    bkk_raw = df_bkk_full.iloc[1:, 33:47].dropna(how='all').reset_index(drop=True)
+    
+    # Tetapkan baris pertama sebagai header (AH2)
+    bkk_raw.columns = bkk_raw.iloc[0]
+    bkk_table_final = bkk_raw[1:].reset_index(drop=True)
+
+    # 4. Kira jumlah insiden semalam (Berdasarkan data notifikasi jika perlu)
+    # Untuk kegunaan ayat 4.1, kita ambil nilai dari baris JUMLAH (baris terakhir), kolum JUMLAH
+    # Kita guna fungsi clean_val nanti di generator
+except Exception as e:
+    st.error(f"Ralat menarik data BKK: {e}")
+
+    
 
 # --- STREAMLIT UI ---
 st.set_page_config(page_title="BWKK Report Generator", layout="centered")
