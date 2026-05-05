@@ -86,7 +86,7 @@ def add_pkd_note(doc):
     p.paragraph_format.space_after = Pt(12)
 
 # --- DOCX GENERATOR ---
-def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty):
+def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty, bkk_details):
     doc = Document()
     today = date.today()
     yesterday = today - timedelta(days=1)
@@ -118,7 +118,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     doc.add_paragraph().paragraph_format.space_after = Pt(18)
 
-    # 3. Jadual Tarikh Hijau (PELARASAN \n UNTUK KEDUDUKAN EVEN)
+    # 3. Jadual Tarikh Hijau
     info_table = doc.add_table(rows=1, cols=2)
     info_table.width = content_width
     for i in range(2):
@@ -129,10 +129,8 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         
         if i == 0:
-            # Tambah \n sebelum Tarikh
             txt = f"\nTarikh : {get_malay_date(today)}\n(Sehingga jam 10.00 pagi)"
         else:
-            # Tambah \n sebelum Minggu
             txt = f"\nMinggu Epidemiologi : {get_epi_week(today)}"
             
         run = p.add_run(txt)
@@ -140,7 +138,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
-    # --- SECTION 1.0 (FONT SIZE 8) ---
+    # --- SECTION 1.0 ---
     p1_head = doc.add_paragraph()
     p1_head.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     apply_font(p1_head.add_run("1.0 Ringkasan Laporan Input Enotifikasi"), 11, bold=True)
@@ -152,16 +150,11 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     apply_font(h11.add_run(h11_text), 11, bold=False)
 
     add_table_title(doc, "Jadual 1", "Senarai Input eNotifikasi")
-
     t1 = doc.add_table(rows=len(matrix_df) + 2, cols=len(TEMPLATE_PKDS) + 2)
     t1.style = 'Table Grid'
     t1.width = content_width
     
-    pkd_map = {
-        'PKD GOMBAK': 'GBK', 'PKD HULU LANGAT': 'HL', 'PKD HULU SELANGOR': 'HS',
-        'PKD KLANG': 'KLG', 'PKD KUALA LANGAT': 'KL', 'PKD KUALA SELANGOR': 'KS',
-        'PKD PETALING': 'PTG', 'PKD SABAK BERNAM': 'SB', 'PKD SEPANG': 'SPG'
-    }
+    pkd_map = {'PKD GOMBAK': 'GBK', 'PKD HULU LANGAT': 'HL', 'PKD HULU SELANGOR': 'HS', 'PKD KLANG': 'KLG', 'PKD KUALA LANGAT': 'KL', 'PKD KUALA SELANGOR': 'KS', 'PKD PETALING': 'PTG', 'PKD SABAK BERNAM': 'SB', 'PKD SEPANG': 'SPG'}
     
     h_cells = t1.rows[0].cells
     for i in range(len(h_cells)):
@@ -203,7 +196,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     doc.add_paragraph()
     add_pkd_note(doc)
 
-    # --- SECTION 2.0 (FONT SIZE 9) ---
+    # --- SECTION 2.0 ---
     doc.add_page_break()
     p2_head = doc.add_paragraph()
     p2_head.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
@@ -245,7 +238,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         set_cell_background(f2_cells[c], "FFFF00")
         f2_cells[c].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    # --- SECTION 3.0 (FONT SIZE 10.5) ---
+    # --- SECTION 3.0 ---
     doc.add_paragraph().paragraph_format.space_after = Pt(24) 
     p3_head = doc.add_paragraph()
     p3_head.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
@@ -301,7 +294,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             elif j == 0: set_cell_background(row_cells[j], "FCE4D6")
             apply_font(run, 10.5, bold=True)
 
-    # --- SECTION 4.0 (FONT SIZE 8) ---
+    # --- SECTION 4.0 (DIKEMAS KINI DENGAN NARATIF DINAMIK) ---
     doc.add_page_break()
     p4_head = doc.add_paragraph()
     p4_head.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
@@ -309,11 +302,27 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     
     h41 = doc.add_paragraph()
     h41.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    
     if is_bkk_empty:
         h41_text = f"4.1 Jadual di bawah menunjukkan jumlah kejadian insiden bencana, kecemasan dan krisis (BKK) di negeri Selangor. Tiada insiden dilaporkan pada {get_malay_date(yesterday)}."
     else:
-        total_val_bkk = clean_val(bkk_table_df.iloc[-1]['JUMLAH'])
-        h41_text = f"4.1 Jadual di bawah menunjukkan jumlah kejadian insiden bencana, kecemasan dan krisis (BKK) di negeri Selangor. Sejumlah {total_val_bkk} input notifikasi Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK) telah diterima pada {get_malay_date(yesterday)} dengan pecahan mengikut jenis insiden seperti dalam jadual 4."
+        num_word = {1: "satu (1)", 2: "dua (2)", 3: "tiga (3)", 4: "empat (4)", 5: "lima (5)", 
+                    6: "enam (6)", 7: "tujuh (7)", 8: "lapan (8)", 9: "sembilan (9)", 10: "sepuluh (10)"}
+        count = len(bkk_details)
+        count_str = num_word.get(count, f"{count} ({count})")
+        
+        insiden_list = []
+        for item in bkk_details:
+            insiden_list.append(f"kejadian {item['kejadian'].lower()} di {item['alamat']}, {item['daerah']}")
+        
+        if len(insiden_list) > 1:
+            detail_narrative = ", ".join(insiden_list[:-1]) + " dan " + insiden_list[-1]
+        else:
+            detail_narrative = insiden_list[0]
+            
+        h41_text = (f"4.1 Jadual di bawah menunjukkan jumlah kejadian insiden bencana, kecemasan dan krisis (BKK) di negeri Selangor. "
+                    f"Terdapat {count_str} kejadian dilaporkan pada {get_malay_date(yesterday)} iaitu {detail_narrative}.")
+    
     apply_font(h41.add_run(h41_text), 11, bold=False)
 
     add_table_title(doc, "Jadual 4", "Senarai Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)")
@@ -428,18 +437,30 @@ if f1 and f2:
                     st.error("Data 'PETALING' tidak dijumpai.")
                     st.stop()
 
-            # S4
+            # S4 (DIKEMAS KINI)
             with st.spinner('Menarik data BKK...'):
                 df_bkk_full = pd.read_csv(SHEET_BKK_URL, header=None)
-                tkh_lapor_col = df_bkk_full.iloc[:, 2].astype(str)
-                is_bkk_empty = not tkh_lapor_col.str.contains(yesterday_str).any()
+                
+                # Cari baris semalam di Column C (index 2)
+                insiden_semalam = df_bkk_full[df_bkk_full.iloc[:, 2].astype(str).str.contains(yesterday_str)]
+                
+                bkk_details = []
+                for _, row in insiden_semalam.iterrows():
+                    bkk_details.append({
+                        'kejadian': row[5], # Kolum F (Kejadian)
+                        'alamat': row[8],   # Kolum I (Alamat)
+                        'daerah': row[4]    # Kolum E (Daerah)
+                    })
+                
+                is_bkk_empty = len(bkk_details) == 0
+                
                 bkk_raw = df_bkk_full.iloc[1:, 33:47].dropna(how='all').reset_index(drop=True)
                 bkk_raw.columns = bkk_raw.iloc[0]
                 bkk_table_final = bkk_raw[1:].reset_index(drop=True)
                 bkk_map = {'GOMBAK':'GBK','HULU LANGAT':'HL','HULU SELANGOR':'HS','KLANG':'KLG','KUALA LANGAT':'KL','KUALA SELANGOR':'KS','PETALING':'PTG','SABAK BERNAM':'SB','SEPANG':'SPG','PK P.KLANG':'PK.KLG','PK KLIA':'PK.KLIA'}
                 bkk_table_final = bkk_table_final.rename(columns=bkk_map)
 
-            doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, is_bkk_empty)
+            doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, is_bkk_empty, bkk_details)
             st.download_button("⬇️ Muat Turun Laporan Lengkap", data=doc_out, file_name=f"Laporan_BWKK_{date.today()}.docx")
 
         except Exception as e:
