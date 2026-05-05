@@ -80,7 +80,7 @@ def add_table_title(doc, label, title):
 def add_pkd_note(doc):
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    note_text = "*Nota : GBK, Gombak; HL, Hulu Langat; HS, Hulu Selangor; KLG, Klang; KL, Kuala Langat; KS, Kuala Selangor; PTG, ; SB, Sabak Bernam; SPG, Sepang."
+    note_text = "*Nota : GBK, Gombak; HL, Hulu Langat; HS, Hulu Selangor; KLG, Klang; KL, Kuala Langat; KS, Kuala Selangor; PTG, Petaling; SB, Sabak Bernam; SPG, Sepang."
     run = p.add_run(note_text)
     apply_font(run, 7, bold=False)
     p.paragraph_format.space_after = Pt(12)
@@ -101,7 +101,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         p_logo = doc.add_paragraph()
         p_logo.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run_logo = p_logo.add_run()
-        run_logo.add_picture(logo_path, width=Inches(2.0))
+        run_logo.add_picture(logo_path, width=Inches(1.8))
 
     # 2. Tajuk Utama
     titles = [
@@ -133,7 +133,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
-    # --- SECTION 1.0 ---
+    # --- SECTION 1.0 (FONT SIZE 8) ---
     p1_head = doc.add_paragraph()
     p1_head.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     apply_font(p1_head.add_run("1.0 Ringkasan Laporan Input Enotifikasi"), 11, bold=True)
@@ -149,25 +149,32 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     t1 = doc.add_table(rows=len(matrix_df) + 2, cols=len(TEMPLATE_PKDS) + 2)
     t1.style = 'Table Grid'
     t1.width = content_width
-    pkd_map = {'PKD GOMBAK': 'GBK', 'PKD HULU LANGAT': 'HL', 'PKD HULU SELANGOR': 'HS','PKD KLANG': 'KLG', 'PKD KUALA LANGAT': 'KL', 'PKD KUALA SELANGOR': 'KS','PKD ': 'PTG', 'PKD SABAK BERNAM': 'SB', 'PKD SEPANG': 'SPG'}
+    
+    pkd_map = {
+        'PKD GOMBAK': 'GBK', 'PKD HULU LANGAT': 'HL', 'PKD HULU SELANGOR': 'HS',
+        'PKD KLANG': 'KLG', 'PKD KUALA LANGAT': 'KL', 'PKD KUALA SELANGOR': 'KS',
+        'PKD PETALING': 'PTG', 'PKD SABAK BERNAM': 'SB', 'PKD SEPANG': 'SPG'
+    }
     
     h_cells = t1.rows[0].cells
     for i in range(len(h_cells)):
         h_cells[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         h_cells[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-    apply_font(h_cells[0].paragraphs[0].add_run("PENYAKIT"), 7.5, bold=True)
+        set_cell_paddings(h_cells[i], top=100, bottom=100)
+
+    apply_font(h_cells[0].paragraphs[0].add_run("PENYAKIT"), 8, bold=True)
     set_cell_background(h_cells[0], "BFDFFF")
     for i, pkd in enumerate(TEMPLATE_PKDS):
         cell = h_cells[i+1]
-        apply_font(cell.paragraphs[0].add_run(pkd_map.get(pkd, pkd)), 7, bold=True)
+        apply_font(cell.paragraphs[0].add_run(pkd_map.get(pkd, pkd)), 8, bold=True)
         set_cell_background(cell, "BFDFFF")
-    apply_font(h_cells[-1].paragraphs[0].add_run("Jumlah"), 7, bold=True)
+    apply_font(h_cells[-1].paragraphs[0].add_run("Jumlah"), 8, bold=True)
     set_cell_background(h_cells[-1], "FFFF00")
 
     for r_idx, (penyakit, row_data) in enumerate(matrix_df.iterrows()):
         row = t1.rows[r_idx + 1].cells
         row[0].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-        apply_font(row[0].paragraphs[0].add_run(str(penyakit)), 7, bold=True)
+        apply_font(row[0].paragraphs[0].add_run(str(penyakit)), 8, bold=True)
         set_cell_background(row[0], "D9E9FF")
         for c_idx, val in enumerate(row_data):
             cell = row[c_idx+1]
@@ -178,7 +185,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     f_cells = t1.rows[-1].cells
     for i in range(len(f_cells)): f_cells[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-    apply_font(f_cells[0].paragraphs[0].add_run("Jumlah"), 7.5, bold=True)
+    apply_font(f_cells[0].paragraphs[0].add_run("Jumlah"), 8, bold=True)
     set_cell_background(f_cells[0], "FFFF00")
     for i, val in enumerate(col_sums):
         cell = f_cells[i+1]
@@ -186,11 +193,10 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         set_cell_background(cell, "FFFF00")
         cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    # Nota Jadual 1 (Jarak 2 kali Enter)
     doc.add_paragraph()
     add_pkd_note(doc)
 
-    # --- SECTION 2.0 ---
+    # --- SECTION 2.0 (FONT SIZE 9) ---
     doc.add_page_break()
     p2_head = doc.add_paragraph()
     p2_head.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
@@ -217,10 +223,10 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     for i, (penyakit, row_data) in enumerate(wabak_df.iterrows()):
         cells = t2.rows[i+1].cells
         for c in range(3): cells[c].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-        apply_font(cells[0].paragraphs[0].add_run(str(penyakit)), 8, bold=True)
+        apply_font(cells[0].paragraphs[0].add_run(str(penyakit)), 9, bold=True)
         set_cell_background(cells[0], "D9E9FF")
-        apply_font(cells[1].paragraphs[0].add_run(str(int(row_data['HARIAN']))), 8, bold=True)
-        apply_font(cells[2].paragraphs[0].add_run(str(int(row_data['KUMULATIF']))), 8, bold=True)
+        apply_font(cells[1].paragraphs[0].add_run(str(int(row_data['HARIAN']))), 9, bold=True)
+        apply_font(cells[2].paragraphs[0].add_run(str(int(row_data['KUMULATIF']))), 9, bold=True)
         cells[1].paragraphs[0].alignment = cells[2].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     f2_cells = t2.rows[-1].cells
@@ -232,7 +238,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         set_cell_background(f2_cells[c], "FFFF00")
         f2_cells[c].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    # --- SECTION 3.0 ---
+    # --- SECTION 3.0 (FONT SIZE 10.5) ---
     doc.add_paragraph().paragraph_format.space_after = Pt(24) 
     p3_head = doc.add_paragraph()
     p3_head.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
@@ -262,7 +268,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         h3_r1[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         p = h3_r1[i].paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        apply_font(p.runs[0], 8.5, bold=True)
+        apply_font(p.runs[0], 10.5, bold=True)
 
     h3_r2 = t3.rows[1].cells
     for i in range(1, 7):
@@ -271,7 +277,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         h3_r2[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         p = h3_r2[i].paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        apply_font(p.runs[0], 7.5, bold=True)
+        apply_font(p.runs[0], 10.5, bold=True)
 
     for i in range(len(vector_df)):
         row_cells = t3.rows[i+2].cells
@@ -286,9 +292,9 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             run = p.add_run(display_val)
             if i == len(vector_df)-1: set_cell_background(row_cells[j], "FFFF00")
             elif j == 0: set_cell_background(row_cells[j], "FCE4D6")
-            apply_font(run, 7.5, bold=True)
+            apply_font(run, 10.5, bold=True)
 
-    # --- SECTION 4.0 (BKK) ---
+    # --- SECTION 4.0 (FONT SIZE 8) ---
     doc.add_page_break()
     p4_head = doc.add_paragraph()
     p4_head.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
@@ -308,18 +314,20 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     t4 = doc.add_table(rows=bkk_table_df.shape[0] + 1, cols=bkk_table_df.shape[1])
     t4.style = 'Table Grid'
     t4.width = content_width
+    h4_widths = [Inches(1.5)] + [Inches(0.42)] * (bkk_table_df.shape[1] - 3) + [Inches(0.6), Inches(0.8)]
 
     for i, col_name in enumerate(bkk_table_df.columns):
         cell = t4.rows[0].cells[i]
+        cell.width = h4_widths[i] if i < len(h4_widths) else Inches(0.5)
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER 
         if i < bkk_table_df.shape[1]-2: set_cell_background(cell, "BFDFFF")
         elif i == bkk_table_df.shape[1]-2: set_cell_background(cell, "FFFF00")
         else: set_cell_background(cell, "C6E0B4")
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        f_size = 6.5 if 0 < i < bkk_table_df.shape[1]-2 else 7
+        # Guna saiz 8 untuk header BKK
         run = p.add_run(str(col_name).replace(" ", "\n"))
-        apply_font(run, f_size, bold=True)
+        apply_font(run, 8, bold=True)
 
     for r_idx, row_data in enumerate(bkk_table_df.values):
         cells = t4.rows[r_idx+1].cells
@@ -329,13 +337,13 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             p = cells[c_idx].paragraphs[0]
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT if c_idx == 0 else WD_ALIGN_PARAGRAPH.CENTER
             run = p.add_run(clean_val(val))
-            apply_font(run, 7.5 if c_idx == 0 else 8, bold=is_last_row or c_idx == 0)
+            # Guna saiz 8 untuk kandungan BKK
+            apply_font(run, 8, bold=is_last_row or c_idx == 0)
             if is_last_row: set_cell_background(cells[c_idx], "FFFF00")
             elif c_idx == 0: set_cell_background(cells[c_idx], "D9E9FF")
             elif c_idx == bkk_table_df.shape[1]-2: set_cell_background(cells[c_idx], "FFFFB3")
             elif c_idx == bkk_table_df.shape[1]-1: set_cell_background(cells[c_idx], "E2EFDA")
 
-    # Nota Jadual 4 (Jarak 2 kali Enter)
     doc.add_paragraph()
     add_pkd_note(doc)
 
@@ -379,6 +387,7 @@ if f1 and f2:
             yesterday = date.today() - timedelta(days=1)
             yesterday_str = yesterday.strftime("%d/%m/%Y") 
 
+            # S1
             df1 = pd.read_excel(f1)
             df1 = df1[df1['Notifikasi Status'] != 'Abai Notifikasi']
             df1 = df1[df1['Pejabat Kesihatan'].isin(TEMPLATE_PKDS)]
@@ -387,6 +396,7 @@ if f1 and f2:
             matrix = matrix.sort_values(by='Grand Total', ascending=False)
             col_totals = matrix.sum(axis=0)
 
+            # S2
             df2 = pd.read_excel(f2)
             df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date
             df2 = df2[df2['Tarikh Isytihar Wabak'] >= date(2026, 1, 4)]
@@ -401,6 +411,7 @@ if f1 and f2:
                 wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'KUMULATIF': k})
             wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
+            # S3
             with st.spinner('Menarik data vektor...'):
                 raw_gs = pd.read_csv(GSHEET_URL, header=None)
                 mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
@@ -412,6 +423,7 @@ if f1 and f2:
                     st.error("Data 'PETALING' tidak dijumpai.")
                     st.stop()
 
+            # S4
             with st.spinner('Menarik data BKK...'):
                 df_bkk_full = pd.read_csv(SHEET_BKK_URL, header=None)
                 tkh_lapor_col = df_bkk_full.iloc[:, 2].astype(str)
@@ -423,7 +435,7 @@ if f1 and f2:
                 bkk_table_final = bkk_table_final.rename(columns=bkk_map)
 
             doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, is_bkk_empty)
-            st.download_button("⬇️ Muat Turun Laporan", data=doc_out, file_name=f"Laporan_BWKK_{date.today()}.docx")
+            st.download_button("⬇️ Muat Turun Laporan Lengkap", data=doc_out, file_name=f"Laporan_BWKK_{date.today()}.docx")
 
         except Exception as e:
             st.error(f"Ralat: {e}")
