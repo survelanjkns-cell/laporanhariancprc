@@ -118,7 +118,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     doc.add_paragraph().paragraph_format.space_after = Pt(18)
 
-    # 3. Jadual Tarikh Hijau
+    # 3. Jadual Tarikh Hijau (PELARASAN \n UNTUK KEDUDUKAN EVEN)
     info_table = doc.add_table(rows=1, cols=2)
     info_table.width = content_width
     for i in range(2):
@@ -127,7 +127,14 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        txt = f"Tarikh : {get_malay_date(today)}\n(Sehingga jam 10.00 pagi)" if i == 0 else f"\nMinggu Epidemiologi : {get_epi_week(today)}"
+        
+        if i == 0:
+            # Tambah \n sebelum Tarikh
+            txt = f"\nTarikh : {get_malay_date(today)}\n(Sehingga jam 10.00 pagi)"
+        else:
+            # Tambah \n sebelum Minggu
+            txt = f"\nMinggu Epidemiologi : {get_epi_week(today)}"
+            
         run = p.add_run(txt)
         apply_font(run, 11, bold=True)
 
@@ -311,33 +318,31 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     add_table_title(doc, "Jadual 4", "Senarai Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)")
 
-    t4 = doc.add_table(rows=bkk_table_df.shape[0] + 1, cols=bkk_table_df.shape[1])
+    t4 = doc.add_table(rows=len(bkk_table_df) + 1, cols=len(bkk_table_df.columns))
     t4.style = 'Table Grid'
     t4.width = content_width
-    h4_widths = [Inches(1.5)] + [Inches(0.42)] * (bkk_table_df.shape[1] - 3) + [Inches(0.6), Inches(0.8)]
+    h4_widths = [Inches(1.5)] + [Inches(0.42)] * (len(bkk_table_df.columns) - 3) + [Inches(0.6), Inches(0.8)]
 
-    for i, col_name in enumerate(bkk_table_df.columns):
+    for i, col in enumerate(bkk_table_df.columns):
         cell = t4.rows[0].cells[i]
-        cell.width = h4_widths[i] if i < len(h4_widths) else Inches(0.5)
+        cell.width = h4_widths[i]
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER 
-        if i < bkk_table_df.shape[1]-2: set_cell_background(cell, "BFDFFF")
-        elif i == bkk_table_df.shape[1]-2: set_cell_background(cell, "FFFF00")
+        if i < len(bkk_table_df.columns)-2: set_cell_background(cell, "BFDFFF")
+        elif i == len(bkk_table_df.columns)-2: set_cell_background(cell, "FFFF00")
         else: set_cell_background(cell, "C6E0B4")
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        # Guna saiz 8 untuk header BKK
-        run = p.add_run(str(col_name).replace(" ", "\n"))
+        run = p.add_run(str(col).replace(" ", "\n"))
         apply_font(run, 8, bold=True)
 
     for r_idx, row_data in enumerate(bkk_table_df.values):
         cells = t4.rows[r_idx+1].cells
-        is_last_row = (r_idx == bkk_table_df.shape[0] - 1)
+        is_last_row = (r_idx == len(bkk_table_df)-1)
         for c_idx, val in enumerate(row_data):
             cells[c_idx].vertical_alignment = WD_ALIGN_VERTICAL.CENTER 
             p = cells[c_idx].paragraphs[0]
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT if c_idx == 0 else WD_ALIGN_PARAGRAPH.CENTER
             run = p.add_run(clean_val(val))
-            # Guna saiz 8 untuk kandungan BKK
             apply_font(run, 8, bold=is_last_row or c_idx == 0)
             if is_last_row: set_cell_background(cells[c_idx], "FFFF00")
             elif c_idx == 0: set_cell_background(cells[c_idx], "D9E9FF")
