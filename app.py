@@ -220,7 +220,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     doc.add_paragraph()
     add_pkd_note(doc)
 
-    # --- SECTION 2.0 ---
+   # --- SECTION 2.0 ---
     doc.add_page_break()
     p2_head = doc.add_paragraph()
     p2_head.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
@@ -229,35 +229,48 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     harian_total = int(wabak_df['HARIAN'].sum())
     h21 = doc.add_paragraph()
     h21.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    h21_text = f"2.1 Jadual di bawah menunjukkan jumlah wabak harian dan kumulatif di negeri Selangor. Sejumlah {harian_total} input notifikasi wabak diterima pada {get_malay_date(yesterday)}."
+    h21_text = f"2.1 Jadual di bawah menunjukkan jumlah wabak harian, aktif dan kumulatif di negeri Selangor. Sejumlah {harian_total} input notifikasi wabak diterima pada {get_malay_date(yesterday)}."
     apply_font(h21.add_run(h21_text), 11, bold=False)
 
     add_table_title(doc, "Jadual 2", "Senarai Notifikasi Wabak")
-    t2 = doc.add_table(rows=len(wabak_df) + 2, cols=3)
+    
+    # Tukar cols kepada 4
+    t2 = doc.add_table(rows=len(wabak_df) + 2, cols=4)
     t2.style = 'Table Grid'
     t2.width = content_width
-    for i, h in enumerate(["PENYAKIT", "HARIAN", "KUMULATIF"]):
+    
+    # Header Baru
+    headers_2 = ["PENYAKIT", "HARIAN", "AKTIF", "KUMULATIF"]
+    for i, h in enumerate(headers_2):
         cell = t2.cell(0, i)
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         apply_font(cell.paragraphs[0].add_run(h), 9, bold=True)
         set_cell_background(cell, "BFDFFF")
         cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
+    # Isi Data
     for i, (penyakit, row_data) in enumerate(wabak_df.iterrows()):
         cells = t2.rows[i+1].cells
-        for c in range(3): cells[c].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+        for c in range(4): cells[c].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+        
         apply_font(cells[0].paragraphs[0].add_run(str(penyakit)), 9, bold=True)
         set_cell_background(cells[0], "D9E9FF")
+        
         apply_font(cells[1].paragraphs[0].add_run(str(int(row_data['HARIAN']))), 9, bold=True)
-        apply_font(cells[2].paragraphs[0].add_run(str(int(row_data['KUMULATIF']))), 9, bold=True)
-        cells[1].paragraphs[0].alignment = cells[2].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+        apply_font(cells[2].paragraphs[0].add_run(str(int(row_data['AKTIF']))), 9, bold=True)
+        apply_font(cells[3].paragraphs[0].add_run(str(int(row_data['KUMULATIF']))), 9, bold=True)
+        
+        cells[1].paragraphs[0].alignment = cells[2].paragraphs[0].alignment = cells[3].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
+    # Footer Jumlah
     f2_cells = t2.rows[-1].cells
-    for c in range(3): f2_cells[c].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+    for c in range(4): f2_cells[c].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
     apply_font(f2_cells[0].paragraphs[0].add_run("JUMLAH"), 9, bold=True)
     apply_font(f2_cells[1].paragraphs[0].add_run(str(int(wabak_df['HARIAN'].sum()))), 9, bold=True)
-    apply_font(f2_cells[2].paragraphs[0].add_run(str(int(wabak_df['KUMULATIF'].sum()))), 9, bold=True)
-    for c in range(3): 
+    apply_font(f2_cells[2].paragraphs[0].add_run(str(int(wabak_df['AKTIF'].sum()))), 9, bold=True)
+    apply_font(f2_cells[3].paragraphs[0].add_run(str(int(wabak_df['KUMULATIF'].sum()))), 9, bold=True)
+    
+    for c in range(4): 
         set_cell_background(f2_cells[c], "FFFF00")
         f2_cells[c].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
