@@ -3,3 +3,4 @@ pandas
 python-docx
 openpyxl
 xlrd >= 2.0.1
+pytz
