@@ -194,11 +194,8 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     for r_idx, (penyakit, row_data) in enumerate(matrix_df.iterrows()):
         row = t1.rows[r_idx + 1].cells
         row[0].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-        
-        # PROPER CASE + SPECIFIC FIX
         nama_formatted = format_penyakit_name(penyakit)
         apply_font(row[0].paragraphs[0].add_run(nama_formatted), 8, bold=True)
-        
         set_cell_background(row[0], "D9E9FF")
         for c_idx, val in enumerate(row_data):
             cell = row[c_idx+1]
@@ -220,7 +217,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     doc.add_paragraph()
     add_pkd_note(doc)
 
-   # --- SECTION 2.0 ---
+    # --- SECTION 2.0 (JADUAL 2 UPDATED) ---
     doc.add_page_break()
     p2_head = doc.add_paragraph()
     p2_head.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
@@ -234,21 +231,19 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     add_table_title(doc, "Jadual 2", "Senarai Notifikasi Wabak")
     
-    # Tukar cols kepada 4
+    # 4 Columns: PENYAKIT, HARIAN, AKTIF, KUMULATIF
     t2 = doc.add_table(rows=len(wabak_df) + 2, cols=4)
     t2.style = 'Table Grid'
     t2.width = content_width
     
-    # Header Baru
-    headers_2 = ["PENYAKIT", "HARIAN", "AKTIF", "KUMULATIF"]
-    for i, h in enumerate(headers_2):
+    h2_cols = ["PENYAKIT", "HARIAN", "AKTIF", "KUMULATIF"]
+    for i, h in enumerate(h2_cols):
         cell = t2.cell(0, i)
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         apply_font(cell.paragraphs[0].add_run(h), 9, bold=True)
         set_cell_background(cell, "BFDFFF")
         cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    # Isi Data
     for i, (penyakit, row_data) in enumerate(wabak_df.iterrows()):
         cells = t2.rows[i+1].cells
         for c in range(4): cells[c].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
@@ -259,17 +254,14 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         apply_font(cells[1].paragraphs[0].add_run(str(int(row_data['HARIAN']))), 9, bold=True)
         apply_font(cells[2].paragraphs[0].add_run(str(int(row_data['AKTIF']))), 9, bold=True)
         apply_font(cells[3].paragraphs[0].add_run(str(int(row_data['KUMULATIF']))), 9, bold=True)
-        
         cells[1].paragraphs[0].alignment = cells[2].paragraphs[0].alignment = cells[3].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    # Footer Jumlah
     f2_cells = t2.rows[-1].cells
     for c in range(4): f2_cells[c].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
     apply_font(f2_cells[0].paragraphs[0].add_run("JUMLAH"), 9, bold=True)
     apply_font(f2_cells[1].paragraphs[0].add_run(str(int(wabak_df['HARIAN'].sum()))), 9, bold=True)
     apply_font(f2_cells[2].paragraphs[0].add_run(str(int(wabak_df['AKTIF'].sum()))), 9, bold=True)
     apply_font(f2_cells[3].paragraphs[0].add_run(str(int(wabak_df['KUMULATIF'].sum()))), 9, bold=True)
-    
     for c in range(4): 
         set_cell_background(f2_cells[c], "FFFF00")
         f2_cells[c].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -388,7 +380,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     footer.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     apply_font(footer.add_run(f"*Sumber : Sistem e-notifikasi, Laporan Wabak KKM dimuat turun pada ({get_malay_date(today)} @ 10.00 am)"), 9, bold=False)
 
-    # --- TANDATANGAN ---
     doc.add_paragraph()
     for label in ["Petugas    :", "Jawatan  :"]:
         p = doc.add_paragraph()
@@ -414,7 +405,6 @@ f2 = st.file_uploader("📂 Muat Naik Excel Linelisting Wabak", type=["xlsx", "x
 if f1 and f2:
     if st.button("🚀 Jana Laporan Lengkap"):
         try:
-            # FIX MASA MALAYSIA DALAM UI
             now_msia = get_msia_time()
             today = now_msia.date()
             yesterday = today - timedelta(days=1)
@@ -429,20 +419,52 @@ if f1 and f2:
             matrix = matrix.sort_values(by='Grand Total', ascending=False)
             col_totals = matrix.sum(axis=0)
 
-            # S2 - Wabak
-            df2 = pd.read_excel(f2)
+            # S2 - Wabak (LOGIK BARU)
+            df2 = pd.read_excel(f2, sheet_name="SELANGOR 2")
+            
+            # Parsing tarikh dengan teliti
             df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date
-            # Sesuai dengan tarikh mula epi week 2026 yang anda tetapkan
+            df2['Tarikh Sebenar Tamat Wabak'] = pd.to_datetime(df2['Tarikh Sebenar Tamat Wabak '], errors='coerce').dt.date
+            df2['Tarikh Wabak Dijangka Tamat'] = pd.to_datetime(df2['Tarikh Wabak Dijangka Tamat'], errors='coerce').dt.date
+
+            # Filter Epi Week 1 bermula 4 Jan 2026
             df2 = df2[df2['Tarikh Isytihar Wabak'] >= date(2026, 1, 4)]
+            
             def group_inf(n): return "ILI/ Influenza" if any(x in str(n).upper() for x in ["INFLUENZA", "ILI"]) else n
             df2['PENYAKIT'] = df2['PENYAKIT'].apply(group_inf)
+
             unique_d = df2['PENYAKIT'].unique()
             wb_sum = []
+            
             for d in unique_d:
                 if pd.isna(d): continue
-                h = len(df2[(df2['PENYAKIT'] == d) & (df2['Tarikh Isytihar Wabak'] == yesterday)])
-                k = len(df2[df2['PENYAKIT'] == d])
-                wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'KUMULATIF': k})
+                
+                disease_df = df2[df2['PENYAKIT'] == d]
+                
+                # HARIAN & KUMULATIF
+                h = len(disease_df[disease_df['Tarikh Isytihar Wabak'] == yesterday])
+                k = len(disease_df)
+                
+                # LOGIK AKTIF
+                def check_active(row):
+                    tamat = row['Tarikh Sebenar Tamat Wabak']
+                    if pd.isna(tamat):
+                        tamat = row['Tarikh Wabak Dijangka Tamat']
+                    
+                    # Jika tarikh tamat masih kosong atau tarikh tamat >= hari ini, ia dikira AKTIF
+                    if pd.isna(tamat) or tamat >= today:
+                        return True
+                    return False
+
+                active_count = disease_df.apply(check_active, axis=1).sum()
+                
+                wb_sum.append({
+                    'PENYAKIT': d, 
+                    'HARIAN': h, 
+                    'AKTIF': active_count, 
+                    'KUMULATIF': k
+                })
+                
             wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
             # S3 - Vektor (GSheets)
