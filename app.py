@@ -24,6 +24,23 @@ GSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=c
 SHEET_BKK_URL = "https://docs.google.com/spreadsheets/d/1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c/export?format=csv&gid=1342717767"
 
 # --- HELPERS ---
+def format_penyakit_name(name):
+    """Memformat nama penyakit mengikut keperluan spesifik user."""
+    name_str = str(name).strip().upper()
+    
+    # Pertukaran nama spesifik
+    if "FOOD POISONING" in name_str:
+        return "Keracunan Makanan"
+    if name_str in ["DENGUE/DHF", "DENGUE"]:
+        return "Denggi"
+    
+    # Pengecualian format (Kekal Uppercase)
+    if name_str in ["HFMD", "COVID-19"]:
+        return name_str
+    
+    # Format Proper Case untuk lain-lain
+    return name_str.title()
+
 def set_cell_background(cell, hex_color):
     shading_elm = parse_xml(r'<w:shd {} w:fill="{}"/>'.format(nsdecls('w'), hex_color))
     cell._tc.get_or_add_tcPr().append(shading_elm)
@@ -174,7 +191,11 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     for r_idx, (penyakit, row_data) in enumerate(matrix_df.iterrows()):
         row = t1.rows[r_idx + 1].cells
         row[0].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-        apply_font(row[0].paragraphs[0].add_run(str(penyakit)), 8, bold=True)
+        
+        # --- PEMFORMATAN NAMA PENYAKIT JADUAL 1 ---
+        nama_penyakit_formatted = format_penyakit_name(penyakit)
+        apply_font(row[0].paragraphs[0].add_run(nama_penyakit_formatted), 8, bold=True)
+        
         set_cell_background(row[0], "D9E9FF")
         for c_idx, val in enumerate(row_data):
             cell = row[c_idx+1]
@@ -294,7 +315,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             elif j == 0: set_cell_background(row_cells[j], "FCE4D6")
             apply_font(run, 10.5, bold=True)
 
-    # --- SECTION 4.0 (DIKEMAS KINI DENGAN NARATIF DINAMIK) ---
+    # --- SECTION 4.0 ---
     doc.add_page_break()
     p4_head = doc.add_paragraph()
     p4_head.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
@@ -370,7 +391,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     doc.add_paragraph()
     p_petugas = doc.add_paragraph()
     p_petugas.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    apply_font(p_petugas.add_run("Petugas   :"), 11, bold=False)
+    apply_font(p_petugas.add_run("Petugas    :"), 11, bold=False)
     p_jawatan1 = doc.add_paragraph()
     p_jawatan1.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     apply_font(p_jawatan1.add_run("Jawatan  :"), 11, bold=False)
@@ -437,19 +458,18 @@ if f1 and f2:
                     st.error("Data 'PETALING' tidak dijumpai.")
                     st.stop()
 
-            # S4 (DIKEMAS KINI)
+            # S4
             with st.spinner('Menarik data BKK...'):
                 df_bkk_full = pd.read_csv(SHEET_BKK_URL, header=None)
                 
-                # Cari baris semalam di Column C (index 2)
                 insiden_semalam = df_bkk_full[df_bkk_full.iloc[:, 2].astype(str).str.contains(yesterday_str)]
                 
                 bkk_details = []
                 for _, row in insiden_semalam.iterrows():
                     bkk_details.append({
-                        'kejadian': row[5], # Kolum F (Kejadian)
-                        'alamat': row[8],   # Kolum I (Alamat)
-                        'daerah': row[4]    # Kolum E (Daerah)
+                        'kejadian': row[5], 
+                        'alamat': row[8],   
+                        'daerah': row[4]    
                     })
                 
                 is_bkk_empty = len(bkk_details) == 0
