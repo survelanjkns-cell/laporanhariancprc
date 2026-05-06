@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
-from datetime import date, timedelta
+from datetime import datetime, date, timedelta
+import pytz  # Library untuk kawalan zona masa
 from docx import Document
 from docx.shared import Pt, Inches, Cm
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -24,21 +25,20 @@ GSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=c
 SHEET_BKK_URL = "https://docs.google.com/spreadsheets/d/1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c/export?format=csv&gid=1342717767"
 
 # --- HELPERS ---
+def get_msia_time():
+    """Mengambil masa terkini mengikut Timezone Malaysia"""
+    msia_tz = pytz.timezone('Asia/Kuala_Lumpur')
+    return datetime.now(msia_tz)
+
 def format_penyakit_name(name):
-    """Memformat nama penyakit mengikut keperluan spesifik user."""
+    """Memformat nama penyakit mengikut keperluan spesifik."""
     name_str = str(name).strip().upper()
-    
-    # Pertukaran nama spesifik
     if "FOOD POISONING" in name_str:
         return "Keracunan Makanan"
     if name_str in ["DENGUE/DHF", "DENGUE"]:
         return "Denggi"
-    
-    # Pengecualian format (Kekal Uppercase)
     if name_str in ["HFMD", "COVID-19"]:
         return name_str
-    
-    # Format Proper Case untuk lain-lain
     return name_str.title()
 
 def set_cell_background(cell, hex_color):
@@ -105,7 +105,10 @@ def add_pkd_note(doc):
 # --- DOCX GENERATOR ---
 def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty, bkk_details):
     doc = Document()
-    today = date.today()
+    
+    # KETETAPAN MASA MALAYSIA
+    now_msia = get_msia_time()
+    today = now_msia.date()
     yesterday = today - timedelta(days=1)
     
     section = doc.sections[0]
@@ -192,9 +195,9 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         row = t1.rows[r_idx + 1].cells
         row[0].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         
-        # --- PEMFORMATAN NAMA PENYAKIT JADUAL 1 ---
-        nama_penyakit_formatted = format_penyakit_name(penyakit)
-        apply_font(row[0].paragraphs[0].add_run(nama_penyakit_formatted), 8, bold=True)
+        # PROPER CASE + SPECIFIC FIX
+        nama_formatted = format_penyakit_name(penyakit)
+        apply_font(row[0].paragraphs[0].add_run(nama_formatted), 8, bold=True)
         
         set_cell_background(row[0], "D9E9FF")
         for c_idx, val in enumerate(row_data):
@@ -230,7 +233,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     apply_font(h21.add_run(h21_text), 11, bold=False)
 
     add_table_title(doc, "Jadual 2", "Senarai Notifikasi Wabak")
-
     t2 = doc.add_table(rows=len(wabak_df) + 2, cols=3)
     t2.style = 'Table Grid'
     t2.width = content_width
@@ -273,7 +275,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     apply_font(h31.add_run(h31_text), 11, bold=False)
 
     add_table_title(doc, "Jadual 3", "Senarai Notifikasi Wabak Vektor")
-
     t3 = doc.add_table(rows=len(vector_df) + 2, cols=7)
     t3.style = 'Table Grid'
     t3.width = content_width
@@ -323,7 +324,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     
     h41 = doc.add_paragraph()
     h41.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    
     if is_bkk_empty:
         h41_text = f"4.1 Jadual di bawah menunjukkan jumlah kejadian insiden bencana, kecemasan dan krisis (BKK) di negeri Selangor. Tiada insiden dilaporkan pada {get_malay_date(yesterday)}."
     else:
@@ -331,21 +331,11 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
                     6: "enam (6)", 7: "tujuh (7)", 8: "lapan (8)", 9: "sembilan (9)", 10: "sepuluh (10)"}
         count = len(bkk_details)
         count_str = num_word.get(count, f"{count} ({count})")
-        
-        insiden_list = []
-        for item in bkk_details:
-            insiden_list.append(f"kejadian {item['kejadian'].lower()} di {item['alamat']}, {item['daerah']}")
-        
-        if len(insiden_list) > 1:
-            detail_narrative = ", ".join(insiden_list[:-1]) + " dan " + insiden_list[-1]
-        else:
-            detail_narrative = insiden_list[0]
-            
-        h41_text = (f"4.1 Jadual di bawah menunjukkan jumlah kejadian insiden bencana, kecemasan dan krisis (BKK) di negeri Selangor. "
-                    f"Terdapat {count_str} kejadian dilaporkan pada {get_malay_date(yesterday)} iaitu {detail_narrative}.")
+        insiden_list = [f"kejadian {item['kejadian'].lower()} di {item['alamat']}, {item['daerah']}" for item in bkk_details]
+        detail_narrative = (", ".join(insiden_list[:-1]) + " dan " + insiden_list[-1]) if len(insiden_list) > 1 else insiden_list[0]
+        h41_text = f"4.1 Jadual di bawah menunjukkan jumlah kejadian insiden bencana, kecemasan dan krisis (BKK) di negeri Selangor. Terdapat {count_str} kejadian dilaporkan pada {get_malay_date(yesterday)} iaitu {detail_narrative}."
     
     apply_font(h41.add_run(h41_text), 11, bold=False)
-
     add_table_title(doc, "Jadual 4", "Senarai Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)")
 
     t4 = doc.add_table(rows=len(bkk_table_df) + 1, cols=len(bkk_table_df.columns))
@@ -381,28 +371,20 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     doc.add_paragraph()
     add_pkd_note(doc)
-
-    doc.add_paragraph()
     footer = doc.add_paragraph()
     footer.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     apply_font(footer.add_run(f"*Sumber : Sistem e-notifikasi, Laporan Wabak KKM dimuat turun pada ({get_malay_date(today)} @ 10.00 am)"), 9, bold=False)
 
     # --- TANDATANGAN ---
     doc.add_paragraph()
-    p_petugas = doc.add_paragraph()
-    p_petugas.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    apply_font(p_petugas.add_run("Petugas    :"), 11, bold=False)
-    p_jawatan1 = doc.add_paragraph()
-    p_jawatan1.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    apply_font(p_jawatan1.add_run("Jawatan  :"), 11, bold=False)
-    p_jawatan1.paragraph_format.space_after = Pt(36) 
+    for label in ["Petugas    :", "Jawatan  :"]:
+        p = doc.add_paragraph()
+        apply_font(p.add_run(label), 11, bold=False)
+    doc.paragraphs[-1].paragraph_format.space_after = Pt(36) 
     
-    p_ketua = doc.add_paragraph()
-    p_ketua.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    apply_font(p_ketua.add_run("Ketua Petugas :"), 11, bold=False)
-    p_jawatan2 = doc.add_paragraph()
-    p_jawatan2.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    apply_font(p_jawatan2.add_run("Jawatan  :"), 11, bold=False)
+    for label in ["Ketua Petugas :", "Jawatan  :"]:
+        p = doc.add_paragraph()
+        apply_font(p.add_run(label), 11, bold=False)
 
     target = io.BytesIO()
     doc.save(target)
@@ -419,10 +401,13 @@ f2 = st.file_uploader("📂 Muat Naik Excel Linelisting Wabak", type=["xlsx", "x
 if f1 and f2:
     if st.button("🚀 Jana Laporan Lengkap"):
         try:
-            yesterday = date.today() - timedelta(days=1)
+            # FIX MASA MALAYSIA DALAM UI
+            now_msia = get_msia_time()
+            today = now_msia.date()
+            yesterday = today - timedelta(days=1)
             yesterday_str = yesterday.strftime("%d/%m/%Y") 
 
-            # S1
+            # S1 - Notifikasi Harian
             df1 = pd.read_excel(f1)
             df1 = df1[df1['Notifikasi Status'] != 'Abai Notifikasi']
             df1 = df1[df1['Pejabat Kesihatan'].isin(TEMPLATE_PKDS)]
@@ -431,9 +416,10 @@ if f1 and f2:
             matrix = matrix.sort_values(by='Grand Total', ascending=False)
             col_totals = matrix.sum(axis=0)
 
-            # S2
+            # S2 - Wabak
             df2 = pd.read_excel(f2)
             df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date
+            # Sesuai dengan tarikh mula epi week 2026 yang anda tetapkan
             df2 = df2[df2['Tarikh Isytihar Wabak'] >= date(2026, 1, 4)]
             def group_inf(n): return "ILI/ Influenza" if any(x in str(n).upper() for x in ["INFLUENZA", "ILI"]) else n
             df2['PENYAKIT'] = df2['PENYAKIT'].apply(group_inf)
@@ -446,7 +432,7 @@ if f1 and f2:
                 wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'KUMULATIF': k})
             wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
-            # S3
+            # S3 - Vektor (GSheets)
             with st.spinner('Menarik data vektor...'):
                 raw_gs = pd.read_csv(GSHEET_URL, header=None)
                 mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
@@ -458,22 +444,14 @@ if f1 and f2:
                     st.error("Data 'PETALING' tidak dijumpai.")
                     st.stop()
 
-            # S4
+            # S4 - BKK (GSheets)
             with st.spinner('Menarik data BKK...'):
                 df_bkk_full = pd.read_csv(SHEET_BKK_URL, header=None)
-                
                 insiden_semalam = df_bkk_full[df_bkk_full.iloc[:, 2].astype(str).str.contains(yesterday_str)]
-                
                 bkk_details = []
                 for _, row in insiden_semalam.iterrows():
-                    bkk_details.append({
-                        'kejadian': row[5], 
-                        'alamat': row[8],   
-                        'daerah': row[4]    
-                    })
-                
+                    bkk_details.append({'kejadian': row[5], 'alamat': row[8], 'daerah': row[4]})
                 is_bkk_empty = len(bkk_details) == 0
-                
                 bkk_raw = df_bkk_full.iloc[1:, 33:47].dropna(how='all').reset_index(drop=True)
                 bkk_raw.columns = bkk_raw.iloc[0]
                 bkk_table_final = bkk_raw[1:].reset_index(drop=True)
@@ -481,7 +459,7 @@ if f1 and f2:
                 bkk_table_final = bkk_table_final.rename(columns=bkk_map)
 
             doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, is_bkk_empty, bkk_details)
-            st.download_button("⬇️ Muat Turun Laporan Lengkap", data=doc_out, file_name=f"Laporan_BWKK_{date.today()}.docx")
+            st.download_button("⬇️ Muat Turun Laporan Lengkap", data=doc_out, file_name=f"Laporan_BWKK_{today}.docx")
 
         except Exception as e:
             st.error(f"Ralat: {e}")
