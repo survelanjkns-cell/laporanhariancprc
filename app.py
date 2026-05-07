@@ -154,7 +154,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
-    # --- SECTION 1.0 (ENOTIFIKASI) ---
+    # --- SECTION 1.0 ---
     p1_head = doc.add_paragraph()
     p1_head.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     apply_font(p1_head.add_run("1.0 Ringkasan Laporan Input Enotifikasi"), 11, bold=True)
@@ -174,7 +174,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     
     pkd_map = {'PKD GOMBAK': 'GBK', 'PKD HULU LANGAT': 'HL', 'PKD HULU SELANGOR': 'HS', 'PKD KLANG': 'KLG', 'PKD KUALA LANGAT': 'KL', 'PKD KUALA SELANGOR': 'KS', 'PKD PETALING': 'PTG', 'PKD SABAK BERNAM': 'SB', 'PKD SEPANG': 'SPG'}
     
-    # Header Jadual 1
     h_cells = t1.rows[0].cells
     for i in range(len(h_cells)):
         h_cells[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
@@ -192,7 +191,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     apply_font(h_cells[num_pkd+2].paragraphs[0].add_run("Average Harian"), 8, bold=True)
     set_cell_background(h_cells[num_pkd+2], "FFC000") 
 
-    # Isi Data Jadual 1
     for r_idx, (penyakit, row_data) in enumerate(matrix_df.iterrows()):
         row = t1.rows[r_idx + 1].cells
         row[0].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
@@ -216,7 +214,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         avg_cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
         set_cell_background(avg_cell, "FFC000")
 
-    # Footer Jadual 1
     f_cells = t1.rows[-1].cells
     for i in range(len(f_cells)): f_cells[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
     apply_font(f_cells[0].paragraphs[0].add_run("Jumlah"), 8, bold=True)
@@ -234,7 +231,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     doc.add_paragraph()
     add_pkd_note(doc)
 
-    # --- SECTION 2.0 (WABAK) - SAH KEMASKINI SIZE KOLUM ---
+    # --- SECTION 2.0 (WABAK) - PERUBAHAN AGRESIF UNTUK RSV ---
     doc.add_page_break()
     p2_head = doc.add_paragraph()
     p2_head.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
@@ -250,18 +247,19 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     
     t2 = doc.add_table(rows=len(wabak_df) + 2, cols=4)
     t2.style = 'Table Grid'
-    t2.autofit = False  # Matikan autofit supaya manual width berfungsi
-    
-    # Penetapan lebar kolum (Total width doc lebih kurang 6.25-6.5 inci)
-    # Kolum 1 dipanjangkan ke 3.5 inci supaya nama panjang tidak patah baris
-    col_widths_t2 = [Inches(3.5), Inches(0.9), Inches(0.9), Inches(0.9)]
+    t2.autofit = False  # Menutup autofit Word
+    t2.allow_autofit = False
+
+    # Lebar Kolum: 4.0 inci untuk penyakit supaya RSV tidak patah baris
+    col_widths_t2 = [Inches(4.0), Inches(0.7), Inches(0.7), Inches(0.7)]
 
     h2_cols = ["PENYAKIT", "HARIAN", "AKTIF", "KUMULATIF"]
     for i, h in enumerate(h2_cols):
         cell = t2.cell(0, i)
         cell.width = col_widths_t2[i]
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-        apply_font(cell.paragraphs[0].add_run(h), 9, bold=True)
+        # Saiz font 8 untuk memastikan teks panjang muat sebaris
+        apply_font(cell.paragraphs[0].add_run(h), 8, bold=True)
         set_cell_background(cell, "BFDFFF")
         cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
@@ -272,12 +270,13 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             cells[c].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         
         p_name_run = cells[0].paragraphs[0].add_run(str(penyakit))
-        apply_font(p_name_run, 9, bold=True)
+        apply_font(p_name_run, 8, bold=True) # Font 8
         set_cell_background(cells[0], "D9E9FF")
+        cells[0].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.LEFT
         
         for idx, col_key in enumerate(['HARIAN', 'AKTIF', 'KUMULATIF'], start=1):
             run = cells[idx].paragraphs[0].add_run(str(int(row_data[col_key])))
-            apply_font(run, 9, bold=True)
+            apply_font(run, 8, bold=True)
             cells[idx].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     f2_cells = t2.rows[-1].cells
@@ -285,10 +284,10 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         f2_cells[c].width = col_widths_t2[c]
         f2_cells[c].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
     
-    apply_font(f2_cells[0].paragraphs[0].add_run("JUMLAH"), 9, bold=True)
-    apply_font(f2_cells[1].paragraphs[0].add_run(str(int(wabak_df['HARIAN'].sum()))), 9, bold=True)
-    apply_font(f2_cells[2].paragraphs[0].add_run(str(int(wabak_df['AKTIF'].sum()))), 9, bold=True)
-    apply_font(f2_cells[3].paragraphs[0].add_run(str(int(wabak_df['KUMULATIF'].sum()))), 9, bold=True)
+    apply_font(f2_cells[0].paragraphs[0].add_run("JUMLAH"), 8, bold=True)
+    apply_font(f2_cells[1].paragraphs[0].add_run(str(int(wabak_df['HARIAN'].sum()))), 8, bold=True)
+    apply_font(f2_cells[2].paragraphs[0].add_run(str(int(wabak_df['AKTIF'].sum()))), 8, bold=True)
+    apply_font(f2_cells[3].paragraphs[0].add_run(str(int(wabak_df['KUMULATIF'].sum()))), 8, bold=True)
     for c in range(4): 
         set_cell_background(f2_cells[c], "FFFF00")
         f2_cells[c].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
