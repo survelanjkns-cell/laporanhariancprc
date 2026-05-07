@@ -253,7 +253,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     t2.style = 'Table Grid'
     t2.autofit = False  
     t2.allow_autofit = False
-    col_widths_t2 = [Inches(4.5), Inches(0.6), Inches(0.6), Inches(0.6)]
+    col_widths_t2 = [Inches(6.5), Inches(0.4), Inches(0.4), Inches(0.4)]
 
     h2_cols = ["PENYAKIT", "HARIAN", "AKTIF", "KUMULATIF"]
     for i, h in enumerate(h2_cols):
