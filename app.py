@@ -33,6 +33,12 @@ GSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=c
 SHEET_BKK_URL = "https://docs.google.com/spreadsheets/d/1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c/export?format=csv&gid=1342717767"
 
 # --- HELPERS ---
+def disable_no_wrap(cell):
+    """Memaksa Word untuk tidak mematahkan baris (No Wrap)."""
+    tcPr = cell._tc.get_or_add_tcPr()
+    noWrap = parse_xml(r'<w:noWrap {} w:val="on"/>'.format(nsdecls('w')))
+    tcPr.append(noWrap)
+
 def get_msia_time():
     msia_tz = pytz.timezone('Asia/Kuala_Lumpur')
     return datetime.now(msia_tz)
@@ -154,7 +160,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
-    # --- SECTION 1.0 ---
+    # --- SECTION 1.0 (eNotifikasi) ---
     p1_head = doc.add_paragraph()
     p1_head.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     apply_font(p1_head.add_run("1.0 Ringkasan Laporan Input Enotifikasi"), 11, bold=True)
@@ -166,7 +172,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     apply_font(h11.add_run(h11_text), 11, bold=False)
 
     add_table_title(doc, "Jadual 1", "Senarai Input eNotifikasi")
-    
     num_pkd = len(TEMPLATE_PKDS)
     t1 = doc.add_table(rows=len(matrix_df) + 2, cols=num_pkd + 3)
     t1.style = 'Table Grid'
@@ -179,7 +184,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         h_cells[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         h_cells[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
         set_cell_paddings(h_cells[i], top=100, bottom=100)
-
     apply_font(h_cells[0].paragraphs[0].add_run("PENYAKIT"), 8, bold=True)
     set_cell_background(h_cells[0], "BFDFFF")
     for i, pkd in enumerate(TEMPLATE_PKDS):
@@ -231,7 +235,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     doc.add_paragraph()
     add_pkd_note(doc)
 
-    # --- SECTION 2.0 (WABAK) - PERUBAHAN AGRESIF UNTUK RSV ---
+    # --- SECTION 2.0 (WABAK) - PENYELESAIAN RSV SEBARIS ---
     doc.add_page_break()
     p2_head = doc.add_paragraph()
     p2_head.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
@@ -247,18 +251,17 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     
     t2 = doc.add_table(rows=len(wabak_df) + 2, cols=4)
     t2.style = 'Table Grid'
-    t2.autofit = False  # Menutup autofit Word
+    t2.autofit = False  
     t2.allow_autofit = False
 
-    # Lebar Kolum: 4.0 inci untuk penyakit supaya RSV tidak patah baris
-    col_widths_t2 = [Inches(4.0), Inches(0.7), Inches(0.7), Inches(0.7)]
+    # Lebar: 4.5 inci (Maksimum) untuk Penyakit. Baki dibahagi kecil untuk angka.
+    col_widths_t2 = [Inches(4.5), Inches(0.6), Inches(0.6), Inches(0.6)]
 
     h2_cols = ["PENYAKIT", "HARIAN", "AKTIF", "KUMULATIF"]
     for i, h in enumerate(h2_cols):
         cell = t2.cell(0, i)
         cell.width = col_widths_t2[i]
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-        # Saiz font 8 untuk memastikan teks panjang muat sebaris
         apply_font(cell.paragraphs[0].add_run(h), 8, bold=True)
         set_cell_background(cell, "BFDFFF")
         cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -269,8 +272,11 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             cells[c].width = col_widths_t2[c]
             cells[c].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         
+        # CRITICAL: Disable Wrap Text pada kolum pertama
+        disable_no_wrap(cells[0])
+        
         p_name_run = cells[0].paragraphs[0].add_run(str(penyakit))
-        apply_font(p_name_run, 8, bold=True) # Font 8
+        apply_font(p_name_run, 8, bold=True)
         set_cell_background(cells[0], "D9E9FF")
         cells[0].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.LEFT
         
@@ -283,7 +289,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     for c in range(4): 
         f2_cells[c].width = col_widths_t2[c]
         f2_cells[c].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-    
     apply_font(f2_cells[0].paragraphs[0].add_run("JUMLAH"), 8, bold=True)
     apply_font(f2_cells[1].paragraphs[0].add_run(str(int(wabak_df['HARIAN'].sum()))), 8, bold=True)
     apply_font(f2_cells[2].paragraphs[0].add_run(str(int(wabak_df['AKTIF'].sum()))), 8, bold=True)
@@ -300,7 +305,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     try: xx_v = int(float(vector_df.iloc[-1, 1]) + float(vector_df.iloc[-1, 3]) + float(vector_df.iloc[-1, 5]))
     except: xx_v = 0
     h31 = doc.add_paragraph()
-    h31.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     h31_text = f"3.1 Jadual di bawah menunjukkan jumlah wabak vektor harian dan kumulatif di negeri Selangor. Sejumlah {xx_v} input notifikasi wabak vektor telah diterima pada {get_malay_date(yesterday)} dengan pecahan mengikut penyakit seperti dalam jadual 3."
     apply_font(h31.add_run(h31_text), 11, bold=False)
 
@@ -349,7 +353,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     p4_head.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     apply_font(p4_head.add_run("4.0 Ringkasan Laporan Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)"), 11, bold=True)
     h41 = doc.add_paragraph()
-    h41.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     if is_bkk_empty:
         h41_text = f"4.1 Jadual di bawah menunjukkan jumlah kejadian insiden bencana, kecemasan dan krisis (BKK) di negeri Selangor. Tiada insiden dilaporkan pada {get_malay_date(yesterday)}."
     else:
@@ -428,14 +431,11 @@ if f1 and f2:
             df1 = pd.read_excel(f1)
             df1 = df1[df1['Notifikasi Status'] != 'Abai Notifikasi']
             df1 = df1[df1['Pejabat Kesihatan'].isin(TEMPLATE_PKDS)]
-            
             matrix = pd.crosstab(df1['Diagnosis'], df1['Pejabat Kesihatan']).reindex(columns=TEMPLATE_PKDS, fill_value=0)
             matrix['Grand Total'] = matrix.sum(axis=1)
-            
             def get_avg_figure(penyakit_name):
                 formatted = format_penyakit_name(penyakit_name)
                 return AVG_HARIAN_FIGURES.get(formatted, 0)
-            
             matrix['Average Harian'] = [get_avg_figure(idx) for idx in matrix.index]
             matrix = matrix.sort_values(by='Grand Total', ascending=False)
             col_totals = matrix[TEMPLATE_PKDS + ['Grand Total']].sum(axis=0)
@@ -446,10 +446,8 @@ if f1 and f2:
             df2['Tarikh Sebenar Tamat Wabak'] = pd.to_datetime(df2['Tarikh Sebenar Tamat Wabak '], errors='coerce').dt.date
             df2['Tarikh Wabak Dijangka Tamat'] = pd.to_datetime(df2['Tarikh Wabak Dijangka Tamat'], errors='coerce').dt.date
             df2 = df2[df2['Tarikh Isytihar Wabak'] >= date(2026, 1, 4)]
-            
             def group_inf(n): 
                 return "ILI/ Influenza" if any(x in str(n).upper() for x in ["INFLUENZA", "ILI"]) else n
-            
             df2['PENYAKIT'] = df2['PENYAKIT'].apply(group_inf)
             unique_d = df2['PENYAKIT'].unique()
             wb_sum = []
@@ -464,7 +462,6 @@ if f1 and f2:
                     return True if (pd.isna(tamat) or tamat >= today) else False
                 active_count = disease_df.apply(check_active, axis=1).sum()
                 wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'AKTIF': active_count, 'KUMULATIF': k})
-            
             wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
             # S3 - Vektor
