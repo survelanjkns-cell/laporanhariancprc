@@ -19,7 +19,7 @@ TEMPLATE_PKDS = [
     'PKD SABAK BERNAM', 'PKD SEPANG'
 ]
 
-# Figure diambil terus dari gambar Jadual 1 yang dibekalkan sebelum ini
+# Figure diambil terus dari gambar Jadual 1 yang dibekalkan
 AVG_HARIAN_FIGURES = {
     "Denggi": 427, "COVID-19": 54, "HFMD": 52, "Tuberculosis": 28,
     "Keracunan Makanan": 22, "Measles": 12, "Viral Hepatitis": 9,
@@ -96,7 +96,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     section.top_margin = section.bottom_margin = section.left_margin = section.right_margin = Cm(2.54)
     content_width = section.page_width - section.left_margin - section.right_margin
 
-    # 1. Logo & Tajuk Utama
+    # 1. Tajuk Utama
     titles = [("LAPORAN HARIAN KEJADIAN BENCANA, WABAK, KECEMASAN, KRISIS (BWKK)", 10.5),
               ("PUSAT KESIAPSIAGAAN DAN TINDAKCEPAT KRISIS (CPRC)", 10.5),
               ("JABATAN KESIHATAN NEGERI SELANGOR", 10.5)]
@@ -131,7 +131,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     apply_font(h_cells[num_pkd+1].paragraphs[0].add_run("Jumlah"), 8, bold=True)
     set_cell_background(h_cells[num_pkd+1], "FFFF00")
     apply_font(h_cells[num_pkd+2].paragraphs[0].add_run("Average Harian"), 8, bold=True)
-    set_cell_background(h_cells[num_pkd+2], "FFC000")
+    set_cell_background(h_cells[num_pkd+2], "FFC000") # Orange
 
     for r_idx, (penyakit, row_data) in enumerate(matrix_df.iterrows()):
         row = t1.rows[r_idx + 1].cells
@@ -161,7 +161,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     f_cells[num_pkd+1].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
     set_cell_background(f_cells[num_pkd+2], "FFC000")
 
-    # --- SECTION 2.0 (JADUAL 2 - WABAK) ---
+    # --- SECTION 2.0 (JADUAL 2 - WABAK DENGAN PELARASAN SAIZ) ---
     doc.add_page_break()
     p2_head = doc.add_paragraph()
     apply_font(p2_head.add_run("2.0 Ringkasan Laporan Notifikasi Wabak"), 11, bold=True)
@@ -176,7 +176,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     t2.style = 'Table Grid'
     t2.allow_autofit = False
     
-    # PELARASAN LEBAR COLUMN (DILARASKAN: Penyakit dikurangkan sedikit)
+    # PELARASAN SAIZ: Penyakit (2.8"), Angka (1.0")
     col_widths = [Inches(2.8), Inches(1.0), Inches(1.0), Inches(1.0)]
     h2_cols = ["PENYAKIT", "HARIAN", "AKTIF", "KUMULATIF"]
     
@@ -195,6 +195,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         p0 = cells[0].paragraphs[0]
         p0.alignment = WD_ALIGN_PARAGRAPH.LEFT
         apply_font(p0.add_run(str(penyakit)), 9, bold=True)
+        
         vals = [row_data['HARIAN'], row_data['AKTIF'], row_data['KUMULATIF']]
         for idx, val in enumerate(vals, start=1):
             cells[idx].width = col_widths[idx]
@@ -211,7 +212,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         p.alignment = WD_ALIGN_PARAGRAPH.LEFT if i == 0 else WD_ALIGN_PARAGRAPH.CENTER
         apply_font(p.add_run(str(val) if i == 0 else str(int(val))), 9, bold=True)
 
-    # --- SECTION 3.0 (VEKTOR) & 4.0 (BKK) ---
+    # --- SECTION 3.0 (VEKTOR) ---
     doc.add_page_break()
     p3_head = doc.add_paragraph()
     apply_font(p3_head.add_run("3.0 Ringkasan Laporan Wabak Vektor"), 11, bold=True)
@@ -248,6 +249,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             elif j == 0: set_cell_background(row_cells[j], "FCE4D6")
             apply_font(run, 10.5, bold=True)
 
+    # --- SECTION 4.0 (BKK) ---
     doc.add_page_break()
     p4_head = doc.add_paragraph()
     apply_font(p4_head.add_run("4.0 Ringkasan Laporan Kejadian Insiden BKK"), 11, bold=True)
@@ -297,6 +299,7 @@ if f1 and f2:
             yesterday = today - timedelta(days=1)
             yesterday_str = yesterday.strftime("%d/%m/%Y") 
 
+            # S1: e-notifikasi
             df1 = pd.read_excel(f1)
             df1 = df1[df1['Notifikasi Status'] != 'Abai Notifikasi']
             df1 = df1[df1['Pejabat Kesihatan'].isin(TEMPLATE_PKDS)]
@@ -306,6 +309,7 @@ if f1 and f2:
             matrix = matrix.sort_values(by='Grand Total', ascending=False)
             col_totals = matrix[TEMPLATE_PKDS + ['Grand Total']].sum(axis=0)
 
+            # S2: Wabak
             df2 = pd.read_excel(f2, sheet_name="SELANGOR 2")
             df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date
             df2['Tarikh Sebenar Tamat Wabak'] = pd.to_datetime(df2['Tarikh Sebenar Tamat Wabak '], errors='coerce').dt.date
@@ -320,10 +324,12 @@ if f1 and f2:
                 wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'AKTIF': active, 'KUMULATIF': k})
             wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
+            # S3: Vektor (Gsheet)
             raw_gs = pd.read_csv(GSHEET_URL, header=None)
             start_row = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1).idxmax()
             v_data = raw_gs.iloc[start_row : start_row + 10, 13:20].dropna(subset=[13])
 
+            # S4: BKK (Gsheet)
             df_bkk_full = pd.read_csv(SHEET_BKK_URL, header=None)
             insiden = df_bkk_full[df_bkk_full.iloc[:, 2].astype(str).str.contains(yesterday_str)]
             bkk_details = [{'kejadian': r[5], 'alamat': r[8], 'daerah': r[4]} for _, r in insiden.iterrows()]
