@@ -22,7 +22,7 @@ TEMPLATE_PKDS = [
 AVG_HARIAN_FIGURES = {
     "Denggi": 427, "COVID-19": 54, "HFMD": 52, "Tuberculosis": 28,
     "Keracunan Makanan": 22, "Measles": 12, "Viral Hepatitis": 9,
-    "Avian Influenza": 8, "HIV/AIDS": 7, "Leptospirosis": 6,
+    "Avian Influenza": 8, "HIV/AIDS": 7, "Leptosopsirosis": 6,
     "Dysentry": 5, "Syphilis": 5, "Typhoid/Paratyphoid": 5,
     "Gonorrhoea": 2, "Pertussis": 2, "Malaria": 1, "Mers-Cov": 1
 }
@@ -235,7 +235,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     doc.add_paragraph()
     add_pkd_note(doc)
 
-    # --- SECTION 2.0 (WABAK) - PENYELESAIAN RSV SEBARIS ---
+    # --- SECTION 2.0 (WABAK) ---
     doc.add_page_break()
     p2_head = doc.add_paragraph()
     p2_head.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
@@ -253,8 +253,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     t2.style = 'Table Grid'
     t2.autofit = False  
     t2.allow_autofit = False
-
-    # Lebar: 4.5 inci (Maksimum) untuk Penyakit. Baki dibahagi kecil untuk angka.
     col_widths_t2 = [Inches(4.5), Inches(0.6), Inches(0.6), Inches(0.6)]
 
     h2_cols = ["PENYAKIT", "HARIAN", "AKTIF", "KUMULATIF"]
@@ -271,15 +269,11 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         for c in range(4): 
             cells[c].width = col_widths_t2[c]
             cells[c].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-        
-        # CRITICAL: Disable Wrap Text pada kolum pertama
         disable_no_wrap(cells[0])
-        
         p_name_run = cells[0].paragraphs[0].add_run(str(penyakit))
         apply_font(p_name_run, 8, bold=True)
         set_cell_background(cells[0], "D9E9FF")
         cells[0].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.LEFT
-        
         for idx, col_key in enumerate(['HARIAN', 'AKTIF', 'KUMULATIF'], start=1):
             run = cells[idx].paragraphs[0].add_run(str(int(row_data[col_key])))
             apply_font(run, 8, bold=True)
@@ -398,14 +392,31 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     footer = doc.add_paragraph()
     footer.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     apply_font(footer.add_run(f"*Sumber : Sistem e-notifikasi, Laporan Wabak KKM dimuat turun pada ({get_malay_date(today)} @ 10.00 am)"), 9, bold=False)
+    
+    # --- BAHAGIAN TANDATANGAN (DIKEMASKINI) ---
     doc.add_paragraph()
-    for label in ["Petugas    :", "Jawatan  :"]:
-        p = doc.add_paragraph()
-        apply_font(p.add_run(label), 11, bold=False)
-    doc.paragraphs[-1].paragraph_format.space_after = Pt(36) 
-    for label in ["Ketua Petugas :", "Jawatan  :"]:
-        p = doc.add_paragraph()
-        apply_font(p.add_run(label), 11, bold=False)
+    
+    # Disediakan Oleh
+    p_sedia = doc.add_paragraph()
+    apply_font(p_sedia.add_run("Disediakan :"), 11, bold=False)
+    p_sedia_j = doc.add_paragraph()
+    apply_font(p_sedia_j.add_run("Jawatan      :"), 11, bold=False)
+    
+    doc.add_paragraph().paragraph_format.space_after = Pt(24) # Ruang tandatangan
+    
+    # Disemak Oleh
+    p_semak = doc.add_paragraph()
+    apply_font(p_semak.add_run("Disemak :"), 11, bold=False)
+    p_semak_j = doc.add_paragraph()
+    apply_font(p_semak_j.add_run("Jawatan   :"), 11, bold=False)
+    
+    doc.add_paragraph().paragraph_format.space_after = Pt(24) # Ruang tandatangan
+
+    # Disahkan Oleh
+    p_sah = doc.add_paragraph()
+    apply_font(p_sah.add_run("Disahkan :"), 11, bold=False)
+    p_sah_j = doc.add_paragraph()
+    apply_font(p_sah_j.add_run("Jawatan    :"), 11, bold=False)
 
     target = io.BytesIO()
     doc.save(target)
