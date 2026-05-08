@@ -115,7 +115,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, harian_detail_df, vector_df, bk
     yesterday = today - timedelta(days=1)
     
     section = doc.sections[0]
-    section.top_margin = section.bottom_margin = section.left_margin = section.right_margin = Cm(2.54)
+    section.top_margin = section.bottom_margin = section.left_margin = section.right_margin = Cm(2.0)
     content_width = section.page_width - section.left_margin - section.right_margin
 
     # 1. Logo
@@ -256,16 +256,22 @@ def generate_docx(matrix_df, col_sums, wabak_df, harian_detail_df, vector_df, bk
         set_cell_background(f2_cells[c], "FFFF00")
         f2_cells[c].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    # --- JADUAL 2.1 (Senarai Wabak Harian Detail) ---
+    # --- JADUAL 2.1 (Senarai Wabak Harian Detail) - UPDATED SIZING ---
     doc.add_paragraph()
     add_table_title(doc, "Jadual 2.1", f"Senarai Wabak Yang Dilaporkan Pada {get_malay_date(yesterday)}")
     
     t21 = doc.add_table(rows=1, cols=5)
     t21.style = 'Table Grid'
-    t21.width = content_width
+    t21.allow_autofit = False # Penting untuk mengekalkan saiz kolum manual
+    
+    # Definisi Lebar Kolum (Dalam CM)
+    # Total A4 lebar bersih lebih kurang 17cm
+    col_widths = [Cm(1.0), Cm(3.2), Cm(3.2), Cm(7.5), Cm(2.1)]
+    
     h21_headers = ["BIL", "WABAK", "DAERAH", "TEMPAT BERLAKU", "BIL KES (AR)"]
     h21_cells = t21.rows[0].cells
     for i, h_txt in enumerate(h21_headers):
+        h21_cells[i].width = col_widths[i]
         h21_cells[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
         apply_font(h21_cells[i].paragraphs[0].add_run(h_txt), 8, bold=True)
         set_cell_background(h21_cells[i], "BFDFFF")
@@ -277,19 +283,24 @@ def generate_docx(matrix_df, col_sums, wabak_df, harian_detail_df, vector_df, bk
     else:
         for idx, row_data in enumerate(harian_detail_df.values, start=1):
             row_cells = t21.add_row().cells
+            # Set lebar sel data secara manual
+            for i in range(5): row_cells[i].width = col_widths[i]
+            
             row_cells[0].text = str(idx)
             row_cells[1].text = str(row_data[0]) # PENYAKIT
             row_cells[2].text = str(row_data[1]) # DAERAH
             row_cells[3].text = str(row_data[2]) # TEMPAT BERLAKU
             row_cells[4].text = "" # BIL KES (AR)
+            
             for c in range(5):
                 row_cells[c].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
                 p = row_cells[c].paragraphs[0]
+                # Kolum alamat (index 3) ikut gambar adalah Left Aligned, lain Center
                 p.alignment = WD_ALIGN_PARAGRAPH.CENTER if c != 3 else WD_ALIGN_PARAGRAPH.LEFT
                 if p.runs: apply_font(p.runs[0], 8, bold=False)
 
     # --- SECTION 3.0 (VEKTOR) ---
-    doc.add_page_break() # Gerakkan 3.0 ke page seterusnya
+    doc.add_page_break()
     p3_head = doc.add_paragraph()
     apply_font(p3_head.add_run("3.0 Ringkasan Laporan Wabak Vektor"), 11, bold=True)
     try: xx_v = int(float(vector_df.iloc[-1, 1]) + float(vector_df.iloc[-1, 3]) + float(vector_df.iloc[-1, 5]))
@@ -459,4 +470,3 @@ if f1 and f2:
             st.download_button("⬇️ Muat Turun Laporan", data=doc_out, file_name=f"Laporan_BWKK_{today}.docx")
         except Exception as e:
             st.error(f"Ralat: {e}")
-            
