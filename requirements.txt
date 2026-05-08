@@ -3,4 +3,3 @@ pandas
 matplotlib
 python-docx
 pytz
-openpyxl
