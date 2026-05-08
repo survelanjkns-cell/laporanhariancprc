@@ -1,4 +1,4 @@
-import streamlit as st
+sy nak sizing column table jadual 2.1 ikut dalam gambar. ni script sy sekarang : import streamlit as st
 import pandas as pd
 from datetime import datetime, date, timedelta
 import pytz
@@ -257,56 +257,36 @@ def generate_docx(matrix_df, col_sums, wabak_df, harian_detail_df, vector_df, bk
         f2_cells[c].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     # --- JADUAL 2.1 (Senarai Wabak Harian Detail) ---
-    doc.add_paragraph()
-    add_table_title(doc, "Jadual 2.1", f"Senarai Wabak Yang Dilaporkan Pada {get_malay_date(yesterday)}")
-    
-    t21 = doc.add_table(rows=1, cols=5)
-    t21.style = 'Table Grid'
-    
-    # --- PENETAPAN LEBAR KOLUM (Sizing) ---
-    # Lebar A4 dalam CM (setelah tolak margin) adalah lebih kurang 16cm - 17cm
-    widths = [Cm(1.0), Cm(3.0), Cm(3.0), Cm(7.5), Cm(2.0)]
-    
-    # Kita perlu set lebar pada setiap cell kerana python-docx 
-    # kadang-kala tidak konsisten jika set pada table column sahaja
-    def set_col_widths(table, widths):
-        for row in table.rows:
-            for idx, width in enumerate(widths):
-                row.cells[idx].width = width
+    doc.add_paragraph()
+    add_table_title(doc, "Jadual 2.1", f"Senarai Wabak Yang Dilaporkan Pada {get_malay_date(yesterday)}")
+    
+    t21 = doc.add_table(rows=1, cols=5)
+    t21.style = 'Table Grid'
+    t21.width = content_width
+    h21_headers = ["BIL", "WABAK", "DAERAH", "TEMPAT BERLAKU", "BIL KES (AR)"]
+    h21_cells = t21.rows[0].cells
+    for i, h_txt in enumerate(h21_headers):
+        h21_cells[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+        apply_font(h21_cells[i].paragraphs[0].add_run(h_txt), 8, bold=True)
+        set_cell_background(h21_cells[i], "BFDFFF")
 
-    h21_headers = ["BIL", "WABAK", "DAERAH", "TEMPAT BERLAKU", "BIL KES (AR)"]
-    h21_cells = t21.rows[0].cells
-    
-    for i, h_txt in enumerate(h21_headers):
-        h21_cells[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-        apply_font(h21_cells[i].paragraphs[0].add_run(h_txt), 8, bold=True)
-        set_cell_background(h21_cells[i], "BFDFFF")
-        h21_cells[i].width = widths[i] # Set lebar header
-
-    if harian_detail_df.empty:
-        row = t21.add_row().cells
-        row[0].merge(row[4]).text = "Tiada wabak dilaporkan pada tarikh ini."
-        row[0].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-    else:
-        for idx, row_data in enumerate(harian_detail_df.values, start=1):
-            row_cells = t21.add_row().cells
-            row_cells[0].text = str(idx)
-            row_cells[1].text = str(row_data[0]) # PENYAKIT
-            row_cells[2].text = str(row_data[1]) # DAERAH
-            row_cells[3].text = str(row_data[2]) # TEMPAT BERLAKU
-            row_cells[4].text = "" # BIL KES (AR)
-            
-            for c in range(5):
-                row_cells[c].width = widths[c] # Set lebar cell data
-                row_cells[c].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-                p = row_cells[c].paragraphs[0]
-                # Ikut gambar: Alamat (index 3) adalah LEFT, lain-lain CENTER
-                p.alignment = WD_ALIGN_PARAGRAPH.CENTER if c != 3 else WD_ALIGN_PARAGRAPH.LEFT
-                if p.runs: 
-                    apply_font(p.runs[0], 8, bold=False)
-
-    # Memastikan table tidak lari alignment (Autofit dibatalkan)
-    t21.allow_autofit = False
+    if harian_detail_df.empty:
+        row = t21.add_row().cells
+        row[0].merge(row[4]).text = "Tiada wabak dilaporkan pada tarikh ini."
+        row[0].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+    else:
+        for idx, row_data in enumerate(harian_detail_df.values, start=1):
+            row_cells = t21.add_row().cells
+            row_cells[0].text = str(idx)
+            row_cells[1].text = str(row_data[0]) # PENYAKIT
+            row_cells[2].text = str(row_data[1]) # DAERAH
+            row_cells[3].text = str(row_data[2]) # TEMPAT BERLAKU
+            row_cells[4].text = "" # BIL KES (AR)
+            for c in range(5):
+                row_cells[c].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+                p = row_cells[c].paragraphs[0]
+                p.alignment = WD_ALIGN_PARAGRAPH.CENTER if c != 3 else WD_ALIGN_PARAGRAPH.LEFT
+                if p.runs: apply_font(p.runs[0], 8, bold=False)
 
     # --- SECTION 3.0 (VEKTOR) ---
     doc.add_page_break() # Gerakkan 3.0 ke page seterusnya
