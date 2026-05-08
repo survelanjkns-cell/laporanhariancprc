@@ -1,4 +1,4 @@
-import streamlit as st
+sy nak sizing column table jadual 2.1 ikut dalam gambar. ni script sy sekarang : import streamlit as st
 import pandas as pd
 from datetime import datetime, date, timedelta
 import pytz
