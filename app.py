@@ -1,4 +1,4 @@
-sy nak sizing column table jadual 2.1 ikut dalam gambar tanpa mengubah margin normal yang telah di set dalam script sy. ni script sy sekarang : import streamlit as st
+import streamlit as st
 import pandas as pd
 from datetime import datetime, date, timedelta
 import pytz
