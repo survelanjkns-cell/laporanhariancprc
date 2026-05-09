@@ -18,7 +18,6 @@ SHEET_ID = "1bjyNcntm-I6nRaIVkVdJqJRAzn5r2tYFfjUAN0emv9w"
 GID_GRAF = "1360010996" 
 URL_GRAF = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID_GRAF}"
 SHEET_BKK_URL = "https://docs.google.com/spreadsheets/d/1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c/export?format=csv&gid=1342717767"
-GSHEET_ENOTIF_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid=0"
 
 TEMPLATE_PKDS = [
     'PKD GOMBAK', 'PKD HULU LANGAT', 'PKD HULU SELANGOR', 'PKD KLANG',
@@ -35,6 +34,12 @@ AVG_HARIAN_FIGURES = {
 }
 
 # --- HELPERS ---
+def set_repeat_table_header(row):
+    tr = row._tr
+    trPr = tr.get_or_add_trPr()
+    tblHeader = parse_xml(r'<w:tblHeader {}/>'.format(nsdecls('w')))
+    trPr.append(tblHeader)
+
 def get_msia_time():
     msia_tz = pytz.timezone('Asia/Kuala_Lumpur')
     return datetime.now(msia_tz)
@@ -50,6 +55,21 @@ def set_cell_background(cell, hex_color):
     shading_elm = parse_xml(r'<w:shd {} w:fill="{}"/>'.format(nsdecls('w'), hex_color))
     cell._tc.get_or_add_tcPr().append(shading_elm)
 
+def clean_val(val):
+    if pd.isna(val) or str(val).strip() == "" or str(val).strip() == "-": return "-"
+    return re.sub(r'\s*\(.*?\)', '', str(val)).strip()
+
+def get_epi_week(target_date):
+    start_date = date(2026, 1, 4)
+    if target_date < start_date: return "N/A"
+    days_diff = (target_date - start_date).days
+    return f"{(days_diff // 7) + 1}/{target_date.year}"
+
+def get_malay_date(target_date):
+    months_ms = {1: "Januari", 2: "Februari", 3: "Mac", 4: "April", 5: "Mei", 6: "Jun", 7: "Julai", 8: "Ogos", 9: "September", 10: "Oktober", 11: "November", 12: "Disember"}
+    days_ms = {"Monday": "Isnin", "Tuesday": "Selasa", "Wednesday": "Rabu", "Thursday": "Khamis", "Friday": "Jumaat", "Saturday": "Sabtu", "Sunday": "Ahad"}
+    return f"{target_date.day:02d} {months_ms[target_date.month]} {target_date.year} ({days_ms[target_date.strftime('%A')]})"
+
 def apply_font(run, size, bold=True):
     run.font.name = 'Arial'
     run.font.size = Pt(size)
@@ -59,98 +79,97 @@ def apply_font(run, size, bold=True):
 def generate_trend_chart(url):
     try:
         df_raw = pd.read_csv(url, header=None)
-        x_axis = df_raw.iloc[1, 1:54].values   
-        data_2025 = pd.to_numeric(df_raw.iloc[5, 1:54], errors='coerce') 
-        data_2026 = pd.to_numeric(df_raw.iloc[6, 1:54], errors='coerce') 
-        data_median = pd.to_numeric(df_raw.iloc[7, 1:54], errors='coerce')
+        x_axis = df_raw.iloc[1, 1:54].values
+        d2025 = pd.to_numeric(df_raw.iloc[5, 1:54], errors='coerce')
+        d2026 = pd.to_numeric(df_raw.iloc[6, 1:54], errors='coerce')
+        dmed = pd.to_numeric(df_raw.iloc[7, 1:54], errors='coerce')
 
-        plt.figure(figsize=(12, 6))
-        plt.plot(x_axis, data_2025, color='#4285F4', label='2025', linewidth=2.5)
-        plt.plot(x_axis, data_2026, color='#EA4335', label='2026', linewidth=2.5)
-        plt.plot(x_axis, data_median, color='#FBBC05', label='Moving median 4 tahun', linewidth=2.5)
-
+        plt.figure(figsize=(11, 5))
+        plt.plot(x_axis, d2025, color='#4285F4', label='2025', linewidth=2)
+        plt.plot(x_axis, d2026, color='#EA4335', label='2026', linewidth=2)
+        plt.plot(x_axis, dmed, color='#FBBC05', label='Moving Median', linewidth=2)
         plt.xticks(x_axis, rotation=90, fontsize=8)
-        plt.yticks(range(0, 1501, 250))
-        plt.ylim(0, 1250)
-        plt.xlim(1, 53)
-        plt.grid(axis='y', linestyle='-', alpha=0.3)
-        plt.gca().spines['top'].set_visible(False)
-        plt.gca().spines['right'].set_visible(False)
-        plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=3, frameon=False)
+        plt.grid(axis='y', alpha=0.3)
+        plt.legend(loc='lower center', bbox_to_anchor=(0.5, -0.3), ncol=3)
         
-        img_stream = io.BytesIO()
-        plt.savefig(img_stream, format='png', bbox_inches='tight', dpi=300)
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png', bbox_inches='tight', dpi=200)
         plt.close()
-        img_stream.seek(0)
-        return img_stream
+        buf.seek(0)
+        return buf
     except: return None
 
 # --- DOCX GENERATOR ---
-def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_final, b_details, df_yesterday_list):
+def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table, bkk_details, df_yesterday_list):
     doc = Document()
-    now_msia = get_msia_time()
-    today = now_msia.date()
+    now = get_msia_time()
+    today = now.date()
     yesterday = today - timedelta(days=1)
-
-    # Logo & Tajuk (Diringkaskan untuk ruang)
+    
+    # Page Setup
+    section = doc.sections[0]
+    section.top_margin = section.bottom_margin = section.left_margin = section.right_margin = Cm(2)
+    
+    # 1. Logo
     logo_path = "logo.png.jpg"
     if os.path.exists(logo_path):
-        doc.add_paragraph().add_run().add_picture(logo_path, width=Inches(1.5))
-    
-    doc.add_paragraph("LAPORAN HARIAN BWKK CPRC SELANGOR").alignment = 1
-
-    # --- JADUAL 1 & 2 (Kod anda sedia ada masuk di sini) ---
-    doc.add_paragraph(f"Tarikh: {today} | Minggu Epi: {today.isocalendar()[1]}")
-
-    # --- RAJAH 1 ---
-    doc.add_paragraph("\n3.0 Ringkasan Laporan Wabak Vektor")
-    # ... Jadual 3 ...
-    
-    chart_img = generate_trend_chart(URL_GRAF)
-    if chart_img:
         p = doc.add_paragraph()
         p.alignment = 1
-        p.add_run("Rajah 1 : Carta Kes Mingguan Denggi Didaftar Bagi Tahun 2025 - 2026").bold = True
-        doc.add_paragraph().add_run().add_picture(chart_img, width=Inches(6.0))
+        p.add_run().add_picture(logo_path, width=Inches(1.6))
+        
+    # 2. Tajuk
+    for txt in ["LAPORAN HARIAN BWKK CPRC SELANGOR", "JABATAN KESIHATAN NEGERI SELANGOR"]:
+        p = doc.add_paragraph()
+        p.alignment = 1
+        run = p.add_run(txt)
+        apply_font(run, 11, True)
 
-    target = io.BytesIO()
-    doc.save(target)
-    target.seek(0)
-    return target
+    doc.add_paragraph(f"Tarikh: {get_malay_date(today)} | Minggu Epi: {get_epi_week(today)}").alignment = 1
+
+    # --- JADUAL 1 (eNotifikasi) ---
+    doc.add_paragraph("\n1.0 Ringkasan Laporan Input Enotifikasi").bold = True
+    # (Di sini anda perlu masukkan kod pembinaan Jadual 1 anda yang asal)
+    # ... Kod jadual 1 ...
+
+    # --- SECTION 3.0 & GRAF ---
+    doc.add_paragraph("\n3.0 Ringkasan Laporan Wabak Vektor").bold = True
+    # (Di sini anda perlu masukkan kod pembinaan Jadual 3 anda yang asal)
+    # ... Kod jadual 3 ...
+
+    # MASUKKAN RAJAH 1
+    chart = generate_trend_chart(URL_GRAF)
+    if chart:
+        doc.add_paragraph().alignment = 1
+        p = doc.add_paragraph()
+        p.alignment = 1
+        run = p.add_run("Rajah 1 : Carta Kes Mingguan Denggi Didaftar Bagi Tahun 2025 - 2026")
+        apply_font(run, 10, True)
+        doc.add_picture(chart, width=Inches(6))
+
+    # --- SECTION 4.0 (BKK) ---
+    doc.add_paragraph("\n4.0 Ringkasan Laporan BKK").bold = True
+    # ... Kod jadual 4 ...
+
+    out = io.BytesIO()
+    doc.save(out)
+    out.seek(0)
+    return out
 
 # --- STREAMLIT UI ---
+if 'doc_file' not in st.session_state:
+    st.session_state.doc_file = None
+
 st.title("📊 BWKK Report Generator")
 
-# Guna Session State supaya butang muat turun tidak hilang
-if 'doc_ready' not in st.session_state:
-    st.session_state.doc_ready = False
-    st.session_state.doc_data = None
-
-f1 = st.file_uploader("Muat Naik Excel Notifikasi Harian", type=["xlsx", "xls"])
-f2 = st.file_uploader("Muat Naik Excel Linelisting Wabak", type=["xlsx", "xls"])
+f1 = st.file_uploader("Upload Excel 1", type=["xlsx", "xls"])
+f2 = st.file_uploader("Upload Excel 2", type=["xlsx", "xls"])
 
 if f1 and f2:
     if st.button("🚀 Jana Laporan Lengkap"):
-        try:
-            with st.spinner('Menjana laporan dan graf...'):
-                # --- LOGIK PROSES DATA ---
-                df1 = pd.read_excel(f1)
-                # (Tambahkan semua logik pembersihan data anda di sini)
-                
-                # Mock data untuk demonstrasi (Ganti dengan variabel sebenar anda)
-                doc_out = generate_docx(None, None, None, None, None, [], []) 
-                
-                st.session_state.doc_data = doc_out
-                st.session_state.doc_ready = True
-            st.success("Laporan berjaya dijana!")
-        except Exception as e:
-            st.error(f"Ralat: {e}")
+        # Masukkan logik bacaan excel anda (pd.read_excel)
+        # Guna fungsi generate_docx(...)
+        st.session_state.doc_file = generate_docx(None, None, None, None, None, [], []) 
+        st.success("Laporan Berjaya Dijana!")
 
-# Butang muat turun diletakkan di luar block button jana
-if st.session_state.doc_ready:
-    st.download_button(
-        label="⬇️ Muat Turun Laporan (Word)",
-        data=st.session_state.doc_data,
-        file_name=f"Laporan_BWKK_{date.today()}.docx",
-        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    )
+if st.session_state.doc_file:
+    st.download_button("⬇️ Muat Turun File", st.session_state.doc_file, "Laporan.docx")
