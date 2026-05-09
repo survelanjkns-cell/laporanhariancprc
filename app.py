@@ -99,10 +99,13 @@ def create_dengue_chart():
         plt.plot(weeks, data_2025, label='2025', color='#4285F4', linewidth=2)
         plt.plot(weeks, data_2026, label='2026', color='#EA4335', linewidth=2)
         plt.plot(weeks, data_median, label='Moving median 4 tahun', color='#FBBC05', linewidth=2)
+        
         plt.xticks(ticks=range(len(weeks)), labels=weeks, fontsize=8)
         plt.gca().xaxis.set_major_locator(plt.MultipleLocator(2))
+        plt.yticks(range(0, 1501, 250), fontsize=9)
         plt.ylim(0, 1250)
-        plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=3, frameon=False)
+        
+        plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=3, frameon=False, fontsize=9)
         plt.gca().spines['top'].set_visible(False)
         plt.gca().spines['right'].set_visible(False)
 
@@ -111,7 +114,9 @@ def create_dengue_chart():
         img_buf.seek(0)
         plt.close()
         return img_buf
-    except: return None
+    except Exception as e:
+        st.error(f"Gagal menjana graf: {e}")
+        return None
 
 # --- DOCX GENERATOR ---
 def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty, bkk_details, df_yesterday_list):
@@ -119,20 +124,28 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     now_msia = get_msia_time()
     today, yesterday = now_msia.date(), now_msia.date() - timedelta(days=1)
     
-    # Setup Margins
     section = doc.sections[0]
     section.top_margin = section.bottom_margin = section.left_margin = section.right_margin = Cm(2.54)
+    content_width = section.page_width - section.left_margin - section.right_margin
 
-    # 1. Logo & Tajuk
-    titles = ["LAPORAN HARIAN KEJADIAN BENCANA, WABAK, KECEMASAN, KRISIS (BWKK)", "PUSAT KESIAPSIAGAAN DAN TINDAKCEPAT KRISIS (CPRC)", "JABATAN KESIHATAN NEGERI SELANGOR"]
-    for t in titles:
+    # 1. Logo
+    logo_path = "logo.png.jpg"
+    if os.path.exists(logo_path):
+        p_logo = doc.add_paragraph()
+        p_logo.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p_logo.add_run().add_picture(logo_path, width=Inches(1.8))
+
+    # 2. Tajuk
+    for t in ["LAPORAN HARIAN KEJADIAN BENCANA, WABAK, KECEMASAN, KRISIS (BWKK)", "PUSAT KESIAPSIAGAAN DAN TINDAKCEPAT KRISIS (CPRC)", "JABATAN KESIHATAN NEGERI SELANGOR"]:
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         apply_font(p.add_run(t), 10.5, bold=True)
 
-    # 2. Jadual Info Tarikh (Hijau)
+    doc.add_paragraph()
+
+    # 3. Info Tarikh Hijau
     it = doc.add_table(rows=1, cols=2)
-    it.width = Cm(16)
+    it.width = content_width
     for i, txt in enumerate([f"Tarikh : {get_malay_date(today)}", f"Minggu Epidemiologi : {get_epi_week(today)}"]):
         cell = it.cell(0, i)
         set_cell_background(cell, "C6E0B4")
@@ -140,7 +153,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         apply_font(p.add_run(txt), 11, bold=True)
 
-    # --- JADUAL 1 (E-Notifikasi) ---
+    # --- 1.0 E-Notifikasi ---
     doc.add_paragraph()
     apply_font(doc.add_paragraph().add_run("1.0 Ringkasan Laporan Input Enotifikasi"), 11, bold=True)
     add_table_title(doc, "Jadual 1", "Senarai Input eNotifikasi")
@@ -148,43 +161,61 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     t1 = doc.add_table(rows=len(matrix_df) + 2, cols=len(TEMPLATE_PKDS) + 3)
     t1.style = 'Table Grid'
     
-    # Headers J1
-    pkd_short = ['GBK', 'HL', 'HS', 'KLG', 'KL', 'KS', 'PTG', 'SB', 'SPG']
+    pkd_map = {'PKD GOMBAK': 'GBK', 'PKD HULU LANGAT': 'HL', 'PKD HULU SELANGOR': 'HS', 'PKD KLANG': 'KLG', 'PKD KUALA LANGAT': 'KL', 'PKD KUALA SELANGOR': 'KS', 'PKD PETALING': 'PTG', 'PKD SABAK BERNAM': 'SB', 'PKD SEPANG': 'SPG'}
+    
+    # Headers
     h_cells = t1.rows[0].cells
-    apply_font(h_cells[0].add_run("PENYAKIT"), 8, bold=True)
-    for i, pkd in enumerate(pkd_short): apply_font(h_cells[i+1].add_run(pkd), 8, bold=True)
-    apply_font(h_cells[-2].add_run("Jumlah"), 8, bold=True)
-    apply_font(h_cells[-1].add_run("Avg"), 8, bold=True)
+    apply_font(h_cells[0].paragraphs[0].add_run("PENYAKIT"), 8, bold=True)
+    for i, pkd in enumerate(TEMPLATE_PKDS):
+        cell = h_cells[i+1]
+        apply_font(cell.paragraphs[0].add_run(pkd_map.get(pkd)), 8, bold=True)
+        set_cell_background(cell, "BFDFFF")
+    apply_font(h_cells[-2].paragraphs[0].add_run("Jumlah"), 8, bold=True)
+    set_cell_background(h_cells[-2], "FFFF00")
+    apply_font(h_cells[-1].paragraphs[0].add_run("Avg"), 8, bold=True)
+    set_cell_background(h_cells[-1], "FFC000")
 
-    # Data J1 (NaN Safe)
+    # Data Rows
     for r_idx, (penyakit, row_data) in enumerate(matrix_df.iterrows()):
         row = t1.rows[r_idx+1].cells
-        apply_font(row[0].add_run(format_penyakit_name(penyakit)), 8, bold=True)
+        apply_font(row[0].paragraphs[0].add_run(format_penyakit_name(penyakit)), 8, bold=True)
         for c_idx, pkd in enumerate(TEMPLATE_PKDS):
             val = int(row_data.get(pkd, 0)) if pd.notna(row_data.get(pkd)) else 0
-            apply_font(row[c_idx+1].paragraphs[0].add_run(str(val)), 8, bold=True)
+            p = row[c_idx+1].paragraphs[0]
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            apply_font(p.add_run(str(val)), 8, bold=True)
         
-        total_val = int(row_data.get('Grand Total', 0)) if pd.notna(row_data.get('Grand Total')) else 0
-        apply_font(row[-2].paragraphs[0].add_run(str(total_val)), 8, bold=True)
+        # Totals & Avg
+        total_v = int(row_data.get('Grand Total', 0)) if pd.notna(row_data.get('Grand Total')) else 0
+        p_tot = row[-2].paragraphs[0]
+        p_tot.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        apply_font(p_tot.add_run(str(total_v)), 8, bold=True)
         
-        avg_val = int(row_data.get('Average Harian', 0)) if pd.notna(row_data.get('Average Harian')) else 0
-        apply_font(row[-1].paragraphs[0].add_run(str(avg_val)), 8, bold=True)
+        avg_v = int(row_data.get('Average Harian', 0)) if pd.notna(row_data.get('Average Harian')) else 0
+        p_avg = row[-1].paragraphs[0]
+        p_avg.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        apply_font(p_avg.add_run(str(avg_v)), 8, bold=True)
 
-    # --- JADUAL 3 (Vektor) & RAJAH 1 ---
-    # (Penambahan Graf Rajah 1 selepas J3)
+    # --- 3.0 Vektor & Rajah 1 ---
+    # (Bahagian ini dipermudahkan untuk menunjukkan Rajah 1)
     doc.add_page_break()
     apply_font(doc.add_paragraph().add_run("3.0 Ringkasan Laporan Wabak Vektor"), 11, bold=True)
     add_table_title(doc, "Jadual 3", "Senarai Notifikasi Wabak Vektor")
     
-    # ... (Proses J3 anda) ...
-    
-    # RAJAH 1
+    # [Logik Jadual 3 anda di sini...]
+
     doc.add_paragraph()
-    add_table_title(doc, "Rajah 1", "Carta Kes Mingguan Denggi Didaftar")
+    # RAJAH 1
+    add_table_title(doc, "Rajah 1", "Carta Kes Mingguan Denggi Didaftar Bagi Tahun 2025 - 2026 Negeri Selangor")
     chart_buf = create_dengue_chart()
     if chart_buf:
-        doc.add_picture(chart_buf, width=Inches(6))
-        doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p_graf = doc.add_paragraph()
+        p_graf.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p_graf.add_run().add_picture(chart_buf, width=Inches(6.2))
+
+    doc.add_page_break()
+    apply_font(doc.add_paragraph().add_run("4.0 Ringkasan Laporan Kejadian BKK"), 11, bold=True)
+    # [Logik BKK anda di sini...]
 
     target = io.BytesIO()
     doc.save(target)
@@ -192,35 +223,33 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     return target
 
 # --- STREAMLIT UI ---
-st.set_page_config(page_title="BWKK Generator", layout="centered")
+st.set_page_config(page_title="BWKK Report Generator", layout="centered")
 st.title("📊 BWKK Report Generator")
 
-f1 = st.file_uploader("📂 Notifikasi Harian", type=["xlsx", "xls"])
-f2 = st.file_uploader("📂 Linelisting Wabak", type=["xlsx", "xls"])
+f1 = st.file_uploader("📂 Notifikasi Harian (Excel)", type=["xlsx", "xls"])
+f2 = st.file_uploader("📂 Linelisting Wabak (Excel)", type=["xlsx", "xls"])
 
 if f1 and f2:
     if st.button("🚀 Jana Laporan Lengkap"):
         try:
-            # S1: Proses Data Notifikasi (NaN Safe)
+            # Load & Clean
             df1 = pd.read_excel(f1).fillna(0)
-            df1 = df1[df1['Pejabat Kesihatan'].isin(TEMPLATE_PKDS)]
-            matrix = pd.crosstab(df1['Diagnosis'], df1['Pejabat Kesihatan']).reindex(columns=TEMPLATE_PKDS, fill_value=0)
+            df2 = pd.read_excel(f2, sheet_name="SELANGOR 2").fillna(0)
+            
+            # Notifikasi Matrix
+            df1_filt = df1[df1['Pejabat Kesihatan'].isin(TEMPLATE_PKDS)]
+            matrix = pd.crosstab(df1_filt['Diagnosis'], df1_filt['Pejabat Kesihatan']).reindex(columns=TEMPLATE_PKDS, fill_value=0)
             matrix['Grand Total'] = matrix.sum(axis=1)
             matrix['Average Harian'] = [AVG_HARIAN_FIGURES.get(format_penyakit_name(idx), 0) for idx in matrix.index]
             col_sums = matrix.sum()
 
-            # S2: Wabak (NaN Safe)
-            df2 = pd.read_excel(f2, sheet_name="SELANGOR 2").fillna(0)
-            yesterday = (get_msia_time() - timedelta(days=1)).date()
-            df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date
-            
-            # S3: Vektor & BKK (NaN Safe)
+            # Google Sheets data
             v_data = pd.read_csv(URL_VEKTOR, header=None).fillna(0)
             bkk_df = pd.read_csv(URL_BKK, header=None).fillna(0)
 
             doc_out = generate_docx(matrix, col_sums, None, v_data, bkk_df, True, [], [])
-            st.success("✅ Laporan Berjaya!")
-            st.download_button("⬇️ Download", doc_out, f"BWKK_{date.today()}.docx")
             
+            st.success("✅ Laporan berjaya dijana!")
+            st.download_button("⬇️ Muat Turun Laporan", doc_out, f"Laporan_BWKK_{date.today()}.docx")
         except Exception as e:
             st.error(f"Ralat: {e}")
