@@ -217,7 +217,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     doc.add_paragraph()
     add_pkd_note(doc)
 
-    # --- SECTION 2.0 (WABAK) - DIKEMASKINI UNTUK SAIZ LEBIH LEBAR ---
+    # --- SECTION 2.0 (WABAK) - COLUMN PENYAKIT DIPENDEKKAN ---
     doc.add_page_break()
     p2_head = doc.add_paragraph()
     apply_font(p2_head.add_run("2.0 Ringkasan Laporan Notifikasi Wabak"), 11, bold=True)
@@ -230,14 +230,13 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     add_table_title(doc, "Jadual 2", "Senarai Notifikasi Wabak")
     
-    # KEMASKINI: Setting lebar manual
     t2 = doc.add_table(rows=len(wabak_df) + 2, cols=4)
     t2.style = 'Table Grid'
     t2.alignment = WD_TABLE_ALIGNMENT.CENTER
-    t2.autofit = False  # Mesti False untuk membolehkan kawalan lebar manual
+    t2.autofit = False  
     
-    # Nisbah lebar: Penyakit (60%), Harian (13%), Aktif (13%), Kumulatif (14%)
-    col_widths_t2 = [content_width * 0.60, content_width * 0.13, content_width * 0.13, content_width * 0.14]
+    # LARASAN SAIZ: Penyakit dipendekkan (40%), data lain dibesarkan (20% setiap satu)
+    col_widths_t2 = [content_width * 0.40, content_width * 0.20, content_width * 0.20, content_width * 0.20]
 
     # Header Jadual 2
     for i, h in enumerate(["PENYAKIT", "HARIAN", "AKTIF", "KUMULATIF"]):
@@ -251,7 +250,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     for i, (penyakit, row_data) in enumerate(wabak_df.iterrows()):
         cells = t2.rows[i+1].cells
         for idx_w in range(4):
-            cells[idx_w].width = col_widths_t2[idx_w] # Paksa lebar sel
+            cells[idx_w].width = col_widths_t2[idx_w]
             
         apply_font(cells[0].paragraphs[0].add_run(str(penyakit)), 8, bold=True)
         set_cell_background(cells[0], "D9E9FF")
