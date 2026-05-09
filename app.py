@@ -322,24 +322,26 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
                     else: apply_font(p.add_run(""), 8, bold=False)
 
     # --- SECTION 3.0 (VEKTOR) ---
-    doc.add_page_break()
+    # KEMASKINI: Buang page break supaya bersambung di bawah Jadual 2.1
     p3_head = doc.add_paragraph()
+    p3_head.paragraph_format.space_before = Pt(24) # Tambah spacing supaya tidak terlalu rapat
     apply_font(p3_head.add_run("3.0 Ringkasan Laporan Wabak Vektor"), 11, bold=True)
-    try: xx_v = int(float(vector_df.iloc[-1, 1]) + float(vector_df.iloc[-1, 3]) + float(vector_df.iloc[-1, 5]))
-    except: xx_v = 0
+    
+    try: 
+        xx_v = int(float(vector_df.iloc[-1, 1]) + float(vector_df.iloc[-1, 3]) + float(vector_df.iloc[-1, 5]))
+    except: 
+        xx_v = 0
+        
     h31 = doc.add_paragraph()
     h31_text = f"3.1 Jadual di bawah menunjukkan jumlah wabak vektor harian dan kumulatif di negeri Selangor. Sejumlah {xx_v} input notifikasi wabak vektor telah diterima pada {get_malay_date(yesterday)} dengan pecahan mengikut penyakit seperti dalam jadual 3."
     apply_font(h31.add_run(h31_text), 11, bold=False)
 
     add_table_title(doc, "Jadual 3", "Senarai Notifikasi Wabak Vektor")
     
-    # Konfigurasi Table 3
     t3 = doc.add_table(rows=len(vector_df) + 2, cols=7)
     t3.style = 'Table Grid'
-    t3.allow_autofit = False  # Penting supaya lebar manual berfungsi
+    t3.allow_autofit = False 
     
-    # Set Lebar Column (Daerah dilebarkan supaya sebaris)
-    # Total content width sekitar 6.27 inci (Standard A4 Portrait - 1" margins)
     col_widths_t3 = [Inches(1.8), Inches(0.75), Inches(0.75), Inches(0.75), Inches(0.75), Inches(0.75), Inches(0.75)]
 
     # Header Baris 1
@@ -378,12 +380,11 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             except: display_val = str(val).upper()
             
             p = row_cells[j].paragraphs[0]
-            # Column 0: Left, Column Lain: Center (Justify)
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT if j == 0 else WD_ALIGN_PARAGRAPH.CENTER
             
             run = p.add_run(display_val)
-            if i == len(vector_df)-1: set_cell_background(row_cells[j], "FFFF00") # Baris Jumlah
-            elif j == 0: set_cell_background(row_cells[j], "FCE4D6") # Column Daerah
+            if i == len(vector_df)-1: set_cell_background(row_cells[j], "FFFF00") 
+            elif j == 0: set_cell_background(row_cells[j], "FCE4D6") 
             
             apply_font(run, 9, bold=True)
             row_cells[j].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
