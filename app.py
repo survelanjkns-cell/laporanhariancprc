@@ -107,6 +107,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     section = doc.sections[0]
     section.top_margin = section.bottom_margin = section.left_margin = section.right_margin = Cm(2.54)
+    # Kira lebar kandungan berdasarkan margin
     content_width = section.page_width - section.left_margin - section.right_margin
 
     # 1. Logo
@@ -134,7 +135,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     # 3. Jadual Tarikh Hijau
     info_table = doc.add_table(rows=1, cols=2)
-    info_table.width = content_width
+    info_table.width = content_width # Set lebar penuh
     for i in range(2):
         cell = info_table.cell(0, i)
         set_cell_background(cell, "C6E0B4")
@@ -153,15 +154,18 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     # --- SECTION 1.0 (eNotifikasi) ---
     p1_head = doc.add_paragraph()
     apply_font(p1_head.add_run("1.0 Ringkasan Laporan Input Enotifikasi"), 11, bold=True)
+    
     total_notifications = int(col_sums['Grand Total'])
     h11 = doc.add_paragraph()
+    h11.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY # JUSTIFIED
     h11_text = f"1.1 Jadual di bawah menunjukkan jumlah input enotifikasi di negeri Selangor. Sejumlah {total_notifications} input notifikasi telah diterima pada {get_malay_date(yesterday)} dengan pecahan mengikut penyakit seperti dalam jadual 1."
     apply_font(h11.add_run(h11_text), 11, bold=False)
 
     add_table_title(doc, "Jadual 1", "Senarai Input eNotifikasi")
     t1 = doc.add_table(rows=len(matrix_df) + 2, cols=len(TEMPLATE_PKDS) + 3)
     t1.style = 'Table Grid'
-    t1.width = content_width
+    t1.width = content_width # SAIS SEPADAN JUSTIFIED
+    
     pkd_map = {'PKD GOMBAK': 'GBK', 'PKD HULU LANGAT': 'HL', 'PKD HULU SELANGOR': 'HS', 'PKD KLANG': 'KLG', 'PKD KUALA LANGAT': 'KL', 'PKD KUALA SELANGOR': 'KS', 'PKD PETALING': 'PTG', 'PKD SABAK BERNAM': 'SB', 'PKD SEPANG': 'SPG'}
     
     h_cells = t1.rows[0].cells
@@ -218,16 +222,20 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     doc.add_page_break()
     p2_head = doc.add_paragraph()
     apply_font(p2_head.add_run("2.0 Ringkasan Laporan Notifikasi Wabak"), 11, bold=True)
+    
     harian_total = int(wabak_df['HARIAN'].sum())
     h21 = doc.add_paragraph()
+    h21.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY # JUSTIFIED
     h21_text = f"2.1 Jadual di bawah menunjukkan jumlah wabak harian, aktif dan kumulatif di negeri Selangor. Sejumlah {harian_total} input notifikasi wabak diterima pada {get_malay_date(yesterday)}."
     apply_font(h21.add_run(h21_text), 11, bold=False)
 
     add_table_title(doc, "Jadual 2", "Senarai Notifikasi Wabak")
     t2 = doc.add_table(rows=len(wabak_df) + 2, cols=4)
     t2.style = 'Table Grid'
+    t2.width = content_width # SAIS SEPADAN JUSTIFIED
     t2.autofit = False
-    col_widths_t2 = [Inches(4.5), Inches(0.6), Inches(0.6), Inches(0.6)]
+    
+    col_widths_t2 = [content_width * 0.7, content_width * 0.1, content_width * 0.1, content_width * 0.1]
     for i, h in enumerate(["PENYAKIT", "HARIAN", "AKTIF", "KUMULATIF"]):
         cell = t2.cell(0, i)
         cell.width = col_widths_t2[i]
@@ -257,10 +265,12 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     
     t21 = doc.add_table(rows=1, cols=5)
     t21.style = 'Table Grid'
+    t21.width = content_width # SAIS SEPADAN JUSTIFIED
     t21.allow_autofit = False
     set_repeat_table_header(t21.rows[0])
 
-    widths_21 = [Inches(0.35), Inches(1.15), Inches(1.15), Inches(3.2), Inches(0.8)]
+    # Nisbah lebar relatif
+    widths_21 = [content_width * 0.05, content_width * 0.2, content_width * 0.2, content_width * 0.4, content_width * 0.15]
     h21_headers = ["BIL", "WABAK", "DAERAH", "TEMPAT BERLAKU", "BIL KES (AR)"]
     for i, txt in enumerate(h21_headers):
         cell = t21.cell(0, i)
@@ -322,9 +332,8 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
                     else: apply_font(p.add_run(""), 8, bold=False)
 
     # --- SECTION 3.0 (VEKTOR) ---
-    # KEMASKINI: Buang page break supaya bersambung di bawah Jadual 2.1
     p3_head = doc.add_paragraph()
-    p3_head.paragraph_format.space_before = Pt(24) # Tambah spacing supaya tidak terlalu rapat
+    p3_head.paragraph_format.space_before = Pt(24)
     apply_font(p3_head.add_run("3.0 Ringkasan Laporan Wabak Vektor"), 11, bold=True)
     
     try: 
@@ -333,16 +342,17 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         xx_v = 0
         
     h31 = doc.add_paragraph()
+    h31.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY # JUSTIFIED
     h31_text = f"3.1 Jadual di bawah menunjukkan jumlah wabak vektor harian dan kumulatif di negeri Selangor. Sejumlah {xx_v} input notifikasi wabak vektor telah diterima pada {get_malay_date(yesterday)} dengan pecahan mengikut penyakit seperti dalam jadual 3."
     apply_font(h31.add_run(h31_text), 11, bold=False)
 
     add_table_title(doc, "Jadual 3", "Senarai Notifikasi Wabak Vektor")
-    
     t3 = doc.add_table(rows=len(vector_df) + 2, cols=7)
     t3.style = 'Table Grid'
+    t3.width = content_width # SAIS SEPADAN JUSTIFIED
     t3.allow_autofit = False 
     
-    col_widths_t3 = [Inches(1.8), Inches(0.75), Inches(0.75), Inches(0.75), Inches(0.75), Inches(0.75), Inches(0.75)]
+    col_widths_t3 = [content_width * 0.3, content_width * 0.11, content_width * 0.11, content_width * 0.11, content_width * 0.11, content_width * 0.11, content_width * 0.15]
 
     # Header Baris 1
     h3_r1 = t3.rows[0].cells
@@ -353,7 +363,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     
     for i in [0, 1, 3, 5]:
         cell = h3_r1[i]
-        cell.width = col_widths_t3[i] if i == 0 else (col_widths_t3[i] + col_widths_t3[i+1])
         set_cell_background(cell, "BFDFFF")
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -364,7 +373,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     h3_r2 = t3.rows[1].cells
     for i in range(1, 7):
         h3_r2[i].text = "HARIAN" if i % 2 != 0 else "KUM"
-        h3_r2[i].width = col_widths_t3[i]
         set_cell_background(h3_r2[i], "BFDFFF")
         p = h3_r2[i].paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -374,7 +382,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     for i in range(len(vector_df)):
         row_cells = t3.rows[i+2].cells
         for j in range(7):
-            row_cells[j].width = col_widths_t3[j]
             val = vector_df.iloc[i, j]
             try: display_val = str(int(float(val))) if j > 0 else str(val).upper()
             except: display_val = str(val).upper()
@@ -393,7 +400,9 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     doc.add_page_break()
     p4_head = doc.add_paragraph()
     apply_font(p4_head.add_run("4.0 Ringkasan Laporan Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)"), 11, bold=True)
+    
     h41 = doc.add_paragraph()
+    h41.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY # JUSTIFIED
     if is_bkk_empty:
         h41_text = f"4.1 Jadual di bawah menunjukkan jumlah kejadian insiden bencana, kecemasan dan krisis (BKK) di negeri Selangor. Tiada insiden dilaporkan pada {get_malay_date(yesterday)}."
     else:
@@ -408,12 +417,14 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     add_table_title(doc, "Jadual 4", "Senarai Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)")
     t4 = doc.add_table(rows=len(bkk_table_df) + 1, cols=len(bkk_table_df.columns))
     t4.style = 'Table Grid'
-    h4_widths = [Inches(1.5)] + [Inches(0.42)] * (len(bkk_table_df.columns) - 3) + [Inches(0.6), Inches(0.8)]
+    t4.width = content_width # SAIS SEPADAN JUSTIFIED
+    
+    # Kira lebar kolum automatik (Anggaran)
+    h4_col_count = len(bkk_table_df.columns)
     for i, col in enumerate(bkk_table_df.columns):
         cell = t4.rows[0].cells[i]
-        cell.width = h4_widths[i]
-        if i < len(bkk_table_df.columns)-2: set_cell_background(cell, "BFDFFF")
-        elif i == len(bkk_table_df.columns)-2: set_cell_background(cell, "FFFF00")
+        if i < h4_col_count-2: set_cell_background(cell, "BFDFFF")
+        elif i == h4_col_count-2: set_cell_background(cell, "FFFF00")
         else: set_cell_background(cell, "C6E0B4")
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -435,14 +446,16 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     doc.add_paragraph()
     add_pkd_note(doc)
     footer = doc.add_paragraph()
+    footer.alignment = WD_ALIGN_PARAGRAPH.LEFT
     apply_font(footer.add_run(f"*Sumber : Sistem e-notifikasi, Laporan Wabak KKM dimuat turun pada ({get_malay_date(today)} @ 10.00 am)"), 9, bold=False)
 
     doc.add_paragraph()
-    for label in ["Disediakan :", "Jawatan       :", "", "Disemak :", "Jawatan    :", "", "Disahkan :", "Jawatan     :"]:
+    for label in ["Disediakan :", "Jawatan       :", "", "Disemak :", "Jawatan     :", "", "Disahkan :", "Jawatan     :"]:
         if label == "":
             doc.add_paragraph().paragraph_format.space_after = Pt(24)
         else:
-            apply_font(doc.add_paragraph().add_run(label), 11, bold=False)
+            p_sig = doc.add_paragraph()
+            apply_font(p_sig.add_run(label), 11, bold=False)
 
     target = io.BytesIO()
     doc.save(target)
@@ -451,10 +464,10 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
 # --- STREAMLIT UI ---
 st.set_page_config(page_title="BWKK Report Generator", layout="centered")
-st.title("📄 BWKK Report Generator")
+st.title("📑 BWKK Report Generator")
 
-f1 = st.file_uploader("📥 Muat Naik Excel Notifikasi Harian", type=["xlsx", "xls"])
-f2 = st.file_uploader("📥 Muat Naik Excel Linelisting Wabak", type=["xlsx", "xls"])
+f1 = st.file_uploader("📂 Muat Naik Excel Notifikasi Harian", type=["xlsx", "xls"])
+f2 = st.file_uploader("📂 Muat Naik Excel Linelisting Wabak", type=["xlsx", "xls"])
 
 if f1 and f2:
     if st.button("🚀 Jana Laporan Lengkap"):
