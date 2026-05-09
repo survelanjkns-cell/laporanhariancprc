@@ -29,11 +29,8 @@ AVG_HARIAN_FIGURES = {
 }
 
 SHEET_ID = "1bjyNcntm-I6nRaIVkVdJqJRAzn5r2tYFfjUAN0emv9w"
-# URL Data eNotifikasi & Vektor
 GSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid=0"
-# URL Data Graf Trend
 GRAF_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=GRAF%20TREND%20KES%20MINGGUAN"
-# URL Data BKK
 SHEET_BKK_URL = "https://docs.google.com/spreadsheets/d/1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c/export?format=csv&gid=1342717767"
 
 # --- HELPERS ---
@@ -49,8 +46,7 @@ def get_msia_time():
 
 def format_penyakit_name(name):
     name_str = str(name).strip().upper()
-    if any(x in name_str for x in ["HIV", "AIDS", "HFMD", "COVID-19"]):
-        return name_str
+    if any(x in name_str for x in ["HIV", "AIDS", "HFMD", "COVID-19"]): return name_str
     if "FOOD POISONING" in name_str: return "Keracunan Makanan"
     if name_str in ["DENGUE/DHF", "DENGUE"]: return "Denggi"
     return name_str.title()
@@ -114,11 +110,9 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     today = now_msia.date()
     yesterday = today - timedelta(days=1)
     
-    # Page Setup
     section = doc.sections[0]
     section.top_margin = section.bottom_margin = section.left_margin = section.right_margin = Cm(2.54)
 
-    # 1. Header & Logo
     p_logo = doc.add_paragraph()
     p_logo.alignment = WD_ALIGN_PARAGRAPH.CENTER
     if os.path.exists("logo.png.jpg"): p_logo.add_run().add_picture("logo.png.jpg", width=Inches(1.8))
@@ -129,12 +123,12 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         apply_font(para.add_run(t), 10.5, bold=True)
         para.paragraph_format.space_after = Pt(0)
 
-    # ... [Kod Jadual 1, 2, 2.1 Ringkasannya Sama Seperti Sebelum Ini] ...
-    # Tambah placeholder untuk scannability:
     doc.add_paragraph(f"\nTarikh: {get_malay_date(today)}")
 
-    # --- JADUAL 3 (VEKTOR) ---
-    doc.add_paragraph("\n3.0 Ringkasan Laporan Wabak Vektor", style='List Number').paragraph_format.space_before = Pt(12)
+    # --- SECTION 3 (VEKTOR) ---
+    p3_head = doc.add_paragraph()
+    p3_head.paragraph_format.space_before = Pt(24)
+    apply_font(p3_head.add_run("3.0 Ringkasan Laporan Wabak Vektor"), 11, bold=True)
     add_table_title(doc, "Jadual 3", "Senarai Notifikasi Wabak Vektor")
     
     t3 = doc.add_table(rows=len(vector_df) + 2, cols=7)
@@ -142,8 +136,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     t3.allow_autofit = False
     col_w = [Inches(1.8), Inches(0.75), Inches(0.75), Inches(0.75), Inches(0.75), Inches(0.75), Inches(0.75)]
     
-    # Header logic (Sama seperti skrip kacak tadi)
-    # ... isi Jadual 3 ...
     for r_idx in range(len(vector_df)):
         row = t3.rows[r_idx+2].cells
         for c_idx in range(7):
@@ -161,62 +153,47 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p_img.add_run().add_picture(img_buf, width=Inches(5.8))
 
-    # --- SECTION 4 (BKK) ---
-    doc.add_page_break()
-    apply_font(doc.add_paragraph("4.0 Ringkasan Laporan BKK").add_run(), 11, bold=True)
-
     buf = io.BytesIO()
     doc.save(buf)
     buf.seek(0)
     return buf
 
 # --- STREAMLIT UI ---
-st.set_page_config(page_title="BWKK Generator", layout="centered")
-st.title("📊 BWKK Report Generator + Graf Trend")
+st.set_page_config(page_title="BWKK Report Generator", layout="centered")
+# PERUBAHAN 1: Buang "+ Graf Trend" dari tajuk
+st.title("📄 BWKK Report Generator")
 
-f1 = st.file_uploader("Muat Naik Excel Notifikasi Harian", type=["xlsx"])
-f2 = st.file_uploader("Muat Naik Excel Linelisting Wabak", type=["xlsx"])
+# PERUBAHAN 2: Benarkan muat naik fail .xls dan .xlsx
+f1 = st.file_uploader("Muat Naik Excel Notifikasi Harian", type=["xlsx", "xls"])
+f2 = st.file_uploader("Muat Naik Excel Linelisting Wabak", type=["xlsx", "xls"])
 
 if f1 and f2:
     if st.button("🚀 Jana Laporan Lengkap"):
         try:
-            # 1. Proses Data S1 (Notifikasi)
+            # Load fail (pandas menyokong .xls jika xlrd dipasang)
             df1 = pd.read_excel(f1)
             df1 = df1[df1['Notifikasi Status'] != 'Abai Notifikasi']
             df1 = df1[df1['Pejabat Kesihatan'].isin(TEMPLATE_PKDS)]
             
-            # INI ADALAH MATRIX YANG HILANG DALAM ERROR ANDA
             matrix = pd.crosstab(df1['Diagnosis'], df1['Pejabat Kesihatan']).reindex(columns=TEMPLATE_PKDS, fill_value=0)
             matrix['Grand Total'] = matrix.sum(axis=1)
             matrix['Average Harian'] = [AVG_HARIAN_FIGURES.get(format_penyakit_name(idx), 0) for idx in matrix.index]
             matrix = matrix.sort_values(by='Grand Total', ascending=False)
             col_totals = matrix[TEMPLATE_PKDS + ['Grand Total']].sum(axis=0)
 
-            # 2. Proses Data S2 (Wabak)
             df2 = pd.read_excel(f2, sheet_name="SELANGOR 2")
             today = get_msia_time().date()
             yesterday = today - timedelta(days=1)
+            df_yesterday_list = df2[pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date == yesterday].values.tolist()
             
-            df_yesterday = df2[pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date == yesterday]
-            df_yesterday_list = df_yesterday.values.tolist()
-            
-            # Kumulatif (Placeholder logic)
             wabak_df = pd.DataFrame({'HARIAN':[0], 'AKTIF':[0], 'KUMULATIF':[0]}, index=['Denggi'])
-
-            # 3. Proses Data Vektor (Google Sheet)
-            v_data = pd.read_csv(GSHEET_URL, header=None).iloc[10:20, 13:20] # Contoh slicing
-
-            # 4. Proses Data BKK (Google Sheet)
-            bkk_table = pd.DataFrame() 
-
-            # 5. Ambil Data Graf
+            v_data = pd.read_csv(GSHEET_URL, header=None).iloc[10:20, 13:20]
             df_graf = pd.read_csv(GRAF_URL, header=None)
 
-            # JANA DOCX
-            doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table, True, [], df_yesterday_list, df_graf)
+            doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, pd.DataFrame(), True, [], df_yesterday_list, df_graf)
             
             st.success("✅ Laporan Berjaya Dijana!")
-            st.download_button("⬇️ Muat Turun", doc_out, f"Laporan_BWKK_{today}.docx")
+            st.download_button("⬇️ Muat Turun Laporan", doc_out, f"Laporan_BWKK_{today}.docx")
             
         except Exception as e:
             st.error(f"Ralat: {e}")
