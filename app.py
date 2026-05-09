@@ -88,7 +88,7 @@ def add_table_title(doc, label, title):
     apply_font(run_label, 11, bold=True)
     run_title = p.add_run(title)
     apply_font(run_title, 11, bold=False)
-    p.paragraph_format.space_before = Pt(12) # Spacing sebelum tajuk jadual
+    p.paragraph_format.space_before = Pt(12)
     p.paragraph_format.space_after = Pt(6)
 
 def add_pkd_note(doc):
@@ -107,7 +107,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     yesterday = today - timedelta(days=1)
 
     section = doc.sections[0]
-    section.top_margin = section.bottom_margin = section.left_margin = section.right_margin = Cm(2.54)
+    section.top_margin = section.bottom_margin = section.left_margin = section.right_margin = Cm(1.27) # Margin dikecilkan sikit untuk beri ruang table lebar
     content_width = section.page_width - section.left_margin - section.right_margin
 
     # 1. Logo
@@ -318,8 +318,8 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
                     if p.runs: apply_font(p.runs[0], 8, bold=False)
                     else: apply_font(p.add_run(""), 8, bold=False)
 
-    # --- SECTION 3.0 (VEKTOR) - DIUBAH SUPAYA MENYAMBUNG ---
-    doc.add_paragraph().paragraph_format.space_before = Pt(24) # Tambah spacing 24pt sebelum seksyen baru
+    # --- SECTION 3.0 (VEKTOR) ---
+    doc.add_paragraph().paragraph_format.space_before = Pt(24)
     p3_head = doc.add_paragraph()
     apply_font(p3_head.add_run("3.0 Ringkasan Laporan Wabak Vektor"), 11, bold=True)
     try: xx_v = int(float(vector_df.iloc[-1, 1]) + float(vector_df.iloc[-1, 3]) + float(vector_df.iloc[-1, 5]))
@@ -331,39 +331,58 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     add_table_title(doc, "Jadual 3", "Senarai Notifikasi Wabak Vektor")
     t3 = doc.add_table(rows=len(vector_df) + 2, cols=7)
     t3.style = 'Table Grid'
-    t3.width = content_width
+    t3.allow_autofit = False # Tutup autofit untuk kawal manual lebar kolum
+
+    # --- LARASKAN LEBAR KOLUM JADUAL 3 ---
+    # Lebar kolum Daerah dipanjangkan (1.8 inci) supaya sebaris. Kolum lain dikecilkan sikit.
+    widths_v = [Inches(1.8), Inches(0.8), Inches(0.8), Inches(0.8), Inches(0.8), Inches(0.8), Inches(0.8)]
+    
     h3_r1 = t3.rows[0].cells
     h3_r1[0].merge(t3.rows[1].cells[0]).text = "DAERAH"
     h3_r1[1].merge(h3_r1[2]).text = "DENGGI"
     h3_r1[3].merge(h3_r1[4]).text = "MALARIA"
     h3_r1[5].merge(h3_r1[6]).text = "CHIKUNGUNYA"
+    
+    for i, w in enumerate(widths_v):
+        t3.columns[i].width = w
+
     for i in [0, 1, 3, 5]:
         set_cell_background(h3_r1[i], "BFDFFF")
         p = h3_r1[i].paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        apply_font(p.runs[0], 10.5, bold=True)
+        apply_font(p.runs[0], 10, bold=True)
+        h3_r1[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+
     h3_r2 = t3.rows[1].cells
     for i in range(1, 7):
         h3_r2[i].text = "HARIAN" if i % 2 != 0 else "KUM"
         set_cell_background(h3_r2[i], "BFDFFF")
         p = h3_r2[i].paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        apply_font(p.runs[0], 10.5, bold=True)
+        apply_font(p.runs[0], 10, bold=True)
+
     for i in range(len(vector_df)):
         row_cells = t3.rows[i+2].cells
         for j in range(7):
             val = vector_df.iloc[i, j]
             try: display_val = str(int(float(val))) if j > 0 else str(val)
             except: display_val = str(val)
+            
             p = row_cells[j].paragraphs[0]
+            # Kolum Daerah (0) kekal LEFT, kolum data (1-6) di-CENTER-kan (Justify)
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT if j == 0 else WD_ALIGN_PARAGRAPH.CENTER
+            p.paragraph_format.space_before = Pt(4)
+            p.paragraph_format.space_after = Pt(4)
+            
             run = p.add_run(display_val)
+            row_cells[j].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+            
             if i == len(vector_df)-1: set_cell_background(row_cells[j], "FFFF00")
             elif j == 0: set_cell_background(row_cells[j], "FCE4D6")
-            apply_font(run, 10.5, bold=True)
+            apply_font(run, 10, bold=True)
 
     # --- SECTION 4.0 (BKK) ---
-    doc.add_page_break() # Kekalkan page break untuk BKK jika perlu, atau buang jika mahu menyambung
+    doc.add_page_break()
     p4_head = doc.add_paragraph()
     apply_font(p4_head.add_run("4.0 Ringkasan Laporan Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)"), 11, bold=True)
     h41 = doc.add_paragraph()
@@ -408,7 +427,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     footer = doc.add_paragraph()
     apply_font(footer.add_run(f"*Sumber : Sistem e-notifikasi, Laporan Wabak KKM dimuat turun pada ({get_malay_date(today)} @ 10.00 am)"), 9, bold=False)
 
-    # Signature Section
     doc.add_paragraph()
     for label in ["Disediakan :", "Jawatan       :", "", "Disemak :", "Jawatan    :", "", "Disahkan :", "Jawatan     :"]:
         if label == "":
