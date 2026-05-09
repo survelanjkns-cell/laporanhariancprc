@@ -30,8 +30,7 @@ AVG_HARIAN_FIGURES = {
 
 SHEET_ID = "1bjyNcntm-I6nRaIVkVdJqJRAzn5r2tYFfjUAN0emv9w"
 GID_DEFAULT = "0"
-# GID untuk tab "GRAF TREND KES MINGGUAN"
-# Sila pastikan GID ini tepat mengikut sheet anda
+# KEMASKINI: Ganti nombor di bawah dengan GID tab "GRAF TREND KES MINGGUAN" anda
 GID_GRAF = "68285521" 
 
 GSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID_DEFAULT}"
@@ -107,45 +106,44 @@ def add_pkd_note(doc):
 # --- FUNGSI GENERATE GRAF ---
 def create_dengue_chart():
     try:
-        # Load data dari Google Sheet (Tab Graf Trend)
-        df_chart = pd.read_csv(GSHEET_GRAF_URL, header=None)
+        # Tarik data CSV dengan cache-busting
+        url = f"{GSHEET_GRAF_URL}&t={datetime.now().timestamp()}"
+        df_chart = pd.read_csv(url, header=None)
         
-        # Ekstrak data berdasarkan koordinat yang anda berikan
-        # baris 2 (indeks 1), baris 6 (indeks 5), baris 7 (indeks 6), baris 8 (indeks 7)
-        weeks = df_chart.iloc[1, 1:54].values       
-        data_2025 = pd.to_numeric(df_chart.iloc[5, 1:54], errors='coerce') 
-        data_2026 = pd.to_numeric(df_chart.iloc[6, 1:54], errors='coerce') 
-        data_median = pd.to_numeric(df_chart.iloc[7, 1:54], errors='coerce')
+        # Koordinat berdasarkan permintaan:
+        # Minggu (Baris 2 -> idx 1), 2025 (Baris 6 -> idx 5), 2026 (Baris 7 -> idx 6), Median (Baris 8 -> idx 7)
+        weeks = df_chart.iloc[1, 1:54].values
+        data_2025 = pd.to_numeric(df_chart.iloc[5, 1:54], errors='coerce').fillna(0)
+        data_2026 = pd.to_numeric(df_chart.iloc[6, 1:54], errors='coerce').fillna(0)
+        data_median = pd.to_numeric(df_chart.iloc[7, 1:54], errors='coerce').fillna(0)
 
         plt.figure(figsize=(10, 5))
         
-        # Plot garisan mengikut design imej
+        # Plot garisan ikut kod warna standard
         plt.plot(weeks, data_2025, label='2025', color='#4285F4', linewidth=2.5) # Biru
         plt.plot(weeks, data_2026, label='2026', color='#EA4335', linewidth=2.5) # Merah
         plt.plot(weeks, data_median, label='Moving median 4 tahun (2022,2023,2024,2025)', color='#FBBC05', linewidth=2.5) # Kuning
 
-        # Formatting
+        # Formatting Axis
         plt.xticks(ticks=range(len(weeks)), labels=weeks, rotation=0, fontsize=8)
-        # Tunjuk label setiap 2-3 minggu supaya tidak sesak jika perlu
-        plt.gca().xaxis.set_major_locator(plt.MultipleLocator(1)) 
+        plt.gca().xaxis.set_major_locator(plt.MultipleLocator(2)) # Label selang 2 minggu
+        plt.yticks(range(0, 1501, 250), fontsize=9)
+        plt.ylim(0, 1250)
         
-        plt.yticks(range(0, 1500, 250), fontsize=9)
-        plt.grid(False)
-        
-        # Legend di bawah
         plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=3, frameon=False, fontsize=9)
         
         # Buang border atas dan kanan
         plt.gca().spines['top'].set_visible(False)
         plt.gca().spines['right'].set_visible(False)
 
+        # Simpan ke memori
         img_buf = io.BytesIO()
         plt.savefig(img_buf, format='png', bbox_inches='tight', dpi=300)
         img_buf.seek(0)
         plt.close()
         return img_buf
     except Exception as e:
-        print(f"Ralat jana graf: {e}")
+        st.error(f"Gagal menjana graf: {e}")
         return None
 
 # --- DOCX GENERATOR ---
@@ -200,7 +198,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
-    # --- SECTION 1.0 (eNotifikasi) ---
+    # --- SECTION 1.0 ---
     p1_head = doc.add_paragraph()
     apply_font(p1_head.add_run("1.0 Ringkasan Laporan Input Enotifikasi"), 11, bold=True)
     total_notifications = int(col_sums['Grand Total'])
@@ -371,7 +369,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
                     if p.runs: apply_font(p.runs[0], 8, bold=False)
                     else: apply_font(p.add_run(""), 8, bold=False)
 
-    # --- SECTION 3.0 (VEKTOR) ---
+    # --- SECTION 3.0 ---
     p3_head = doc.add_paragraph()
     p3_head.paragraph_format.space_before = Pt(24) 
     apply_font(p3_head.add_run("3.0 Ringkasan Laporan Wabak Vektor"), 11, bold=True)
@@ -424,34 +422,30 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             val = vector_df.iloc[i, j]
             try: display_val = str(int(float(val))) if j > 0 else str(val).upper()
             except: display_val = str(val).upper()
-            
             p = row_cells[j].paragraphs[0]
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT if j == 0 else WD_ALIGN_PARAGRAPH.CENTER
-            
             run = p.add_run(display_val)
             if i == len(vector_df)-1: set_cell_background(row_cells[j], "FFFF00") 
             elif j == 0: set_cell_background(row_cells[j], "FCE4D6") 
-            
             apply_font(run, 9, bold=True)
             row_cells[j].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
 
-    # --- BAHAGIAN BARU: RAJAH 1 (CARTA TREND) ---
+    # --- BAHAGIAN BARU: RAJAH 1 (SELEPAS JADUAL 3) ---
     doc.add_paragraph()
-    p_rajah_title = doc.add_paragraph()
-    p_rajah_title.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    run_rajah_label = p_rajah_title.add_run("Rajah 1 : ")
-    apply_font(run_rajah_label, 11, bold=True)
-    run_rajah_title = p_rajah_title.add_run("Carta Kes Mingguan Denggi Didaftar Bagi Tahun 2025 - 2026 Negeri Selangor")
-    apply_font(run_rajah_title, 11, bold=False)
-    p_rajah_title.paragraph_format.space_after = Pt(6)
+    p_rajah = doc.add_paragraph()
+    p_rajah.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    run_r_label = p_rajah.add_run("Rajah 1 : ")
+    apply_font(run_r_label, 11, bold=True)
+    run_r_title = p_rajah.add_run("Carta Kes Mingguan Denggi Didaftar Bagi Tahun 2025 - 2026 Negeri Selangor")
+    apply_font(run_r_title, 11, bold=False)
+    p_rajah.paragraph_format.space_after = Pt(6)
 
-    chart_image = create_dengue_chart()
-    if chart_image:
-        # Masukkan gambar di tengah
+    chart_buf = create_dengue_chart()
+    if chart_buf:
         p_img = doc.add_paragraph()
         p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run_img = p_img.add_run()
-        run_img.add_picture(chart_image, width=Inches(6.2))
+        run_img.add_picture(chart_buf, width=Inches(6.2))
         doc.add_paragraph() # Spacing selepas gambar
 
     # --- SECTION 4.0 (BKK) ---
