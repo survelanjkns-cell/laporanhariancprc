@@ -250,7 +250,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         set_cell_background(f2_cells[i], "FFFF00")
         f2_cells[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    # --- JADUAL 2.1 (AR DENGAN KIRAAN PERATUSAN) ---
+    # --- JADUAL 2.1 (PENGEMASKINIAN PADDING SETIAP SEL) ---
     doc.add_paragraph()
     tarikh_semalam_str = get_malay_date(yesterday)
     add_table_title(doc, "Jadual 2.1", f"Senarai Wabak Yang Dilaporkan pada {tarikh_semalam_str}")
@@ -279,8 +279,11 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     else:
         for idx, item in enumerate(df_yesterday_list, start=1):
             row = t21.add_row().cells
-            for i in range(5): row[i].width = widths_21[i]
+            for i in range(5): 
+                row[i].width = widths_21[i]
+                row[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER # Teks Center secara vertikal
             
+            # Kolum BIL
             row[0].text = str(idx)
 
             # Kolum WABAK
@@ -296,7 +299,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             row[2].text = str(item[1]) # DAERAH
             row[3].text = str(item[2]) # TEMPAT BERLAKU
 
-            # --- LOGIK KIRAAN AR (%) ---
+            # Logik AR (%)
             n_kes = float(item[4]) if pd.notna(item[4]) else 0
             n_dedah = float(item[5]) if pd.notna(item[5]) else 0
             
@@ -314,10 +317,16 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             run_ar_pct = p_ar.add_run(f"({pct_str})")
             apply_font(run_ar_pct, 8, bold=False)
 
+            # --- SETTING SPACE/PADDING UNTUK SETIAP SEL JADUAL 2.1 ---
             for c in range(5):
-                row[c].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
                 p = row[c].paragraphs[0]
-                p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY if c == 3 else WD_ALIGN_PARAGRAPH.CENTER
+                p.paragraph_format.space_before = Pt(6) # Jarak Atas
+                p.paragraph_format.space_after = Pt(6)  # Jarak Bawah
+                
+                # Kekalkan alignment asal
+                p.alignment = WD_ALIGN_PARAGRAPH.LEFT if c == 3 else WD_ALIGN_PARAGRAPH.CENTER
+                
+                # Guna font standard jika bukan kolum custom (1 dan 4)
                 if c not in [1, 4]:
                     if p.runs: apply_font(p.runs[0], 8, bold=False)
                     else: apply_font(p.add_run(""), 8, bold=False)
@@ -427,10 +436,10 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
 # --- STREAMLIT UI ---
 st.set_page_config(page_title="BWKK Report Generator", layout="centered")
-st.title("📋 BWKK Report Generator")
+st.title("📂 BWKK Report Generator")
 
-f1 = st.file_uploader("📂 Muat Naik Excel Notifikasi Harian", type=["xlsx", "xls"])
-f2 = st.file_uploader("📂 Muat Naik Excel Linelisting Wabak", type=["xlsx", "xls"])
+f1 = st.file_uploader("📋 Muat Naik Excel Notifikasi Harian", type=["xlsx", "xls"])
+f2 = st.file_uploader("🦠 Muat Naik Excel Linelisting Wabak", type=["xlsx", "xls"])
 
 if f1 and f2:
     if st.button("🚀 Jana Laporan Lengkap"):
@@ -479,12 +488,12 @@ if f1 and f2:
                 wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'AKTIF': active_count, 'KUMULATIF': k})
             wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
-            # S3 - Vektor (Gunakan logik asal anda)
+            # S3 - Vektor 
             raw_gs = pd.read_csv(GSHEET_URL, header=None)
             mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
             v_data = raw_gs.iloc[mask_v.idxmax() : mask_v.idxmax() + 10, 13:20]
 
-            # S4 - BKK (Gunakan logik asal anda)
+            # S4 - BKK
             df_bkk_full = pd.read_csv(SHEET_BKK_URL, header=None)
             insiden_semalam = df_bkk_full[df_bkk_full.iloc[:, 2].astype(str).str.contains(yesterday_str)]
             bkk_details = [{'kejadian': r[5], 'alamat': r[8], 'daerah': r[4]} for _, r in insiden_semalam.iterrows()]
