@@ -118,7 +118,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     section.top_margin = section.bottom_margin = section.left_margin = section.right_margin = Cm(2.54)
     content_width = section.page_width - section.left_margin - section.right_margin
 
-    # 1. Logo (Pastikan fail wujud atau komen bahagian ini)
+    # 1. Logo
     logo_path = "logo.png.jpg" 
     if os.path.exists(logo_path):
         p_logo = doc.add_paragraph()
@@ -159,7 +159,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
-    # --- SECTION 1.0 ---
+    # --- SECTION 1.0 (eNotifikasi) ---
     p1_head = doc.add_paragraph()
     apply_font(p1_head.add_run("1.0 Ringkasan Laporan Input Enotifikasi"), 11, bold=True)
     
@@ -180,7 +180,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     for i in range(len(h_cells)):
         h_cells[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         h_cells[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-        set_cell_paddings(h_cells[i], top=100, bottom=100)
     apply_font(h_cells[0].paragraphs[0].add_run("PENYAKIT"), 8, bold=True)
     set_cell_background(h_cells[0], "BFDFFF")
     for i, pkd in enumerate(TEMPLATE_PKDS):
@@ -227,7 +226,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     doc.add_paragraph()
     add_pkd_note(doc)
 
-    # --- SECTION 2.0 ---
+    # --- SECTION 2.0 (WABAK) ---
     doc.add_page_break()
     p2_head = doc.add_paragraph()
     apply_font(p2_head.add_run("2.0 Ringkasan Laporan Notifikasi Wabak"), 11, bold=True)
@@ -270,7 +269,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         set_cell_background(f2_cells[c], "FFFF00")
         f2_cells[c].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    # --- JADUAL 2.1 (PENGESUAIAN BARU) ---
+    # --- JADUAL 2.1 (SENARAI WABAK HARIAN) ---
     doc.add_paragraph()
     tarikh_semalam_str = get_malay_date(yesterday)
     add_table_title(doc, "Jadual 2.1", f"Senarai Wabak Yang Dilaporkan pada {tarikh_semalam_str}")
@@ -279,19 +278,19 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     t21.style = 'Table Grid'
     t21.allow_autofit = False
     
-    # Lebar kolum: BIL dikecilkan (0.3"), Tempat dibesarkan (3.0")
-    widths_21 = [Inches(0.3), Inches(1.1), Inches(1.1), Inches(3.0), Inches(0.8)]
+    # Lebar kolum: BIL (0.3"), WABAK (1.1"), DAERAH (1.1"), TEMPAT (3.0"), KES (0.8")
+    widths_21 = [Inches(0.35), Inches(1.15), Inches(1.15), Inches(3.2), Inches(0.8)]
     
     h21_headers = ["BIL", "WABAK", "DAERAH", "TEMPAT BERLAKU", "BIL KES (AR)"]
     for i, txt in enumerate(h21_headers):
         cell = t21.cell(0, i)
         cell.width = widths_21[i]
         set_cell_background(cell, "BFDFFF")
+        # Middle Align & Center Align wording dalam header
+        cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         p = cell.paragraphs[0]
-        p.alignment = WD_ALIGN_PARAGRAPH.CENTER # Center align
-        # Saiz header dibesarkan ke 10
-        run = p.add_run(txt)
-        apply_font(run, 10, bold=True)
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER 
+        apply_font(p.add_run(txt), 10, bold=True) # Saiz header 10
 
     if not df_yesterday_list:
         row = t21.add_row().cells
@@ -313,13 +312,17 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
                 row[c].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
                 p = row[c].paragraphs[0]
                 apply_font(p.runs[0] if p.runs else p.add_run(""), 8, bold=False)
-                # Alamat diletakkan kiri, yang lain tengah
+                
+                # Middle Align isi kandungan
+                row[c].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+                
+                # JUSTIFY kan row untuk alamat (kolum 3), yang lain CENTER
                 if c == 3:
-                    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                    p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
                 else:
                     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    # --- SECTION 3.0 ---
+    # --- SECTION 3.0 (VEKTOR) ---
     doc.add_page_break() 
     p3_head = doc.add_paragraph()
     apply_font(p3_head.add_run("3.0 Ringkasan Laporan Wabak Vektor"), 11, bold=True)
@@ -476,12 +479,12 @@ if f1 and f2:
                 wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'AKTIF': active_count, 'KUMULATIF': k})
             wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
-            # S3 - Pemprosesan Vektor (Google Sheets)
+            # S3 - Pemprosesan Vektor
             raw_gs = pd.read_csv(GSHEET_URL, header=None)
             mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
             v_data = raw_gs.iloc[mask_v.idxmax() : mask_v.idxmax() + 10, 13:20]
 
-            # S4 - Pemprosesan BKK (Google Sheets)
+            # S4 - Pemprosesan BKK
             df_bkk_full = pd.read_csv(SHEET_BKK_URL, header=None)
             insiden_semalam = df_bkk_full[df_bkk_full.iloc[:, 2].astype(str).str.contains(yesterday_str)]
             bkk_details = [{'kejadian': r[5], 'alamat': r[8], 'daerah': r[4]} for _, r in insiden_semalam.iterrows()]
