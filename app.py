@@ -323,13 +323,13 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             run_cat = p_wabak.add_run(kategori_display)
             apply_font(run_cat, 8, bold=False)
 
-            # 2. DAERAH
+            # 2. DAERAH (Proper Case)
             row[2].text = str(item[1]).title() 
             
             # 3. TEMPAT BERLAKU
             row[3].text = str(item[2]) 
 
-            # 4. BIL KES (AR)
+            # 4. BIL KES (AR) - Percentage formatting (UPDATED LOGIC)
             n_kes = float(item[4]) if pd.notna(item[4]) else 0
             n_dedah = float(item[5]) if pd.notna(item[5]) else 0
             
@@ -338,6 +338,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
                 if calc_pct % 1 == 0:
                     pct_str = f"{int(calc_pct)}%"
                 else:
+                    # Rounding to 2 decimal places as requested
                     pct_str = f"{calc_pct:.2f}%"
             else:
                 pct_str = "0%"
@@ -466,14 +467,10 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     t4.width = content_width 
     
     h4_col_count = len(bkk_table_df.columns)
-    
-    # CAPS list for specific abbreviations
     caps_set = ["GBK", "HL", "HS", "KLG", "KL", "KS", "PTG", "SB", "SPG", "PK", "P.KLANG", "KLIA", "CPRC KKM"]
     
     for i, col in enumerate(bkk_table_df.columns):
         cell = t4.rows[0].cells[i]
-        
-        # LOGIC: Check if it's in our caps list, otherwise title case
         col_raw = str(col).strip().upper()
         if col_raw in caps_set:
             display_name = col_raw
@@ -482,7 +479,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         else:
             display_name = col_raw.title()
             
-        cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER # Middle align header
+        cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER 
         set_cell_background(cell, "BFDFFF" if i < h4_col_count-2 else ("FFFF00" if i == h4_col_count-2 else "C6E0B4"))
         
         p = cell.paragraphs[0]
@@ -519,4 +516,4 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     target = io.BytesIO()
     doc.save(target)
     target.seek(0)
-    return target}
+    return target
