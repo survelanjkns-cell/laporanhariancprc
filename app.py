@@ -11,7 +11,6 @@ from docx.oxml.ns import nsdecls
 import io
 import os
 import re
-import matplotlib.pyplot as plt  # Added for graph generation
 
 # --- KONSTAN & MAPPING DATA ---
 TEMPLATE_PKDS = [
@@ -34,35 +33,6 @@ GSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=c
 SHEET_BKK_URL = "https://docs.google.com/spreadsheets/d/1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c/export?format=csv&gid=1342717767"
 
 # --- HELPERS ---
-
-def get_graph_image(df_filt):
-    """Generates the Dengue Weekly Chart and returns it as an image stream."""
-    try:
-        # Filter specifically for Dengue
-        df_dengue = df_filt[df_filt['PENYAKIT'].str.contains('DENGGI|DENGUE', case=False, na=False)].copy()
-        
-        # Group by Epidemiological Week (assuming data has weeks or using the date to calculate)
-        # For simplicity, we calculate epi-week from the date column
-        df_dengue['EpiWeek'] = df_dengue['Tarikh Isytihar Wabak'].apply(lambda x: int(get_epi_week(x).split('/')[0]))
-        weekly_data = df_dengue.groupby('EpiWeek').size()
-
-        # Create Plot
-        plt.figure(figsize=(10, 5))
-        plt.plot(weekly_data.index, weekly_data.values, marker='o', linestyle='-', color='red', linewidth=2)
-        plt.title('Carta Kes Mingguan Denggi Didaftarkan', fontsize=14)
-        plt.xlabel('Minggu Epidemiologi', fontsize=12)
-        plt.ylabel('Jumlah Kes', fontsize=12)
-        plt.grid(True, linestyle='--', alpha=0.7)
-        
-        # Save to buffer
-        img_stream = io.BytesIO()
-        plt.savefig(img_stream, format='png', bbox_inches='tight')
-        plt.close()
-        img_stream.seek(0)
-        return img_stream
-    except Exception:
-        return None
-
 def set_repeat_table_header(row):
     tr = row._tr
     trPr = tr.get_or_add_trPr()
@@ -129,7 +99,7 @@ def add_pkd_note(doc):
     p.paragraph_format.space_after = Pt(12)
 
 # --- DOCX GENERATOR ---
-def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty, bkk_details, df_yesterday_list, df2_filt):
+def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty, bkk_details, df_yesterday_list):
     doc = Document()
     now_msia = get_msia_time()
     today = now_msia.date()
@@ -189,24 +159,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     h11.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
     h11_text = f"1.1 Jadual di bawah menunjukkan jumlah input enotifikasi di negeri Selangor. Sejumlah {total_notifications} input notifikasi telah diterima pada {get_malay_date(yesterday)} dengan pecahan mengikut penyakit seperti dalam jadual 1."
     apply_font(h11.add_run(h11_text), 11, bold=False)
-
-    # --- INTEGRATED GRAPH (RAJAH 1) SNIPPET ---
-    doc.add_paragraph() # Adds vertical spacing before the section
-    
-    # 1. Add Title/Caption BEFORE the graph
-    cap = doc.add_paragraph()
-    cap.alignment = WD_ALIGN_PARAGRAPH.LEFT # Allign Left as requested
-    run_cap = cap.add_run("Rajah 1 : Carta Kes Mingguan Denggi Didaftarkan Bagi Tahun 2025-2026 Negeri Selangor")
-    apply_font(run_cap, 9, True) # Sets Arial, Size 9, Bold
-    
-    # 2. Generate and Insert the Graph
-    graph_img = get_graph_image(df2_filt)
-    if graph_img:
-        p_graph = doc.add_paragraph()
-        p_graph.alignment = WD_ALIGN_PARAGRAPH.CENTER # Keeps the image centered for better document layout
-        p_graph.add_run().add_picture(graph_img, width=Inches(6.2))
-    
-    doc.add_paragraph() # Adds vertical spacing after the section
 
     add_table_title(doc, "Jadual 1", "Senarai Input eNotifikasi")
     t1 = doc.add_table(rows=len(matrix_df) + 2, cols=len(TEMPLATE_PKDS) + 3)
@@ -588,7 +540,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
 # --- STREAMLIT UI ---
 st.set_page_config(page_title="BWKK Report Generator", layout="centered")
-st.title("📊 BWKK Report Generator")
+st.title("📄 BWKK Report Generator")
 
 f1 = st.file_uploader("📂 Muat Naik Excel Notifikasi Harian", type=["xlsx", "xls"])
 f2 = st.file_uploader("📂 Muat Naik Excel Linelisting Wabak", type=["xlsx", "xls"])
@@ -650,8 +602,7 @@ if f1 and f2:
             bkk_raw.columns = bkk_raw.iloc[0]
             bkk_table_final = bkk_raw[1:].reset_index(drop=True).rename(columns={'GOMBAK':'GBK','HULU LANGAT':'HL','HULU SELANGOR':'HS','KLANG':'KLG','KUALA LANGAT':'KL','KUALA SELANGOR':'KS','PETALING':'PTG','SABAK BERNAM':'SB','SEPANG':'SPG'})
 
-            # PASS df2_filt to generate_docx
-            doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, (len(bkk_details)==0), bkk_details, df_yesterday_list, df2_filt)
+            doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, (len(bkk_details)==0), bkk_details, df_yesterday_list)
             st.success("✅ Laporan berjaya dijana!")
             st.download_button("⬇️ Muat Turun Laporan", data=doc_out, file_name=f"Laporan_BWKK_{today}.docx")
         except Exception as e:
