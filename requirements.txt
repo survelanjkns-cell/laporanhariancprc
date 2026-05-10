@@ -5,3 +5,4 @@ python-docx
 kaleido
 pytz
 openpyxl
+xlrd
