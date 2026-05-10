@@ -323,13 +323,13 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             run_cat = p_wabak.add_run(kategori_display)
             apply_font(run_cat, 8, bold=False)
 
-            # 2. DAERAH (Proper Case)
+            # 2. DAERAH
             row[2].text = str(item[1]).title() 
             
             # 3. TEMPAT BERLAKU
             row[3].text = str(item[2]) 
 
-            # 4. BIL KES (AR) - Percentage formatting
+            # 4. BIL KES (AR)
             n_kes = float(item[4]) if pd.notna(item[4]) else 0
             n_dedah = float(item[5]) if pd.notna(item[5]) else 0
             
@@ -466,19 +466,23 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     t4.width = content_width 
     
     h4_col_count = len(bkk_table_df.columns)
+    
+    # CAPS list for specific abbreviations
+    caps_set = ["GBK", "HL", "HS", "KLG", "KL", "KS", "PTG", "SB", "SPG", "PK", "P.KLANG", "KLIA", "CPRC KKM"]
+    
     for i, col in enumerate(bkk_table_df.columns):
         cell = t4.rows[0].cells[i]
         
-        # PROPER CASE + CPRC KKM CAPS
-        col_name = str(col)
-        if col_name.upper() == "CPRC KKM":
-            display_name = "CPRC KKM"
-        elif col_name.upper() == "INSIDEN/BENCANA":
+        # LOGIC: Check if it's in our caps list, otherwise title case
+        col_raw = str(col).strip().upper()
+        if col_raw in caps_set:
+            display_name = col_raw
+        elif col_raw == "INSIDEN/BENCANA":
             display_name = "Insiden/Bencana"
         else:
-            display_name = col_name.title()
+            display_name = col_raw.title()
             
-        cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER # MIDDLE ALIGN
+        cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER # Middle align header
         set_cell_background(cell, "BFDFFF" if i < h4_col_count-2 else ("FFFF00" if i == h4_col_count-2 else "C6E0B4"))
         
         p = cell.paragraphs[0]
@@ -515,76 +519,4 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     target = io.BytesIO()
     doc.save(target)
     target.seek(0)
-    return target
-
-# --- STREAMLIT UI ---
-st.set_page_config(page_title="BWKK Report Generator", layout="centered")
-st.title("📑 BWKK Report Generator")
-
-f1 = st.file_uploader("📂 Muat Naik Excel Notifikasi Harian", type=["xlsx", "xls"])
-f2 = st.file_uploader("📂 Muat Naik Excel Linelisting Wabak", type=["xlsx", "xls"])
-
-if f1 and f2:
-    if st.button("🚀 Jana Laporan Lengkap"):
-        try:
-            now_msia = get_msia_time()
-            today = now_msia.date()
-            yesterday = today - timedelta(days=1)
-            yesterday_str = yesterday.strftime("%d/%m/%Y")
-
-            df1 = pd.read_excel(f1)
-            df1 = df1[df1['Notifikasi Status'] != 'Abai Notifikasi']
-            df1 = df1[df1['Pejabat Kesihatan'].isin(TEMPLATE_PKDS)]
-            matrix = pd.crosstab(df1['Diagnosis'], df1['Pejabat Kesihatan']).reindex(columns=TEMPLATE_PKDS, fill_value=0)
-            matrix['Grand Total'] = matrix.sum(axis=1)
-            matrix['Average Harian'] = [AVG_HARIAN_FIGURES.get(format_penyakit_name(idx), 0) for idx in matrix.index]
-            matrix = matrix.sort_values(by='Grand Total', ascending=False)
-            col_totals = matrix[TEMPLATE_PKDS + ['Grand Total']].sum(axis=0)
-
-            df2 = pd.read_excel(f2, sheet_name="SELANGOR 2")
-            df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date
-            df2['Tarikh Sebenar Tamat Wabak'] = pd.to_datetime(df2['Tarikh Sebenar Tamat Wabak '], errors='coerce').dt.date
-            df2['Tarikh Wabak Dijangka Tamat'] = pd.to_datetime(df2['Tarikh Wabak Dijangka Tamat'], errors='coerce').dt.date
-
-            addr_col = 'Tempat Berlaku Wabak\n(Alamat diisi lengkap dengan :- No rumah, nama jalan, nama tempat, daerah dan Negeri)'
-            cat_col = 'Kategori Tempat\n(Kategori premis berdasarkan tempat berlaku wabak)'
-            df_yesterday = df2[df2['Tarikh Isytihar Wabak'] == yesterday].copy()
-            df_yesterday_list = df_yesterday[['PENYAKIT', 'DAERAH (HURUF BESAR)', addr_col, cat_col, 'Bilangan Kes', 'Bilangan Terdedah']].values.tolist()
-
-            df2_filt = df2[df2['Tarikh Isytihar Wabak'] >= date(2026, 1, 4)]
-            def group_inf(n): return "ILI/ Influenza" if any(x in str(n).upper() for x in ["INFLUENZA", "ILI"]) else n
-            df2_filt['PENYAKIT'] = df2_filt['PENYAKIT'].apply(group_inf)
-            wb_sum = []
-            for d in df2_filt['PENYAKIT'].unique():
-                if pd.isna(d): continue
-                disease_df = df2_filt[df2_filt['PENYAKIT'] == d]
-                h = len(disease_df[disease_df['Tarikh Isytihar Wabak'] == yesterday])
-                k = len(disease_df)
-                def check_active(row):
-                    tamat = row['Tarikh Sebenar Tamat Wabak'] if pd.notna(row['Tarikh Sebenar Tamat Wabak']) else row['Tarikh Wabak Dijangka Tamat']
-                    return True if (pd.isna(tamat) or tamat >= today) else False
-                active_count = disease_df.apply(check_active, axis=1).sum()
-                wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'AKTIF': active_count, 'KUMULATIF': k})
-            wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
-
-            # LOAD GSHEET
-            raw_gs = pd.read_csv(GSHEET_URL, header=None)
-            mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
-            
-            # CLEAN GSHEET DATA
-            v_data = raw_gs.iloc[mask_v.idxmax() : mask_v.idxmax() + 11, 13:20]
-            v_data = v_data.dropna(how='all') 
-            v_data = v_data[~v_data.iloc[:, 0].astype(str).str.lower().str.contains('nan')] 
-
-            df_bkk_full = pd.read_csv(SHEET_BKK_URL, header=None)
-            insiden_semalam = df_bkk_full[df_bkk_full.iloc[:, 2].astype(str).str.contains(yesterday_str)]
-            bkk_details = [{'kejadian': r[5], 'alamat': r[8], 'daerah': r[4]} for _, r in insiden_semalam.iterrows()]
-            bkk_raw = df_bkk_full.iloc[1:, 33:47].dropna(how='all').reset_index(drop=True)
-            bkk_raw.columns = bkk_raw.iloc[0]
-            bkk_table_final = bkk_raw[1:].reset_index(drop=True).rename(columns={'GOMBAK':'GBK','HULU LANGAT':'HL','HULU SELANGOR':'HS','KLANG':'KLG','KUALA LANGAT':'KL','KUALA SELANGOR':'KS','PETALING':'PTG','SABAK BERNAM':'SB','SEPANG':'SPG'})
-
-            doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, (len(bkk_details)==0), bkk_details, df_yesterday_list)
-            st.success("✅ Laporan berjaya dijana!")
-            st.download_button("⬇️ Muat Turun Laporan", data=doc_out, file_name=f"Laporan_BWKK_{today}.docx")
-        except Exception as e:
-            st.error(f"Ralat: {e}")
+    return target}
