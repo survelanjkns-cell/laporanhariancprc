@@ -482,39 +482,35 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     # --- BAHAGIAN TANDATANGAN (TANPA GRID) ---
     doc.add_paragraph() 
     
-    # Gunakan jadual 3 kolum untuk penyelarasan ":" yang kemas
     sig_table = doc.add_table(rows=8, cols=3)
     sig_table.alignment = WD_TABLE_ALIGNMENT.LEFT
-    
-    # Tetapkan lebar kolum (Anggaran)
     sig_table.columns[0].width = Cm(2.5)
     sig_table.columns[1].width = Cm(0.5)
     sig_table.columns[2].width = Cm(10)
 
     def fill_sig_row(row_idx, label):
         row = sig_table.rows[row_idx].cells
-        # Kolum 1: Label
         p_label = row[0].paragraphs[0]
         apply_font(p_label.add_run(label), 11, bold=False)
-        # Kolum 2: Titik Bertindih
         p_colon = row[1].paragraphs[0]
         apply_font(p_colon.add_run(":"), 11, bold=False)
 
     fill_sig_row(0, "Disediakan")
     fill_sig_row(1, "Jawatan")
-    sig_table.rows[2].height = Pt(30) # Ruang kosong
-    
+    sig_table.rows[2].height = Pt(30)
     fill_sig_row(3, "Disemak")
     fill_sig_row(4, "Jawatan")
-    sig_table.rows[5].height = Pt(30) # Ruang kosong
-    
+    sig_table.rows[5].height = Pt(30)
     fill_sig_row(6, "Disahkan")
     fill_sig_row(7, "Jawatan")
 
-    # --- SCRIPT BUANG BORDER JADUAL ---
-    # Membuang border pada peringkat jadual (Table-level)
+    # --- FIX: BUANG BORDER JADUAL TANDATANGAN ---
     tbl = sig_table._tbl
-    tblPr = tbl.get_or_add_tblPr()
+    tblPr = tbl.tblPr
+    if tblPr is None:
+        tblPr = parse_xml(r'<w:tblPr %s/>' % nsdecls('w'))
+        tbl.insert(0, tblPr)
+
     tblBorders = parse_xml(r'<w:tblBorders %s>'
                            r'<w:top w:val="none"/>'
                            r'<w:left w:val="none"/>'
@@ -525,10 +521,10 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
                            r'</w:tblBorders>' % nsdecls('w'))
     tblPr.append(tblBorders)
 
-    # Memastikan setiap sel juga tiada border (Cell-level)
     for row in sig_table.rows:
         for cell in row.cells:
-            tcPr = cell._element.get_or_add_tcPr()
+            tc = cell._tc
+            tcPr = tc.get_or_add_tcPr()
             tcBorders = parse_xml(r'<w:tcBorders %s>'
                                   r'<w:top w:val="none"/>'
                                   r'<w:left w:val="none"/>'
@@ -593,7 +589,6 @@ if f1 and f2:
                 wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'AKTIF': active_count, 'KUMULATIF': k})
             wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
-            # GSHEET Loading
             raw_gs = pd.read_csv(GSHEET_URL, header=None)
             mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
             v_data = raw_gs.iloc[mask_v.idxmax() : mask_v.idxmax() + 11, 13:20]
