@@ -366,15 +366,25 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     t3.width = content_width 
     t3.allow_autofit = False 
     
+    # --- TAMBAHAN: DEFINISI SAIZ KOLUM (Nisbah 1.0) ---
+    # Kolum Daerah (0.34) lebih lebar, kolum data (0.11) lebih kecil
+    widths_t3 = [0.34, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11]
+    
     h3_r1 = t3.rows[0].cells
     h3_r1[0].merge(t3.rows[1].cells[0]).text = "Daerah"
     h3_r1[1].merge(h3_r1[2]).text = "Denggi"
     h3_r1[3].merge(h3_r1[4]).text = "Malaria"
     h3_r1[5].merge(h3_r1[6]).text = "Chikungunya"
     
-    # Perbaikan Indentasi untuk Vektor Header
     for i in [0, 1, 3, 5]:
         cell = h3_r1[i]
+        # Set lebar untuk header baris 1
+        if i == 0:
+            cell.width = Cm(content_width.cm * widths_t3[0])
+        else:
+            # Header gabungan (Harian + Kum)
+            cell.width = Cm(content_width.cm * (widths_t3[i] + widths_t3[i+1]))
+            
         set_cell_background(cell, "BFDFFF")
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         p = cell.paragraphs[0]
@@ -384,10 +394,12 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     h3_r2 = t3.rows[1].cells
     for i in range(1, 7):
-        h3_r2[i].text = "Harian" if i % 2 != 0 else "Kum"
-        set_cell_background(h3_r2[i], "BFDFFF")
-        h3_r2[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-        p = h3_r2[i].paragraphs[0]
+        cell = h3_r2[i]
+        cell.width = Cm(content_width.cm * widths_t3[i]) # Set lebar harian/kum
+        cell.text = "Harian" if i % 2 != 0 else "Kum"
+        set_cell_background(cell, "BFDFFF")
+        cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+        p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         apply_font(p.runs[0], 9, bold=True)
 
@@ -395,6 +407,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         row_cells = t3.rows[i+2].cells
         for j in range(7):
             val = vector_df.iloc[i, j]
+            
             # Proper case untuk nama daerah kecuali JUMLAH
             if j == 0:
                 display_val = str(val).title() if str(val).upper() != "JUMLAH" else "JUMLAH"
@@ -402,16 +415,18 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
                 try: display_val = str(int(float(val)))
                 except: display_val = str(val)
             
-            p = row_cells[j].paragraphs[0]
+            cell = row_cells[j]
+            cell.width = Cm(content_width.cm * widths_t3[j]) # APLIKASI SAIZ KOLUM DATA
+            
+            p = cell.paragraphs[0]
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT if j == 0 else WD_ALIGN_PARAGRAPH.CENTER
             run = p.add_run(display_val)
             
-            if i == len(vector_df)-1: set_cell_background(row_cells[j], "FFFF00") 
-            elif j == 0: set_cell_background(row_cells[j], "FCE4D6") 
+            if i == len(vector_df)-1: set_cell_background(cell, "FFFF00") 
+            elif j == 0: set_cell_background(cell, "FCE4D6") 
             
             apply_font(run, 9, bold=True)
-            row_cells[j].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-
+            cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
     # --- SECTION 4.0 (BKK) ---
     doc.add_page_break()
     p4_head = doc.add_paragraph()
