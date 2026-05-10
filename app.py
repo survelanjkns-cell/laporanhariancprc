@@ -556,7 +556,7 @@ if f1 and f2:
 
             raw_gs = pd.read_csv(GSHEET_URL, header=None)
             mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
-            v_data = raw_gs.iloc[mask_v.idxmax() : mask_v.idxmax() + 11, 13:20] # Ambil 11 baris (termasuk JUMLAH)
+            v_data = raw_gs.iloc[mask_v.idxmax() : mask_v.idxmax() + 11, 13:20].dropna(how='all') # Ambil 11 baris (termasuk JUMLAH)
 
             df_bkk_full = pd.read_csv(SHEET_BKK_URL, header=None)
             insiden_semalam = df_bkk_full[df_bkk_full.iloc[:, 2].astype(str).str.contains(yesterday_str)]
