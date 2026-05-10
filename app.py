@@ -11,7 +11,7 @@ from docx.oxml.ns import nsdecls
 import io
 import os
 import re
-import requests  # Ditambah untuk muat turun imej graf
+import requests  # Diperlukan untuk mengambil imej graf
 
 # --- KONSTAN & MAPPING DATA ---
 TEMPLATE_PKDS = [
@@ -33,7 +33,7 @@ GID = "0"
 GSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
 SHEET_BKK_URL = "https://docs.google.com/spreadsheets/d/1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c/export?format=csv&gid=1342717767"
 
-# URL Imej Graf (Published Chart)
+# URL Imej Graf (Sila padam Chart Title di Google Sheets)
 CHART_IMAGE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTDprYai1uaP1L-JP6kuHRZX18AmDHX0ROEzRE37DaCHMo0cNWUvRa8R-65RZAK7XFWI6pb_-X-jF24/pubchart?oid=1681812411&format=image"
 
 # --- HELPERS ---
@@ -154,7 +154,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
-    # --- SECTION 1.0 (ENOTIFIKASI) ---
+    # --- SECTION 1.0 ---
     p1_head = doc.add_paragraph()
     apply_font(p1_head.add_run("1.0 Ringkasan Laporan Input Enotifikasi"), 11, bold=True)
     
@@ -282,7 +282,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         set_cell_background(f2_cells[i], "FFFF00")
         f2_cells[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    # --- JADUAL 2.1 ---
     doc.add_paragraph()
     tarikh_semalam_str = get_malay_date(yesterday)
     add_table_title(doc, "Jadual 2.1", f"Senarai Wabak Yang Dilaporkan pada {tarikh_semalam_str}")
@@ -427,31 +426,27 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             apply_font(run, 9, bold=True)
             row_cells[j].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
 
-    # --- TAMBAH RAJAH 1 (GRAF DENGGI) ---
+    # --- RAJAH 1: GRAF DENGGI (TANPA CHART TITLE) ---
     try:
         response = requests.get(CHART_IMAGE_URL)
         if response.status_code == 200:
-            doc.add_paragraph() # Jarak sikit dari jadual
-            
-            # Tajuk Rajah
-            p_graph_title = doc.add_paragraph()
-            p_graph_title.alignment = WD_ALIGN_PARAGRAPH.LEFT
-            run_graph_label = p_graph_title.add_run("Rajah 1 : ")
-            apply_font(run_graph_label, 11, bold=True)
-            run_graph_text = p_graph_title.add_run("Carta Kes Mingguan Denggi Didaftar Bagi Tahun 2025 - 2026 Negeri Selangor")
-            apply_font(run_graph_text, 11, bold=False)
-            
-            # Memasukkan Imej Graf
-            image_stream = io.BytesIO(response.content)
-            p_image = doc.add_paragraph()
-            p_image.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            run_image = p_image.add_run()
-            # Lebar 6.0 inci sesuai untuk saiz A4 dengan margin standard
-            run_image.add_picture(image_stream, width=Inches(6.0))
+            doc.add_paragraph()
+            p_rajah_head = doc.add_paragraph()
+            p_rajah_head.alignment = WD_ALIGN_PARAGRAPH.LEFT
+            run_rajah_label = p_rajah_head.add_run("Rajah 1 : ")
+            apply_font(run_rajah_label, 11, bold=True)
+            run_rajah_title = p_rajah_head.add_run("Carta Kes Mingguan Denggi Didaftar Bagi Tahun 2025 - 2026 Negeri Selangor")
+            apply_font(run_rajah_title, 11, bold=False)
+
+            img_stream = io.BytesIO(response.content)
+            p_img = doc.add_paragraph()
+            p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run_img = p_img.add_run()
+            run_img.add_picture(img_stream, width=Inches(6.2))
         else:
-            st.warning("Graf tidak dapat dimuat turun. Sila semak status 'Publish to Web' pada Google Sheets.")
+            st.warning("Gagal memuat turun imej graf.")
     except Exception as e:
-        st.error(f"Ralat semasa memproses graf: {e}")
+        st.error(f"Ralat semasa memproses Rajah 1: {e}")
 
     # --- SECTION 4.0 (BKK) ---
     doc.add_page_break()
@@ -509,9 +504,8 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     footer = doc.add_paragraph()
     apply_font(footer.add_run(f"*Sumber : Sistem e-notifikasi, Laporan Wabak KKM dimuat turun pada ({get_malay_date(today)} @ 10.00 am)"), 9, bold=False)
 
-    # --- BAHAGIAN TANDATANGAN (TANPA GRID) ---
+    # --- SIGNATURE ---
     doc.add_paragraph() 
-    
     sig_table = doc.add_table(rows=8, cols=3)
     sig_table.alignment = WD_TABLE_ALIGNMENT.LEFT
     sig_table.columns[0].width = Cm(2.5)
@@ -534,34 +528,13 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     fill_sig_row(6, "Disahkan")
     fill_sig_row(7, "Jawatan")
 
-    # --- BUANG BORDER JADUAL TANDATANGAN ---
     tbl = sig_table._tbl
     tblPr = tbl.tblPr
     if tblPr is None:
         tblPr = parse_xml(r'<w:tblPr %s/>' % nsdecls('w'))
         tbl.insert(0, tblPr)
-
-    tblBorders = parse_xml(r'<w:tblBorders %s>'
-                           r'<w:top w:val="none"/>'
-                           r'<w:left w:val="none"/>'
-                           r'<w:bottom w:val="none"/>'
-                           r'<w:right w:val="none"/>'
-                           r'<w:insideH w:val="none"/>'
-                           r'<w:insideV w:val="none"/>'
-                           r'</w:tblBorders>' % nsdecls('w'))
+    tblBorders = parse_xml(r'<w:tblBorders %s><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/><w:insideH w:val="none"/><w:insideV w:val="none"/></w:tblBorders>' % nsdecls('w'))
     tblPr.append(tblBorders)
-
-    for row in sig_table.rows:
-        for cell in row.cells:
-            tc = cell._tc
-            tcPr = tc.get_or_add_tcPr()
-            tcBorders = parse_xml(r'<w:tcBorders %s>'
-                                  r'<w:top w:val="none"/>'
-                                  r'<w:left w:val="none"/>'
-                                  r'<w:bottom w:val="none"/>'
-                                  r'<w:right w:val="none"/>'
-                                  r'</w:tcBorders>' % nsdecls('w'))
-            tcPr.append(tcBorders)
 
     target = io.BytesIO()
     doc.save(target)
@@ -583,7 +556,9 @@ if f1 and f2:
             yesterday = today - timedelta(days=1)
             yesterday_str = yesterday.strftime("%d/%m/%Y")
 
-            df1 = pd.read_excel(f1)
+            # Sokongan format .xls
+            engine_type = "xlrd" if f1.name.endswith(".xls") else "openpyxl"
+            df1 = pd.read_excel(f1, engine=engine_type)
             df1 = df1[df1['Notifikasi Status'] != 'Abai Notifikasi']
             df1 = df1[df1['Pejabat Kesihatan'].isin(TEMPLATE_PKDS)]
             matrix = pd.crosstab(df1['Diagnosis'], df1['Pejabat Kesihatan']).reindex(columns=TEMPLATE_PKDS, fill_value=0)
@@ -592,7 +567,8 @@ if f1 and f2:
             matrix = matrix.sort_values(by='Grand Total', ascending=False)
             col_totals = matrix[TEMPLATE_PKDS + ['Grand Total']].sum(axis=0)
 
-            df2 = pd.read_excel(f2, sheet_name="SELANGOR 2")
+            engine_type2 = "xlrd" if f2.name.endswith(".xls") else "openpyxl"
+            df2 = pd.read_excel(f2, sheet_name="SELANGOR 2", engine=engine_type2)
             df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date
             df2['Tarikh Sebenar Tamat Wabak'] = pd.to_datetime(df2['Tarikh Sebenar Tamat Wabak '], errors='coerce').dt.date
             df2['Tarikh Wabak Dijangka Tamat'] = pd.to_datetime(df2['Tarikh Wabak Dijangka Tamat'], errors='coerce').dt.date
