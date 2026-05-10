@@ -372,6 +372,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     h3_r1[3].merge(h3_r1[4]).text = "Malaria"
     h3_r1[5].merge(h3_r1[6]).text = "Chikungunya"
     
+    # Perbaikan Indentasi untuk Vektor Header
     for i in [0, 1, 3, 5]:
         cell = h3_r1[i]
         set_cell_background(cell, "BFDFFF")
@@ -394,8 +395,12 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         row_cells = t3.rows[i+2].cells
         for j in range(7):
             val = vector_df.iloc[i, j]
-            try: display_val = str(int(float(val))) if j > 0 else str(val).upper()
-            except: display_val = str(val).upper()
+            # Proper case untuk nama daerah kecuali JUMLAH
+            if j == 0:
+                display_val = str(val).title() if str(val).upper() != "JUMLAH" else "JUMLAH"
+            else:
+                try: display_val = str(int(float(val)))
+                except: display_val = str(val)
             
             p = row_cells[j].paragraphs[0]
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT if j == 0 else WD_ALIGN_PARAGRAPH.CENTER
