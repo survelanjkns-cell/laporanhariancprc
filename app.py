@@ -11,6 +11,7 @@ from docx.oxml.ns import nsdecls
 import io
 import os
 import re
+import requests
 
 # --- KONSTAN & MAPPING DATA ---
 TEMPLATE_PKDS = [
@@ -32,7 +33,19 @@ GID = "0"
 GSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
 SHEET_BKK_URL = "https://docs.google.com/spreadsheets/d/1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c/export?format=csv&gid=1342717767"
 
+# Pautan graf yang anda berikan (ditukar kepada format imej)
+CHART_IMAGE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTDprYai1uaP1L-JP6kuHRZX18AmDHX0ROEzRE37DaCHMo0cNWUvRa8R-65RZAK7XFWI6pb_-X-jF24/pubchart?oid=1681812411&format=image"
+
 # --- HELPERS ---
+def download_chart_image(url):
+    try:
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            return io.BytesIO(response.content)
+    except Exception as e:
+        st.warning(f"⚠️ Gagal memuat turun graf: {e}")
+    return None
+
 def set_repeat_table_header(row):
     tr = row._tr
     trPr = tr.get_or_add_trPr()
@@ -231,6 +244,27 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     doc.add_paragraph()
     add_pkd_note(doc)
+
+    # --- TAMBAHAN: RAJAH 1 (CARTA DENGGI) ---
+    doc.add_paragraph()
+    chart_title_p = doc.add_paragraph()
+    chart_title_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run_chart_title = chart_title_p.add_run("Rajah 1 : Carta Kes Mingguan Denggi Didaftar Bagi Tahun 2025 - 2026 Negeri Selangor")
+    apply_font(run_chart_title, 11, bold=True)
+
+    chart_img = download_chart_image(CHART_IMAGE_URL)
+    if chart_img:
+        p_img = doc.add_paragraph()
+        p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run_img = p_img.add_run()
+        run_img.add_picture(chart_img, width=Inches(6.0))
+    else:
+        p_err = doc.add_paragraph()
+        p_err.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run_err = p_err.add_run("[Graf gagal dimuat turun buat masa ini. Sila semak pautan Google Sheet anda.]")
+        apply_font(run_err, 9, bold=False)
+    
+    doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
     # --- SECTION 2.0 (WABAK) ---
     doc.add_page_break()
@@ -540,7 +574,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
 # --- STREAMLIT UI ---
 st.set_page_config(page_title="BWKK Report Generator", layout="centered")
-st.title("📄 BWKK Report Generator")
+st.title("📊 BWKK Report Generator")
 
 f1 = st.file_uploader("📂 Muat Naik Excel Notifikasi Harian", type=["xlsx", "xls"])
 f2 = st.file_uploader("📂 Muat Naik Excel Linelisting Wabak", type=["xlsx", "xls"])
@@ -589,12 +623,14 @@ if f1 and f2:
                 wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'AKTIF': active_count, 'KUMULATIF': k})
             wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
+            # Muat turun data Vektor
             raw_gs = pd.read_csv(GSHEET_URL, header=None)
             mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
             v_data = raw_gs.iloc[mask_v.idxmax() : mask_v.idxmax() + 11, 13:20]
             v_data = v_data.dropna(how='all')
             v_data = v_data[~v_data.iloc[:, 0].astype(str).str.lower().str.contains('nan')]
 
+            # Muat turun data BKK
             df_bkk_full = pd.read_csv(SHEET_BKK_URL, header=None)
             insiden_semalam = df_bkk_full[df_bkk_full.iloc[:, 2].astype(str).str.contains(yesterday_str)]
             bkk_details = [{'kejadian': r[5], 'alamat': r[8], 'daerah': r[4]} for _, r in insiden_semalam.iterrows()]
