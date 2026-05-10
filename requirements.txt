@@ -2,6 +2,6 @@ streamlit
 pandas
 plotly
 python-docx
+kaleido
 pytz
 openpyxl
-kaleido
