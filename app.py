@@ -313,6 +313,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
                 row[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
             
             row[0].text = str(idx)
+            # 1. WABAK
             p_wabak = row[1].paragraphs[0]
             p_wabak.alignment = WD_ALIGN_PARAGRAPH.CENTER
             run_name = p_wabak.add_run(str(item[0]))
@@ -322,12 +323,22 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             run_cat = p_wabak.add_run(kategori_display)
             apply_font(run_cat, 8, bold=False)
 
-            row[2].text = str(item[1]) 
+            # 2. DAERAH (Proper Case)
+            row[2].text = str(item[1]).title() 
+            
+            # 3. TEMPAT BERLAKU
             row[3].text = str(item[2]) 
 
+            # 4. BIL KES (AR) - Formatting percentage
             n_kes = float(item[4]) if pd.notna(item[4]) else 0
             n_dedah = float(item[5]) if pd.notna(item[5]) else 0
-            pct_str = f"{(n_kes / n_dedah) * 100:.2f}%" if n_dedah > 0 else "0%"
+            
+            if n_dedah > 0:
+                calc_pct = (n_kes / n_dedah) * 100
+                # Buang .00 jika ia integer
+                pct_str = f"{calc_pct:g}%" 
+            else:
+                pct_str = "0%"
 
             p_ar = row[4].paragraphs[0]
             p_ar.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -356,7 +367,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     except: 
         xx_v = 0
     
-    # LOGIK BARU: Tukar 0 kepada "Tiada"
     xx_v_display = "Tiada" if xx_v == 0 else str(xx_v)
         
     h31 = doc.add_paragraph()
@@ -549,7 +559,7 @@ if f1 and f2:
             raw_gs = pd.read_csv(GSHEET_URL, header=None)
             mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
             
-            # --- CLEAN GSHEET DATA ---
+            # CLEAN GSHEET DATA
             v_data = raw_gs.iloc[mask_v.idxmax() : mask_v.idxmax() + 11, 13:20]
             v_data = v_data.dropna(how='all') 
             v_data = v_data[~v_data.iloc[:, 0].astype(str).str.lower().str.contains('nan')] 
