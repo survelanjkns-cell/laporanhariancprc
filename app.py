@@ -109,7 +109,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     section.top_margin = section.bottom_margin = section.left_margin = section.right_margin = Cm(2.54)
     content_width = section.page_width - section.left_margin - section.right_margin
 
-    # 1. Logo
+    # 1. Logo (Opsional)
     logo_path = "logo.png.jpg"
     if os.path.exists(logo_path):
         p_logo = doc.add_paragraph()
@@ -347,10 +347,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     # --- SECTION 3.0 (VEKTOR) ---
     p3_head = doc.add_paragraph()
-    
-    # LOGIK: Page break before = True (Bermula di page baru kecuali jika Jadual 2.1 melimpah)
-    p3_head.paragraph_format.page_break_before = True
-    p3_head.paragraph_format.space_before = Pt(12)
+    p3_head.paragraph_format.page_break_before = True # Mulakan di page baru
     apply_font(p3_head.add_run("3.0 Ringkasan Laporan Wabak Vektor"), 11, bold=True)
     
     try: 
@@ -365,12 +362,23 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     add_table_title(doc, "Jadual 3", "Senarai Notifikasi Wabak Vektor")
     
+    # Bina Jadual Vektor dengan sizing yang lebih padat (Gambar 2nd)
     t3 = doc.add_table(rows=len(vector_df) + 2, cols=7)
     t3.style = 'Table Grid'
-    t3.autofit = False
-    t3.alignment = WD_TABLE_ALIGNMENT.CENTER
+    t3.width = content_width 
+    t3.allow_autofit = False  # Matikan autofit untuk kawalan manual lebar kolum
 
-    col_widths_v = [Inches(1.8), Inches(0.7), Inches(0.7), Inches(0.7), Inches(0.7), Inches(0.7), Inches(0.7)]
+    # Agihan lebar kolum dalam peratusan: Daerah(25%), Data(12.5% x 6)
+    # Total content_width Selangor biasanya ~6.5 inci
+    col_widths_v = [
+        content_width * 0.25, # Daerah
+        content_width * 0.125, # Denggi Harian
+        content_width * 0.125, # Denggi Kum
+        content_width * 0.125, # Malaria Harian
+        content_width * 0.125, # Malaria Kum
+        content_width * 0.125, # Chiku Harian
+        content_width * 0.125  # Chiku Kum
+    ]
     
     h3_r1 = t3.rows[0].cells
     h3_r1[0].merge(t3.rows[1].cells[0]).text = "Daerah"
@@ -382,9 +390,13 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         cell = h3_r1[i]
         set_cell_background(cell, "BFDFFF")
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-        cell.width = col_widths_v[i] if i == 0 else col_widths_v[i] + col_widths_v[i+1]
+        # Set lebar untuk sel yang digabungkan
+        if i == 0: cell.width = col_widths_v[0]
+        else: cell.width = col_widths_v[i] + col_widths_v[i+1]
+        
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        # Gunakan font 10 untuk header supaya tak terlalu besar
         if p.runs: apply_font(p.runs[0], 10, bold=True)
         else: apply_font(p.add_run(cell.text), 10, bold=True)
 
@@ -407,20 +419,22 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             if j == 0:
                 display_val = str(val).title() if str(val).upper() != "JUMLAH" else "JUMLAH"
             else:
-                try: display_val = str(int(float(val)))
+                try: display_val = f"{int(float(val)):,}" # Tambah comma separator
                 except: display_val = str(val)
             
             p = row_cells[j].paragraphs[0]
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT if j == 0 else WD_ALIGN_PARAGRAPH.CENTER
+            # Kecilkan spacing dalam sel supaya jadual nampak "slim"
             p.paragraph_format.space_before = Pt(2)
             p.paragraph_format.space_after = Pt(2)
             
             run = p.add_run(display_val)
             
+            # Highlight Kuning untuk baris JUMLAH
             if str(vector_df.iloc[i, 0]).upper() == "JUMLAH": 
                 set_cell_background(row_cells[j], "FFFF00") 
             elif j == 0: 
-                set_cell_background(row_cells[j], "FCE4D6") 
+                set_cell_background(row_cells[j], "FCE4D6") # Warna oren cair untuk kolum daerah
             
             apply_font(run, 9, bold=True)
             row_cells[j].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
@@ -542,7 +556,7 @@ if f1 and f2:
 
             raw_gs = pd.read_csv(GSHEET_URL, header=None)
             mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
-            v_data = raw_gs.iloc[mask_v.idxmax() : mask_v.idxmax() + 10, 13:20]
+            v_data = raw_gs.iloc[mask_v.idxmax() : mask_v.idxmax() + 11, 13:20] # Ambil 11 baris (termasuk JUMLAH)
 
             df_bkk_full = pd.read_csv(SHEET_BKK_URL, header=None)
             insiden_semalam = df_bkk_full[df_bkk_full.iloc[:, 2].astype(str).str.contains(yesterday_str)]
