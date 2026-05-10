@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import plotly.graph_objects as go  # Added for the graph
 from datetime import datetime, date, timedelta
 import pytz
 from docx import Document
@@ -26,6 +27,9 @@ AVG_HARIAN_FIGURES = {
     "Dysentry": 5, "Syphilis": 5, "Typhoid/Paratyphoid": 5,
     "Gonorrhoea": 2, "Pertussis": 2, "Malaria": 1, "Mers-Cov": 1
 }
+
+# CSV Published link for the Graph Sheet
+SHEET_GRAPH_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTDprYai1uaP1L-JP6kuHRZX18AmDHX0ROEzRE37DaCHMo0cNWUvRa8R-65RZAK7XFWI6pb_-X-jF24/pub?gid=1525373641&single=true&output=csv"
 
 SHEET_ID = "1bjyNcntm-I6nRaIVkVdJqJRAzn5r2tYFfjUAN0emv9w"
 GID = "0"
@@ -97,6 +101,60 @@ def add_pkd_note(doc):
     run = p.add_run(note_text)
     apply_font(run, 7, bold=False)
     p.paragraph_format.space_after = Pt(12)
+
+# --- GRAPH HELPER ---
+def display_dengue_trend():
+    try:
+        # Load published CSV, skip the title row "Negeri Selangor"
+        df_graph = pd.read_csv(SHEET_GRAPH_URL, skiprows=1)
+        
+        # Set first column (TAHUN / ME) as index
+        df_graph = df_graph.set_index(df_graph.columns[0])
+        
+        # Transpose so ME weeks become rows/index
+        df_plot = df_graph.transpose()
+        
+        fig = go.Figure()
+
+        # Add 2025 (Blue)
+        if '2025' in df_plot.columns:
+            fig.add_trace(go.Scatter(
+                x=df_plot.index, y=df_plot['2025'],
+                mode='lines', name='2025',
+                line=dict(color='#4285F4', width=3)
+            ))
+
+        # Add 2026 (Red)
+        if '2026' in df_plot.columns:
+            fig.add_trace(go.Scatter(
+                x=df_plot.index, y=df_plot['2026'],
+                mode='lines', name='2026',
+                line=dict(color='#EA4335', width=4)
+            ))
+
+        # Add Moving Median (Yellow)
+        median_col = [col for col in df_plot.columns if 'Moving median' in str(col)]
+        if median_col:
+            fig.add_trace(go.Scatter(
+                x=df_plot.index, y=df_plot[median_col[0]],
+                mode='lines', name='Moving Median (4 thn)',
+                line=dict(color='#FBBC04', width=2, dash='solid')
+            ))
+
+        fig.update_layout(
+            title="CARTA KES MINGGUAN DENGGI JJKN SELANGOR (2025-2026)",
+            xaxis_title="Minggu Epidemiologi (ME)",
+            yaxis_title="Bilangan Kes",
+            hovermode="x unified",
+            plot_bgcolor="white",
+            legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5),
+            height=500
+        )
+        fig.update_yaxes(showgrid=True, gridcolor='lightgrey')
+        
+        st.plotly_chart(fig, use_container_width=True)
+    except Exception as e:
+        st.error(f"Gagal menjana graf: {e}")
 
 # --- DOCX GENERATOR ---
 def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty, bkk_details, df_yesterday_list):
@@ -539,8 +597,14 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     return target
 
 # --- STREAMLIT UI ---
-st.set_page_config(page_title="BWKK Report Generator", layout="centered")
-st.title("📄 BWKK Report Generator")
+st.set_page_config(page_title="BWKK Report Generator", layout="wide")
+st.title("📊 BWKK Report Generator & Dashboard")
+
+# NEW: Dashboard Chart Section
+st.subheader("📈 Trend Kes Mingguan Denggi (Selangor)")
+display_dengue_trend()
+
+st.divider()
 
 f1 = st.file_uploader("📂 Muat Naik Excel Notifikasi Harian", type=["xlsx", "xls"])
 f2 = st.file_uploader("📂 Muat Naik Excel Linelisting Wabak", type=["xlsx", "xls"])
