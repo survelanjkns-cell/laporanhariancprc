@@ -11,6 +11,7 @@ from docx.oxml.ns import nsdecls
 import io
 import os
 import re
+import matplotlib.pyplot as plt
 
 # --- KONSTAN & MAPPING DATA ---
 TEMPLATE_PKDS = [
@@ -32,7 +33,45 @@ GID = "0"
 GSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
 SHEET_BKK_URL = "https://docs.google.com/spreadsheets/d/1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c/export?format=csv&gid=1342717767"
 
+# New URL for the Trend Graph Data
+GRAF_DATA_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=GRAF%20TREND%20KES%20MINGGUAN"
+
 # --- HELPERS ---
+def capture_dengue_trend_graph():
+    """Fetches data from the specific sheet and generates the trend line graph."""
+    try:
+        # Use gviz to get specific sheet as CSV
+        df_trend = pd.read_csv(GRAF_DATA_URL)
+        
+        # Mapping rows based on your screenshot (2025 is index 4, 2026 is index 5, Median is index 6)
+        weeks = range(1, 54)
+        val_2025 = pd.to_numeric(df_trend.iloc[4, 1:54], errors='coerce')
+        val_2026 = pd.to_numeric(df_trend.iloc[5, 1:54], errors='coerce')
+        val_median = pd.to_numeric(df_trend.iloc[6, 1:54], errors='coerce')
+
+        plt.figure(figsize=(10, 5))
+        plt.plot(weeks, val_2025, label='2025', color='#4472C4', linewidth=1.5)
+        plt.plot(weeks, val_2026, label='2026', color='#ED7D31', linewidth=2)
+        plt.plot(weeks, val_median, label='Moving median 4 tahun (2022,2023,2024,2025)', color='#FFC000', linewidth=1.5)
+
+        plt.title('CARTA KES MINGGUAN DENGGI YANG DIDAFTAR BAGI TAHUN 2025-2026\nNEGERI SELANGOR', fontsize=10, fontweight='bold')
+        plt.xlabel('Minggu', fontsize=8)
+        plt.ylabel('Jumlah Kes', fontsize=8)
+        plt.xticks(weeks, fontsize=7)
+        plt.grid(axis='y', linestyle='--', alpha=0.5)
+        plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=3, fontsize=8, frameon=False)
+        
+        plt.tight_layout()
+
+        img_stream = io.BytesIO()
+        plt.savefig(img_stream, format='png', dpi=300)
+        img_stream.seek(0)
+        plt.close()
+        return img_stream
+    except Exception as e:
+        st.warning(f"Gagal menjana graf: {e}")
+        return None
+
 def set_repeat_table_header(row):
     tr = row._tr
     trPr = tr.get_or_add_trPr()
@@ -99,7 +138,7 @@ def add_pkd_note(doc):
     p.paragraph_format.space_after = Pt(12)
 
 # --- DOCX GENERATOR ---
-def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty, bkk_details, df_yesterday_list):
+def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty, bkk_details, df_yesterday_list, dengue_graph_stream):
     doc = Document()
     now_msia = get_msia_time()
     today = now_msia.date()
@@ -423,6 +462,18 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             apply_font(run, 9, bold=True)
             row_cells[j].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
 
+    # --- RAJAH 1 (NEW GRAPH INSERTION) ---
+    if dengue_graph_stream:
+        doc.add_paragraph() # Spacing
+        p_rajah = doc.add_paragraph()
+        p_rajah.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run_rajah = p_rajah.add_run("Rajah 1 : Carta Mingguan Denggi Didaftar Bagi Tahun 2025-2026 Negeri Selangor")
+        apply_font(run_rajah, 11, bold=True)
+        
+        doc.add_picture(dengue_graph_stream, width=Inches(6.0))
+        doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
+        doc.add_paragraph()
+
     # --- SECTION 4.0 (BKK) ---
     doc.add_page_break()
     p4_head = doc.add_paragraph()
@@ -602,7 +653,11 @@ if f1 and f2:
             bkk_raw.columns = bkk_raw.iloc[0]
             bkk_table_final = bkk_raw[1:].reset_index(drop=True).rename(columns={'GOMBAK':'GBK','HULU LANGAT':'HL','HULU SELANGOR':'HS','KLANG':'KLG','KUALA LANGAT':'KL','KUALA SELANGOR':'KS','PETALING':'PTG','SABAK BERNAM':'SB','SEPANG':'SPG'})
 
-            doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, (len(bkk_details)==0), bkk_details, df_yesterday_list)
+            # --- Generate the Graph ---
+            st.info("Sedang memproses graf trend...")
+            dengue_graph = capture_dengue_trend_graph()
+
+            doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, (len(bkk_details)==0), bkk_details, df_yesterday_list, dengue_graph)
             st.success("✅ Laporan berjaya dijana!")
             st.download_button("⬇️ Muat Turun Laporan", data=doc_out, file_name=f"Laporan_BWKK_{today}.docx")
         except Exception as e:
