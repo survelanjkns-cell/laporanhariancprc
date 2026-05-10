@@ -347,7 +347,10 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     # --- SECTION 3.0 (VEKTOR) ---
     p3_head = doc.add_paragraph()
-    p3_head.paragraph_format.space_before = Pt(24)
+    
+    # LOGIK: Page break before = True (Bermula di page baru kecuali jika Jadual 2.1 melimpah)
+    p3_head.paragraph_format.page_break_before = True
+    p3_head.paragraph_format.space_before = Pt(12)
     apply_font(p3_head.add_run("3.0 Ringkasan Laporan Wabak Vektor"), 11, bold=True)
     
     try: 
@@ -362,13 +365,11 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     add_table_title(doc, "Jadual 3", "Senarai Notifikasi Wabak Vektor")
     
-    # Bina Jadual Vektor dengan lebar kolum spesifik
     t3 = doc.add_table(rows=len(vector_df) + 2, cols=7)
     t3.style = 'Table Grid'
     t3.autofit = False
     t3.alignment = WD_TABLE_ALIGNMENT.CENTER
 
-    # Penetapan lebar kolum: Daerah (Besar), lain-lain (Kecil)
     col_widths_v = [Inches(1.8), Inches(0.7), Inches(0.7), Inches(0.7), Inches(0.7), Inches(0.7), Inches(0.7)]
     
     h3_r1 = t3.rows[0].cells
@@ -381,7 +382,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         cell = h3_r1[i]
         set_cell_background(cell, "BFDFFF")
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-        # Set lebar sel header
         cell.width = col_widths_v[i] if i == 0 else col_widths_v[i] + col_widths_v[i+1]
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -411,7 +411,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
                 except: display_val = str(val)
             
             p = row_cells[j].paragraphs[0]
-            # Justify kolum Daerah, Center kolum data
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT if j == 0 else WD_ALIGN_PARAGRAPH.CENTER
             p.paragraph_format.space_before = Pt(2)
             p.paragraph_format.space_after = Pt(2)
