@@ -109,7 +109,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     section.top_margin = section.bottom_margin = section.left_margin = section.right_margin = Cm(2.54)
     content_width = section.page_width - section.left_margin - section.right_margin
 
-    # 1. Logo
+    # 1. Logo (Pastikan fail logo.png.jpg wujud dalam direktori)
     logo_path = "logo.png.jpg"
     if os.path.exists(logo_path):
         p_logo = doc.add_paragraph()
@@ -329,14 +329,17 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             # 3. TEMPAT BERLAKU
             row[3].text = str(item[2]) 
 
-            # 4. BIL KES (AR) - Formatting percentage
+            # 4. BIL KES (AR) - Formatting logic updated
             n_kes = float(item[4]) if pd.notna(item[4]) else 0
             n_dedah = float(item[5]) if pd.notna(item[5]) else 0
             
             if n_dedah > 0:
                 calc_pct = (n_kes / n_dedah) * 100
-                # Buang .00 jika ia integer
-                pct_str = f"{calc_pct:g}%" 
+                # If zero after decimal point, use integer format, else use 2 decimal points
+                if calc_pct % 1 == 0:
+                    pct_str = f"{int(calc_pct)}%"
+                else:
+                    pct_str = f"{calc_pct:.2f}%"
             else:
                 pct_str = "0%"
 
@@ -420,6 +423,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             if pd.isna(val) or str(val).lower() == "nan":
                 display_val = "-"
             elif j == 0:
+                # District list in vector table also to title case
                 display_val = str(val).title() if str(val).upper() != "JUMLAH" else "JUMLAH"
             else:
                 try: display_val = f"{int(float(val)):,}"
@@ -558,8 +562,6 @@ if f1 and f2:
             # LOAD GSHEET
             raw_gs = pd.read_csv(GSHEET_URL, header=None)
             mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
-            
-            # CLEAN GSHEET DATA
             v_data = raw_gs.iloc[mask_v.idxmax() : mask_v.idxmax() + 11, 13:20]
             v_data = v_data.dropna(how='all') 
             v_data = v_data[~v_data.iloc[:, 0].astype(str).str.lower().str.contains('nan')] 
