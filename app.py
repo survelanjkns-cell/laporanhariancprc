@@ -366,8 +366,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     t3.width = content_width 
     t3.allow_autofit = False 
     
-    # --- TAMBAHAN: DEFINISI SAIZ KOLUM (Nisbah 1.0) ---
-    # Kolum Daerah (0.34) lebih lebar, kolum data (0.11) lebih kecil
+    # SIZING KOLUM JADUAL 3
     widths_t3 = [0.34, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11]
     
     h3_r1 = t3.rows[0].cells
@@ -378,13 +377,10 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     
     for i in [0, 1, 3, 5]:
         cell = h3_r1[i]
-        # Set lebar untuk header baris 1
         if i == 0:
             cell.width = Cm(content_width.cm * widths_t3[0])
         else:
-            # Header gabungan (Harian + Kum)
             cell.width = Cm(content_width.cm * (widths_t3[i] + widths_t3[i+1]))
-            
         set_cell_background(cell, "BFDFFF")
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         p = cell.paragraphs[0]
@@ -395,7 +391,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     h3_r2 = t3.rows[1].cells
     for i in range(1, 7):
         cell = h3_r2[i]
-        cell.width = Cm(content_width.cm * widths_t3[i]) # Set lebar harian/kum
+        cell.width = Cm(content_width.cm * widths_t3[i])
         cell.text = "Harian" if i % 2 != 0 else "Kum"
         set_cell_background(cell, "BFDFFF")
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
@@ -407,8 +403,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         row_cells = t3.rows[i+2].cells
         for j in range(7):
             val = vector_df.iloc[i, j]
-            
-            # Proper case untuk nama daerah kecuali JUMLAH
             if j == 0:
                 display_val = str(val).title() if str(val).upper() != "JUMLAH" else "JUMLAH"
             else:
@@ -416,8 +410,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
                 except: display_val = str(val)
             
             cell = row_cells[j]
-            cell.width = Cm(content_width.cm * widths_t3[j]) # APLIKASI SAIZ KOLUM DATA
-            
+            cell.width = Cm(content_width.cm * widths_t3[j])
             p = cell.paragraphs[0]
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT if j == 0 else WD_ALIGN_PARAGRAPH.CENTER
             run = p.add_run(display_val)
@@ -427,6 +420,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             
             apply_font(run, 9, bold=True)
             cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+
     # --- SECTION 4.0 (BKK) ---
     doc.add_page_break()
     p4_head = doc.add_paragraph()
