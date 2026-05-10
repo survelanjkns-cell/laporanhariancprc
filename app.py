@@ -394,13 +394,19 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     h3_r1[3].merge(h3_r1[4]).text = "Malaria"
     h3_r1[5].merge(h3_r1[6]).text = "Chikungunya"
     
-    for i in [0, 1, 3, 5]:
-        cell = h3_r1[i]
-        set_cell_background(cell, "BFDFFF")
-        p = cell.paragraphs[0]
-        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        if p.runs: apply_font(p.runs[0], 10, bold=True)
-        else: apply_font(p.add_run(cell.text), 10, bold=True)
+   for i in [0, 1, 3, 5]:
+    cell = h3_r1[i]
+    set_cell_background(cell, "BFDFFF")
+    
+    # 1. Align Center (Melintang)
+    p = cell.paragraphs[0]
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    # 2. Align Middle (Menegak) - TAMBAH BARIS INI
+    cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+    
+    if p.runs: apply_font(p.runs[0], 10, bold=True)
+    else: apply_font(p.add_run(cell.text), 10, bold=True)
 
     h3_r2 = t3.rows[1].cells
     for i in range(1, 7):
