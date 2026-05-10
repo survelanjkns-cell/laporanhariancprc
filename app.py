@@ -33,17 +33,17 @@ GID = "0"
 GSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
 SHEET_BKK_URL = "https://docs.google.com/spreadsheets/d/1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c/export?format=csv&gid=1342717767"
 
-# Pautan graf yang anda berikan (ditukar kepada format imej)
+# Pautan graf (format imej untuk docx)
 CHART_IMAGE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTDprYai1uaP1L-JP6kuHRZX18AmDHX0ROEzRE37DaCHMo0cNWUvRa8R-65RZAK7XFWI6pb_-X-jF24/pubchart?oid=1681812411&format=image"
 
 # --- HELPERS ---
 def download_chart_image(url):
     try:
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, timeout=15)
         if response.status_code == 200:
             return io.BytesIO(response.content)
     except Exception as e:
-        st.warning(f"⚠️ Gagal memuat turun graf: {e}")
+        st.warning(f"⚠️ Amaran: Graf tidak dapat dimuat turun ({e})")
     return None
 
 def set_repeat_table_header(row):
@@ -245,23 +245,23 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     doc.add_paragraph()
     add_pkd_note(doc)
 
-    # --- TAMBAHAN: RAJAH 1 (CARTA DENGGI) ---
+    # --- TAMBAHAN: RAJAH 1 (CARTA MINGGUAN DENGGI) ---
     doc.add_paragraph()
-    chart_title_p = doc.add_paragraph()
-    chart_title_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run_chart_title = chart_title_p.add_run("Rajah 1 : Carta Kes Mingguan Denggi Didaftar Bagi Tahun 2025 - 2026 Negeri Selangor")
-    apply_font(run_chart_title, 11, bold=True)
+    chart_p = doc.add_paragraph()
+    chart_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run_chart_label = chart_p.add_run("Rajah 1 : Carta Kes Mingguan Denggi Didaftar Bagi Tahun 2025 - 2026 Negeri Selangor")
+    apply_font(run_chart_label, 11, bold=True)
 
-    chart_img = download_chart_image(CHART_IMAGE_URL)
-    if chart_img:
+    chart_stream = download_chart_image(CHART_IMAGE_URL)
+    if chart_stream:
         p_img = doc.add_paragraph()
         p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run_img = p_img.add_run()
-        run_img.add_picture(chart_img, width=Inches(6.0))
+        run_img.add_picture(chart_stream, width=Inches(6.2))
     else:
         p_err = doc.add_paragraph()
         p_err.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        run_err = p_err.add_run("[Graf gagal dimuat turun buat masa ini. Sila semak pautan Google Sheet anda.]")
+        run_err = p_err.add_run("\n[Gagal memuatkan graf dari pautan luar. Sila masukkan secara manual.]")
         apply_font(run_err, 9, bold=False)
     
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
@@ -513,9 +513,8 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     footer = doc.add_paragraph()
     apply_font(footer.add_run(f"*Sumber : Sistem e-notifikasi, Laporan Wabak KKM dimuat turun pada ({get_malay_date(today)} @ 10.00 am)"), 9, bold=False)
 
-    # --- BAHAGIAN TANDATANGAN (TANPA GRID) ---
+    # --- BAHAGIAN TANDATANGAN ---
     doc.add_paragraph() 
-    
     sig_table = doc.add_table(rows=8, cols=3)
     sig_table.alignment = WD_TABLE_ALIGNMENT.LEFT
     sig_table.columns[0].width = Cm(2.5)
@@ -538,34 +537,11 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     fill_sig_row(6, "Disahkan")
     fill_sig_row(7, "Jawatan")
 
-    # --- FIX: BUANG BORDER JADUAL TANDATANGAN ---
+    # Buang border jadual tandatangan
     tbl = sig_table._tbl
-    tblPr = tbl.tblPr
-    if tblPr is None:
-        tblPr = parse_xml(r'<w:tblPr %s/>' % nsdecls('w'))
-        tbl.insert(0, tblPr)
-
-    tblBorders = parse_xml(r'<w:tblBorders %s>'
-                           r'<w:top w:val="none"/>'
-                           r'<w:left w:val="none"/>'
-                           r'<w:bottom w:val="none"/>'
-                           r'<w:right w:val="none"/>'
-                           r'<w:insideH w:val="none"/>'
-                           r'<w:insideV w:val="none"/>'
-                           r'</w:tblBorders>' % nsdecls('w'))
+    tblPr = tbl.tblPr or parse_xml(r'<w:tblPr %s/>' % nsdecls('w'))
+    tblBorders = parse_xml(r'<w:tblBorders %s><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/><w:insideH w:val="none"/><w:insideV w:val="none"/></w:tblBorders>' % nsdecls('w'))
     tblPr.append(tblBorders)
-
-    for row in sig_table.rows:
-        for cell in row.cells:
-            tc = cell._tc
-            tcPr = tc.get_or_add_tcPr()
-            tcBorders = parse_xml(r'<w:tcBorders %s>'
-                                  r'<w:top w:val="none"/>'
-                                  r'<w:left w:val="none"/>'
-                                  r'<w:bottom w:val="none"/>'
-                                  r'<w:right w:val="none"/>'
-                                  r'</w:tcBorders>' % nsdecls('w'))
-            tcPr.append(tcBorders)
 
     target = io.BytesIO()
     doc.save(target)
@@ -576,8 +552,8 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 st.set_page_config(page_title="BWKK Report Generator", layout="centered")
 st.title("📊 BWKK Report Generator")
 
-f1 = st.file_uploader("📂 Muat Naik Excel Notifikasi Harian", type=["xlsx", "xls"])
-f2 = st.file_uploader("📂 Muat Naik Excel Linelisting Wabak", type=["xlsx", "xls"])
+f1 = st.file_uploader("📂 Muat Naik Excel Notifikasi Harian (.xlsx atau .xls)", type=["xlsx", "xls"])
+f2 = st.file_uploader("📂 Muat Naik Excel Linelisting Wabak (.xlsx atau .xls)", type=["xlsx", "xls"])
 
 if f1 and f2:
     if st.button("🚀 Jana Laporan Lengkap"):
@@ -587,7 +563,11 @@ if f1 and f2:
             yesterday = today - timedelta(days=1)
             yesterday_str = yesterday.strftime("%d/%m/%Y")
 
-            df1 = pd.read_excel(f1)
+            # Sokongan fail lama (.xls) menggunakan engine xlrd
+            engine_f1 = 'xlrd' if f1.name.endswith('.xls') else 'openpyxl'
+            engine_f2 = 'xlrd' if f2.name.endswith('.xls') else 'openpyxl'
+
+            df1 = pd.read_excel(f1, engine=engine_f1)
             df1 = df1[df1['Notifikasi Status'] != 'Abai Notifikasi']
             df1 = df1[df1['Pejabat Kesihatan'].isin(TEMPLATE_PKDS)]
             matrix = pd.crosstab(df1['Diagnosis'], df1['Pejabat Kesihatan']).reindex(columns=TEMPLATE_PKDS, fill_value=0)
@@ -596,7 +576,7 @@ if f1 and f2:
             matrix = matrix.sort_values(by='Grand Total', ascending=False)
             col_totals = matrix[TEMPLATE_PKDS + ['Grand Total']].sum(axis=0)
 
-            df2 = pd.read_excel(f2, sheet_name="SELANGOR 2")
+            df2 = pd.read_excel(f2, sheet_name="SELANGOR 2", engine=engine_f2)
             df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date
             df2['Tarikh Sebenar Tamat Wabak'] = pd.to_datetime(df2['Tarikh Sebenar Tamat Wabak '], errors='coerce').dt.date
             df2['Tarikh Wabak Dijangka Tamat'] = pd.to_datetime(df2['Tarikh Wabak Dijangka Tamat'], errors='coerce').dt.date
@@ -623,14 +603,12 @@ if f1 and f2:
                 wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'AKTIF': active_count, 'KUMULATIF': k})
             wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
-            # Muat turun data Vektor
             raw_gs = pd.read_csv(GSHEET_URL, header=None)
             mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
             v_data = raw_gs.iloc[mask_v.idxmax() : mask_v.idxmax() + 11, 13:20]
             v_data = v_data.dropna(how='all')
             v_data = v_data[~v_data.iloc[:, 0].astype(str).str.lower().str.contains('nan')]
 
-            # Muat turun data BKK
             df_bkk_full = pd.read_csv(SHEET_BKK_URL, header=None)
             insiden_semalam = df_bkk_full[df_bkk_full.iloc[:, 2].astype(str).str.contains(yesterday_str)]
             bkk_details = [{'kejadian': r[5], 'alamat': r[8], 'daerah': r[4]} for _, r in insiden_semalam.iterrows()]
@@ -639,7 +617,7 @@ if f1 and f2:
             bkk_table_final = bkk_raw[1:].reset_index(drop=True).rename(columns={'GOMBAK':'GBK','HULU LANGAT':'HL','HULU SELANGOR':'HS','KLANG':'KLG','KUALA LANGAT':'KL','KUALA SELANGOR':'KS','PETALING':'PTG','SABAK BERNAM':'SB','SEPANG':'SPG'})
 
             doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, (len(bkk_details)==0), bkk_details, df_yesterday_list)
-            st.success("✅ Laporan berjaya dijana!")
+            st.success("✅ Laporan BWKK berjaya dijana termasuk Rajah 1!")
             st.download_button("⬇️ Muat Turun Laporan", data=doc_out, file_name=f"Laporan_BWKK_{today}.docx")
         except Exception as e:
-            st.error(f"Ralat: {e}")
+            st.error(f"Ralat dikesan: {e}")
