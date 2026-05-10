@@ -361,10 +361,15 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     apply_font(h31.add_run(h31_text), 11, bold=False)
 
     add_table_title(doc, "Jadual 3", "Senarai Notifikasi Wabak Vektor")
+    
+    # Bina Jadual Vektor dengan lebar kolum spesifik
     t3 = doc.add_table(rows=len(vector_df) + 2, cols=7)
     t3.style = 'Table Grid'
-    t3.width = content_width 
-    t3.allow_autofit = False 
+    t3.autofit = False
+    t3.alignment = WD_TABLE_ALIGNMENT.CENTER
+
+    # Penetapan lebar kolum: Daerah (Besar), lain-lain (Kecil)
+    col_widths_v = [Inches(1.8), Inches(0.7), Inches(0.7), Inches(0.7), Inches(0.7), Inches(0.7), Inches(0.7)]
     
     h3_r1 = t3.rows[0].cells
     h3_r1[0].merge(t3.rows[1].cells[0]).text = "Daerah"
@@ -372,11 +377,12 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     h3_r1[3].merge(h3_r1[4]).text = "Malaria"
     h3_r1[5].merge(h3_r1[6]).text = "Chikungunya"
     
-    # Perbaikan Indentasi untuk Vektor Header
     for i in [0, 1, 3, 5]:
         cell = h3_r1[i]
         set_cell_background(cell, "BFDFFF")
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+        # Set lebar sel header
+        cell.width = col_widths_v[i] if i == 0 else col_widths_v[i] + col_widths_v[i+1]
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         if p.runs: apply_font(p.runs[0], 10, bold=True)
@@ -385,6 +391,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     h3_r2 = t3.rows[1].cells
     for i in range(1, 7):
         h3_r2[i].text = "Harian" if i % 2 != 0 else "Kum"
+        h3_r2[i].width = col_widths_v[i]
         set_cell_background(h3_r2[i], "BFDFFF")
         h3_r2[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         p = h3_r2[i].paragraphs[0]
@@ -395,7 +402,8 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         row_cells = t3.rows[i+2].cells
         for j in range(7):
             val = vector_df.iloc[i, j]
-            # Proper case untuk nama daerah kecuali JUMLAH
+            row_cells[j].width = col_widths_v[j]
+            
             if j == 0:
                 display_val = str(val).title() if str(val).upper() != "JUMLAH" else "JUMLAH"
             else:
@@ -403,11 +411,17 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
                 except: display_val = str(val)
             
             p = row_cells[j].paragraphs[0]
+            # Justify kolum Daerah, Center kolum data
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT if j == 0 else WD_ALIGN_PARAGRAPH.CENTER
+            p.paragraph_format.space_before = Pt(2)
+            p.paragraph_format.space_after = Pt(2)
+            
             run = p.add_run(display_val)
             
-            if i == len(vector_df)-1: set_cell_background(row_cells[j], "FFFF00") 
-            elif j == 0: set_cell_background(row_cells[j], "FCE4D6") 
+            if str(vector_df.iloc[i, 0]).upper() == "JUMLAH": 
+                set_cell_background(row_cells[j], "FFFF00") 
+            elif j == 0: 
+                set_cell_background(row_cells[j], "FCE4D6") 
             
             apply_font(run, 9, bold=True)
             row_cells[j].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
@@ -465,7 +479,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     apply_font(footer.add_run(f"*Sumber : Sistem e-notifikasi, Laporan Wabak KKM dimuat turun pada ({get_malay_date(today)} @ 10.00 am)"), 9, bold=False)
 
     doc.add_paragraph()
-    for label in ["Disediakan :", "Jawatan       :", "", "Disemak :", "Jawatan     :", "", "Disahkan :", "Jawatan     :"]:
+    for label in ["Disediakan :", "Jawatan        :", "", "Disemak :", "Jawatan     :", "", "Disahkan :", "Jawatan     :"]:
         if label == "":
             doc.add_paragraph().paragraph_format.space_after = Pt(24)
         else:
