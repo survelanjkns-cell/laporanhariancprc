@@ -109,7 +109,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     section.top_margin = section.bottom_margin = section.left_margin = section.right_margin = Cm(2.54)
     content_width = section.page_width - section.left_margin - section.right_margin
 
-    # 1. Logo (Pastikan fail logo.png.jpg wujud dalam direktori)
+    # 1. Logo
     logo_path = "logo.png.jpg"
     if os.path.exists(logo_path):
         p_logo = doc.add_paragraph()
@@ -313,7 +313,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
                 row[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
             
             row[0].text = str(idx)
-            # 1. WABAK
             p_wabak = row[1].paragraphs[0]
             p_wabak.alignment = WD_ALIGN_PARAGRAPH.CENTER
             run_name = p_wabak.add_run(str(item[0]))
@@ -323,19 +322,14 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             run_cat = p_wabak.add_run(kategori_display)
             apply_font(run_cat, 8, bold=False)
 
-            # 2. DAERAH (Proper Case)
             row[2].text = str(item[1]).title() 
-            
-            # 3. TEMPAT BERLAKU
             row[3].text = str(item[2]) 
 
-            # 4. BIL KES (AR) - Formatting logic updated
             n_kes = float(item[4]) if pd.notna(item[4]) else 0
             n_dedah = float(item[5]) if pd.notna(item[5]) else 0
             
             if n_dedah > 0:
                 calc_pct = (n_kes / n_dedah) * 100
-                # If zero after decimal point, use integer format, else use 2 decimal points
                 if calc_pct % 1 == 0:
                     pct_str = f"{int(calc_pct)}%"
                 else:
@@ -423,7 +417,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             if pd.isna(val) or str(val).lower() == "nan":
                 display_val = "-"
             elif j == 0:
-                # District list in vector table also to title case
                 display_val = str(val).title() if str(val).upper() != "JUMLAH" else "JUMLAH"
             else:
                 try: display_val = f"{int(float(val)):,}"
@@ -435,7 +428,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             p.paragraph_format.space_after = Pt(2)
             
             run = p.add_run(display_val)
-            
             if str(vector_df.iloc[i, 0]).upper() == "JUMLAH": 
                 set_cell_background(row_cells[j], "FFFF00") 
             elif j == 0: 
@@ -444,7 +436,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             apply_font(run, 9, bold=True)
             row_cells[j].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
 
-    # --- SECTION 4.0 (BKK) ---
+    # --- SECTION 4.0 (BKK) - UPDATED ---
     doc.add_page_break()
     p4_head = doc.add_paragraph()
     apply_font(p4_head.add_run("4.0 Ringkasan Laporan Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)"), 11, bold=True)
@@ -470,21 +462,39 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     h4_col_count = len(bkk_table_df.columns)
     for i, col in enumerate(bkk_table_df.columns):
         cell = t4.rows[0].cells[i]
+        
+        # Color Shading
         if i < h4_col_count-2: set_cell_background(cell, "BFDFFF")
         elif i == h4_col_count-2: set_cell_background(cell, "FFFF00")
         else: set_cell_background(cell, "C6E0B4")
+        
+        # --- ALIGN MIDDLE (Vertical & Horizontal) ---
+        cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        apply_font(p.add_run(str(col).replace(" ", "\n")), 8, bold=True)
+        
+        header_text = str(col).strip()
+        
+        # --- LOGIK HEADER UPDATED ---
+        if header_text.upper() == "INSIDEN/BENCANA":
+            header_text = "Insiden/Bencana" # Proper Case
+        elif "DIISYTIHAR" in header_text.upper():
+            header_text = "Diisytihar oleh CPRC KKM" # Nama Baru
+        # Daerah singkatan (GBK, HL, dll) dikekalkan Caps mengikut asalnya
+            
+        apply_font(p.add_run(header_text.replace(" ", "\n")), 8, bold=True)
     
     for r_idx, row_data in enumerate(bkk_table_df.values):
         cells = t4.rows[r_idx+1].cells
         is_last_row = (r_idx == len(bkk_table_df)-1)
         for c_idx, val in enumerate(row_data):
+            cells[c_idx].vertical_alignment = WD_ALIGN_VERTICAL.CENTER # Align Middle
             p = cells[c_idx].paragraphs[0]
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT if c_idx == 0 else WD_ALIGN_PARAGRAPH.CENTER
+            
             run = p.add_run(clean_val(val))
             apply_font(run, 8, bold=is_last_row or c_idx == 0)
+            
             if is_last_row: set_cell_background(cells[c_idx], "FFFF00")
             elif c_idx == 0: set_cell_background(cells[c_idx], "D9E9FF")
             elif c_idx == bkk_table_df.shape[1]-2: set_cell_background(cells[c_idx], "FFFFB3")
@@ -559,7 +569,7 @@ if f1 and f2:
                 wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'AKTIF': active_count, 'KUMULATIF': k})
             wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
-            # LOAD GSHEET
+            # GSHEET Loading
             raw_gs = pd.read_csv(GSHEET_URL, header=None)
             mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
             v_data = raw_gs.iloc[mask_v.idxmax() : mask_v.idxmax() + 11, 13:20]
