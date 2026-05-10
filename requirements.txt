@@ -2,5 +2,4 @@ streamlit
 pandas
 matplotlib
 python-docx
-pytz
-matplotlib
+pytzpip install matplotlib
