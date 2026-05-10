@@ -58,7 +58,7 @@ def set_cell_background(cell, hex_color):
     cell._tc.get_or_add_tcPr().append(shading_elm)
 
 def clean_val(val):
-    if pd.isna(val) or str(val).strip() == "" or str(val).strip() == "-":
+    if pd.isna(val) or str(val).strip() == "" or str(val).strip() == "-" or str(val).lower() == "nan":
         return "-"
     cleaned = re.sub(r'\s*\(.*?\)', '', str(val)).strip()
     return cleaned if cleaned != "" else "-"
@@ -109,7 +109,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     section.top_margin = section.bottom_margin = section.left_margin = section.right_margin = Cm(2.54)
     content_width = section.page_width - section.left_margin - section.right_margin
 
-    # 1. Logo (Opsional)
+    # 1. Logo
     logo_path = "logo.png.jpg"
     if os.path.exists(logo_path):
         p_logo = doc.add_paragraph()
@@ -347,38 +347,31 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     # --- SECTION 3.0 (VEKTOR) ---
     p3_head = doc.add_paragraph()
-    p3_head.paragraph_format.page_break_before = True # Mulakan di page baru
+    p3_head.paragraph_format.page_break_before = True 
     apply_font(p3_head.add_run("3.0 Ringkasan Laporan Wabak Vektor"), 11, bold=True)
     
     try: 
-        xx_v = int(float(vector_df.iloc[-1, 1]) + float(vector_df.iloc[-1, 3]) + float(vector_df.iloc[-1, 5]))
+        val_sum = float(vector_df.iloc[-1, 1]) + float(vector_df.iloc[-1, 3]) + float(vector_df.iloc[-1, 5])
+        xx_v = int(val_sum)
     except: 
         xx_v = 0
+    
+    # LOGIK BARU: Tukar 0 kepada "Tiada"
+    xx_v_display = "Tiada" if xx_v == 0 else str(xx_v)
         
     h31 = doc.add_paragraph()
     h31.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
-    h31_text = f"3.1 Jadual di bawah menunjukkan jumlah wabak vektor harian dan kumulatif di negeri Selangor. Sejumlah {xx_v} input notifikasi wabak vektor telah diterima pada {get_malay_date(yesterday)} dengan pecahan mengikut penyakit seperti dalam jadual 3."
+    h31_text = f"3.1 Jadual di bawah menunjukkan jumlah wabak vektor harian dan kumulatif di negeri Selangor. {xx_v_display} input notifikasi wabak vektor telah diterima pada {get_malay_date(yesterday)} dengan pecahan mengikut penyakit seperti dalam jadual 3."
     apply_font(h31.add_run(h31_text), 11, bold=False)
 
     add_table_title(doc, "Jadual 3", "Senarai Notifikasi Wabak Vektor")
     
-    # Bina Jadual Vektor dengan sizing yang lebih padat (Gambar 2nd)
     t3 = doc.add_table(rows=len(vector_df) + 2, cols=7)
     t3.style = 'Table Grid'
     t3.width = content_width 
-    t3.allow_autofit = False  # Matikan autofit untuk kawalan manual lebar kolum
+    t3.allow_autofit = False  
 
-    # Agihan lebar kolum dalam peratusan: Daerah(25%), Data(12.5% x 6)
-    # Total content_width Selangor biasanya ~6.5 inci
-    col_widths_v = [
-        content_width * 0.25, # Daerah
-        content_width * 0.125, # Denggi Harian
-        content_width * 0.125, # Denggi Kum
-        content_width * 0.125, # Malaria Harian
-        content_width * 0.125, # Malaria Kum
-        content_width * 0.125, # Chiku Harian
-        content_width * 0.125  # Chiku Kum
-    ]
+    col_widths_v = [content_width * 0.25, content_width * 0.125, content_width * 0.125, content_width * 0.125, content_width * 0.125, content_width * 0.125, content_width * 0.125]
     
     h3_r1 = t3.rows[0].cells
     h3_r1[0].merge(t3.rows[1].cells[0]).text = "Daerah"
@@ -390,13 +383,11 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         cell = h3_r1[i]
         set_cell_background(cell, "BFDFFF")
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-        # Set lebar untuk sel yang digabungkan
         if i == 0: cell.width = col_widths_v[0]
         else: cell.width = col_widths_v[i] + col_widths_v[i+1]
         
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        # Gunakan font 10 untuk header supaya tak terlalu besar
         if p.runs: apply_font(p.runs[0], 10, bold=True)
         else: apply_font(p.add_run(cell.text), 10, bold=True)
 
@@ -416,25 +407,25 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             val = vector_df.iloc[i, j]
             row_cells[j].width = col_widths_v[j]
             
-            if j == 0:
+            if pd.isna(val) or str(val).lower() == "nan":
+                display_val = "-"
+            elif j == 0:
                 display_val = str(val).title() if str(val).upper() != "JUMLAH" else "JUMLAH"
             else:
-                try: display_val = f"{int(float(val)):,}" # Tambah comma separator
+                try: display_val = f"{int(float(val)):,}"
                 except: display_val = str(val)
             
             p = row_cells[j].paragraphs[0]
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT if j == 0 else WD_ALIGN_PARAGRAPH.CENTER
-            # Kecilkan spacing dalam sel supaya jadual nampak "slim"
             p.paragraph_format.space_before = Pt(2)
             p.paragraph_format.space_after = Pt(2)
             
             run = p.add_run(display_val)
             
-            # Highlight Kuning untuk baris JUMLAH
             if str(vector_df.iloc[i, 0]).upper() == "JUMLAH": 
                 set_cell_background(row_cells[j], "FFFF00") 
             elif j == 0: 
-                set_cell_background(row_cells[j], "FCE4D6") # Warna oren cair untuk kolum daerah
+                set_cell_background(row_cells[j], "FCE4D6") 
             
             apply_font(run, 9, bold=True)
             row_cells[j].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
@@ -554,9 +545,14 @@ if f1 and f2:
                 wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'AKTIF': active_count, 'KUMULATIF': k})
             wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
+            # LOAD GSHEET
             raw_gs = pd.read_csv(GSHEET_URL, header=None)
             mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
-            v_data = raw_gs.iloc[mask_v.idxmax() : mask_v.idxmax() + 11, 13:20].dropna(how='all') # Ambil 11 baris (termasuk JUMLAH)
+            
+            # --- CLEAN GSHEET DATA ---
+            v_data = raw_gs.iloc[mask_v.idxmax() : mask_v.idxmax() + 11, 13:20]
+            v_data = v_data.dropna(how='all') 
+            v_data = v_data[~v_data.iloc[:, 0].astype(str).str.lower().str.contains('nan')] 
 
             df_bkk_full = pd.read_csv(SHEET_BKK_URL, header=None)
             insiden_semalam = df_bkk_full[df_bkk_full.iloc[:, 2].astype(str).str.contains(yesterday_str)]
