@@ -108,6 +108,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     section = doc.sections[0]
     section.top_margin = section.bottom_margin = section.left_margin = section.right_margin = Cm(2.54)
     content_width = section.page_width - section.left_margin - section.right_margin
+    total_width_cm = content_width.cm # Simpan nilai CM untuk elak ralat matematik
 
     # 1. Logo
     logo_path = "logo.png.jpg"
@@ -366,7 +367,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     t3.width = content_width 
     t3.allow_autofit = False 
     
-    # SIZING KOLUM JADUAL 3
+    # SIZING KOLUM JADUAL 3 (Nisbah)
     widths_t3 = [0.34, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11]
     
     h3_r1 = t3.rows[0].cells
@@ -378,9 +379,9 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     for i in [0, 1, 3, 5]:
         cell = h3_r1[i]
         if i == 0:
-            cell.width = Cm(content_width.cm * widths_t3[0])
+            cell.width = Cm(total_width_cm * widths_t3[0])
         else:
-            cell.width = Cm(content_width.cm * (widths_t3[i] + widths_t3[i+1]))
+            cell.width = Cm(total_width_cm * (widths_t3[i] + widths_t3[i+1]))
         set_cell_background(cell, "BFDFFF")
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         p = cell.paragraphs[0]
@@ -391,7 +392,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     h3_r2 = t3.rows[1].cells
     for i in range(1, 7):
         cell = h3_r2[i]
-        cell.width = Cm(content_width.cm * widths_t3[i])
+        cell.width = Cm(total_width_cm * widths_t3[i])
         cell.text = "Harian" if i % 2 != 0 else "Kum"
         set_cell_background(cell, "BFDFFF")
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
@@ -410,7 +411,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
                 except: display_val = str(val)
             
             cell = row_cells[j]
-            cell.width = Cm(content_width.cm * widths_t3[j])
+            cell.width = Cm(total_width_cm * widths_t3[j])
             p = cell.paragraphs[0]
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT if j == 0 else WD_ALIGN_PARAGRAPH.CENTER
             run = p.add_run(display_val)
