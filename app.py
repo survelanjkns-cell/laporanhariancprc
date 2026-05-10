@@ -109,7 +109,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     section.top_margin = section.bottom_margin = section.left_margin = section.right_margin = Cm(2.54)
     content_width = section.page_width - section.left_margin - section.right_margin
 
-    # 1. Logo (Pastikan fail logo.png.jpg wujud dalam direktori)
+    # 1. Logo
     logo_path = "logo.png.jpg"
     if os.path.exists(logo_path):
         p_logo = doc.add_paragraph()
@@ -329,13 +329,12 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             # 3. TEMPAT BERLAKU
             row[3].text = str(item[2]) 
 
-            # 4. BIL KES (AR) - Formatting logic updated
+            # 4. BIL KES (AR) - Percentage formatting
             n_kes = float(item[4]) if pd.notna(item[4]) else 0
             n_dedah = float(item[5]) if pd.notna(item[5]) else 0
             
             if n_dedah > 0:
                 calc_pct = (n_kes / n_dedah) * 100
-                # If zero after decimal point, use integer format, else use 2 decimal points
                 if calc_pct % 1 == 0:
                     pct_str = f"{int(calc_pct)}%"
                 else:
@@ -423,7 +422,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             if pd.isna(val) or str(val).lower() == "nan":
                 display_val = "-"
             elif j == 0:
-                # District list in vector table also to title case
                 display_val = str(val).title() if str(val).upper() != "JUMLAH" else "JUMLAH"
             else:
                 try: display_val = f"{int(float(val)):,}"
@@ -470,12 +468,22 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     h4_col_count = len(bkk_table_df.columns)
     for i, col in enumerate(bkk_table_df.columns):
         cell = t4.rows[0].cells[i]
-        if i < h4_col_count-2: set_cell_background(cell, "BFDFFF")
-        elif i == h4_col_count-2: set_cell_background(cell, "FFFF00")
-        else: set_cell_background(cell, "C6E0B4")
+        
+        # PROPER CASE + CPRC KKM CAPS
+        col_name = str(col)
+        if col_name.upper() == "CPRC KKM":
+            display_name = "CPRC KKM"
+        elif col_name.upper() == "INSIDEN/BENCANA":
+            display_name = "Insiden/Bencana"
+        else:
+            display_name = col_name.title()
+            
+        cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER # MIDDLE ALIGN
+        set_cell_background(cell, "BFDFFF" if i < h4_col_count-2 else ("FFFF00" if i == h4_col_count-2 else "C6E0B4"))
+        
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        apply_font(p.add_run(str(col).replace(" ", "\n")), 8, bold=True)
+        apply_font(p.add_run(display_name.replace(" ", "\n")), 8, bold=True)
     
     for r_idx, row_data in enumerate(bkk_table_df.values):
         cells = t4.rows[r_idx+1].cells
@@ -562,6 +570,8 @@ if f1 and f2:
             # LOAD GSHEET
             raw_gs = pd.read_csv(GSHEET_URL, header=None)
             mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
+            
+            # CLEAN GSHEET DATA
             v_data = raw_gs.iloc[mask_v.idxmax() : mask_v.idxmax() + 11, 13:20]
             v_data = v_data.dropna(how='all') 
             v_data = v_data[~v_data.iloc[:, 0].astype(str).str.lower().str.contains('nan')] 
