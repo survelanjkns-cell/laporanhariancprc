@@ -108,7 +108,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     section = doc.sections[0]
     section.top_margin = section.bottom_margin = section.left_margin = section.right_margin = Cm(2.54)
     content_width = section.page_width - section.left_margin - section.right_margin
-    total_width_cm = content_width.cm # Simpan nilai CM untuk elak ralat matematik
 
     # 1. Logo
     logo_path = "logo.png.jpg"
@@ -367,21 +366,15 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     t3.width = content_width 
     t3.allow_autofit = False 
     
-    # SIZING KOLUM JADUAL 3 (Nisbah)
-    widths_t3 = [0.34, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11]
-    
     h3_r1 = t3.rows[0].cells
     h3_r1[0].merge(t3.rows[1].cells[0]).text = "Daerah"
     h3_r1[1].merge(h3_r1[2]).text = "Denggi"
     h3_r1[3].merge(h3_r1[4]).text = "Malaria"
     h3_r1[5].merge(h3_r1[6]).text = "Chikungunya"
     
+    # Perbaikan Indentasi untuk Vektor Header
     for i in [0, 1, 3, 5]:
         cell = h3_r1[i]
-        if i == 0:
-            cell.width = Cm(total_width_cm * widths_t3[0])
-        else:
-            cell.width = Cm(total_width_cm * (widths_t3[i] + widths_t3[i+1]))
         set_cell_background(cell, "BFDFFF")
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         p = cell.paragraphs[0]
@@ -391,12 +384,10 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     h3_r2 = t3.rows[1].cells
     for i in range(1, 7):
-        cell = h3_r2[i]
-        cell.width = Cm(total_width_cm * widths_t3[i])
-        cell.text = "Harian" if i % 2 != 0 else "Kum"
-        set_cell_background(cell, "BFDFFF")
-        cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-        p = cell.paragraphs[0]
+        h3_r2[i].text = "Harian" if i % 2 != 0 else "Kum"
+        set_cell_background(h3_r2[i], "BFDFFF")
+        h3_r2[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+        p = h3_r2[i].paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         apply_font(p.runs[0], 9, bold=True)
 
@@ -404,23 +395,22 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         row_cells = t3.rows[i+2].cells
         for j in range(7):
             val = vector_df.iloc[i, j]
+            # Proper case untuk nama daerah kecuali JUMLAH
             if j == 0:
                 display_val = str(val).title() if str(val).upper() != "JUMLAH" else "JUMLAH"
             else:
                 try: display_val = str(int(float(val)))
                 except: display_val = str(val)
             
-            cell = row_cells[j]
-            cell.width = Cm(total_width_cm * widths_t3[j])
-            p = cell.paragraphs[0]
+            p = row_cells[j].paragraphs[0]
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT if j == 0 else WD_ALIGN_PARAGRAPH.CENTER
             run = p.add_run(display_val)
             
-            if i == len(vector_df)-1: set_cell_background(cell, "FFFF00") 
-            elif j == 0: set_cell_background(cell, "FCE4D6") 
+            if i == len(vector_df)-1: set_cell_background(row_cells[j], "FFFF00") 
+            elif j == 0: set_cell_background(row_cells[j], "FCE4D6") 
             
             apply_font(run, 9, bold=True)
-            cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+            row_cells[j].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
 
     # --- SECTION 4.0 (BKK) ---
     doc.add_page_break()
