@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import plotly.graph_objects as go  # Added for the graph
+import plotly.graph_objects as go
 from datetime import datetime, date, timedelta
 import pytz
 from docx import Document
@@ -28,9 +28,7 @@ AVG_HARIAN_FIGURES = {
     "Gonorrhoea": 2, "Pertussis": 2, "Malaria": 1, "Mers-Cov": 1
 }
 
-# CSV Published link for the Graph Sheet
 SHEET_GRAPH_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTDprYai1uaP1L-JP6kuHRZX18AmDHX0ROEzRE37DaCHMo0cNWUvRa8R-65RZAK7XFWI6pb_-X-jF24/pub?gid=1525373641&single=true&output=csv"
-
 SHEET_ID = "1bjyNcntm-I6nRaIVkVdJqJRAzn5r2tYFfjUAN0emv9w"
 GID = "0"
 GSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
@@ -102,59 +100,37 @@ def add_pkd_note(doc):
     apply_font(run, 7, bold=False)
     p.paragraph_format.space_after = Pt(12)
 
-# --- GRAPH HELPER ---
-def display_dengue_trend():
+# --- NEW: GRAPH IMAGE GENERATOR ---
+def get_graph_image():
     try:
-        # Load published CSV, skip the title row "Negeri Selangor"
         df_graph = pd.read_csv(SHEET_GRAPH_URL, skiprows=1)
-        
-        # Set first column (TAHUN / ME) as index
         df_graph = df_graph.set_index(df_graph.columns[0])
-        
-        # Transpose so ME weeks become rows/index
         df_plot = df_graph.transpose()
         
         fig = go.Figure()
-
-        # Add 2025 (Blue)
         if '2025' in df_plot.columns:
-            fig.add_trace(go.Scatter(
-                x=df_plot.index, y=df_plot['2025'],
-                mode='lines', name='2025',
-                line=dict(color='#4285F4', width=3)
-            ))
-
-        # Add 2026 (Red)
+            fig.add_trace(go.Scatter(x=df_plot.index, y=df_plot['2025'], mode='lines', name='2025', line=dict(color='#4285F4', width=2)))
         if '2026' in df_plot.columns:
-            fig.add_trace(go.Scatter(
-                x=df_plot.index, y=df_plot['2026'],
-                mode='lines', name='2026',
-                line=dict(color='#EA4335', width=4)
-            ))
-
-        # Add Moving Median (Yellow)
+            fig.add_trace(go.Scatter(x=df_plot.index, y=df_plot['2026'], mode='lines', name='2026', line=dict(color='#EA4335', width=3)))
+        
         median_col = [col for col in df_plot.columns if 'Moving median' in str(col)]
         if median_col:
-            fig.add_trace(go.Scatter(
-                x=df_plot.index, y=df_plot[median_col[0]],
-                mode='lines', name='Moving Median (4 thn)',
-                line=dict(color='#FBBC04', width=2, dash='solid')
-            ))
+            fig.add_trace(go.Scatter(x=df_plot.index, y=df_plot[median_col[0]], mode='lines', name='Moving Median (4 thn)', line=dict(color='#FBBC04', width=2)))
 
         fig.update_layout(
-            title="CARTA KES MINGGUAN DENGGI JJKN SELANGOR (2025-2026)",
-            xaxis_title="Minggu Epidemiologi (ME)",
-            yaxis_title="Bilangan Kes",
-            hovermode="x unified",
             plot_bgcolor="white",
-            legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5),
-            height=500
+            legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
+            margin=dict(l=20, r=20, t=20, b=20),
+            xaxis=dict(showgrid=False),
+            yaxis=dict(showgrid=True, gridcolor='lightgrey')
         )
-        fig.update_yaxes(showgrid=True, gridcolor='lightgrey')
         
-        st.plotly_chart(fig, use_container_width=True)
+        # Save plot to bytes
+        img_bytes = fig.to_image(format="png", width=1000, height=500, scale=2)
+        return io.BytesIO(img_bytes)
     except Exception as e:
-        st.error(f"Gagal menjana graf: {e}")
+        st.error(f"Error generating graph image: {e}")
+        return None
 
 # --- DOCX GENERATOR ---
 def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty, bkk_details, df_yesterday_list):
@@ -305,10 +281,8 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     t2 = doc.add_table(rows=len(wabak_df) + 2, cols=4)
     t2.style = 'Table Grid'
     t2.alignment = WD_TABLE_ALIGNMENT.CENTER
-    t2.autofit = False  
     
     col_widths_t2 = [content_width * 0.40, content_width * 0.20, content_width * 0.20, content_width * 0.20]
-
     for i, h in enumerate(["Penyakit", "Harian", "Aktif", "Kumulatif"]):
         cell = t2.cell(0, i)
         cell.width = col_widths_t2[i]
@@ -318,9 +292,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     for i, (penyakit, row_data) in enumerate(wabak_df.iterrows()):
         cells = t2.rows[i+1].cells
-        for idx_w in range(4):
-            cells[idx_w].width = col_widths_t2[idx_w]
-            
         apply_font(cells[0].paragraphs[0].add_run(str(penyakit)), 8, bold=True)
         set_cell_background(cells[0], "D9E9FF")
         for idx, col_key in enumerate(['HARIAN', 'AKTIF', 'KUMULATIF'], start=1):
@@ -331,82 +302,9 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     f2_cells = t2.rows[-1].cells
     footer_vals = ["Jumlah", str(int(wabak_df['HARIAN'].sum())), str(int(wabak_df['AKTIF'].sum())), str(int(wabak_df['KUMULATIF'].sum()))]
     for i, txt in enumerate(footer_vals):
-        f2_cells[i].width = col_widths_t2[i]
         apply_font(f2_cells[i].paragraphs[0].add_run(txt), 8, bold=True)
         set_cell_background(f2_cells[i], "FFFF00")
         f2_cells[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-    # --- JADUAL 2.1 ---
-    doc.add_paragraph()
-    tarikh_semalam_str = get_malay_date(yesterday)
-    add_table_title(doc, "Jadual 2.1", f"Senarai Wabak Yang Dilaporkan pada {tarikh_semalam_str}")
-    
-    t21 = doc.add_table(rows=1, cols=5)
-    t21.style = 'Table Grid'
-    t21.width = content_width 
-    t21.allow_autofit = False
-    set_repeat_table_header(t21.rows[0])
-
-    widths_21 = [content_width * 0.05, content_width * 0.2, content_width * 0.2, content_width * 0.4, content_width * 0.15]
-    h21_headers = ["Bil", "Wabak", "Daerah", "Tempat Berlaku", "Bil Kes (AR)"]
-    for i, txt in enumerate(h21_headers):
-        cell = t21.cell(0, i)
-        cell.width = widths_21[i]
-        set_cell_background(cell, "BFDFFF")
-        cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-        p = cell.paragraphs[0]
-        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        apply_font(p.add_run(txt), 10, bold=True)
-
-    if not df_yesterday_list:
-        row = t21.add_row().cells
-        row[0].merge(row[4])
-        row[0].text = "Tiada wabak dilaporkan pada tarikh ini."
-        row[0].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-    else:
-        for idx, item in enumerate(df_yesterday_list, start=1):
-            row = t21.add_row().cells
-            for i in range(5): 
-                row[i].width = widths_21[i]
-                row[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-            
-            row[0].text = str(idx)
-            p_wabak = row[1].paragraphs[0]
-            p_wabak.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            run_name = p_wabak.add_run(str(item[0]))
-            apply_font(run_name, 8, bold=False)
-            p_wabak.add_run("\n")
-            kategori_display = "(Household)" if str(item[3]).strip() == "Rumah Persendirian" else "(Institusi)"
-            run_cat = p_wabak.add_run(kategori_display)
-            apply_font(run_cat, 8, bold=False)
-
-            row[2].text = str(item[1]).title() 
-            row[3].text = str(item[2]) 
-
-            n_kes = float(item[4]) if pd.notna(item[4]) else 0
-            n_dedah = float(item[5]) if pd.notna(item[5]) else 0
-            
-            if n_dedah > 0:
-                calc_pct = (n_kes / n_dedah) * 100
-                pct_str = f"{int(calc_pct)}%" if calc_pct % 1 == 0 else f"{calc_pct:.2f}%"
-            else:
-                pct_str = "0%"
-
-            p_ar = row[4].paragraphs[0]
-            p_ar.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            run_ar_main = p_ar.add_run(f"{int(n_kes)}/{int(n_dedah)}")
-            apply_font(run_ar_main, 8, bold=False)
-            p_ar.add_run("\n")
-            run_ar_pct = p_ar.add_run(f"({pct_str})")
-            apply_font(run_ar_pct, 8, bold=False)
-
-            for c in range(5):
-                p = row[c].paragraphs[0]
-                p.paragraph_format.space_before = Pt(6)
-                p.paragraph_format.space_after = Pt(6)
-                p.alignment = WD_ALIGN_PARAGRAPH.LEFT if c == 3 else WD_ALIGN_PARAGRAPH.CENTER
-                if c not in [1, 4]:
-                    if p.runs: apply_font(p.runs[0], 8, bold=False)
 
     # --- SECTION 3.0 (VEKTOR) ---
     p3_head = doc.add_paragraph()
@@ -428,11 +326,8 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     add_table_title(doc, "Jadual 3", "Senarai Notifikasi Wabak Vektor")
     t3 = doc.add_table(rows=len(vector_df) + 2, cols=7)
     t3.style = 'Table Grid'
-    t3.width = content_width 
-    t3.allow_autofit = False  
-
-    col_widths_v = [content_width * 0.25, content_width * 0.125, content_width * 0.125, content_width * 0.125, content_width * 0.125, content_width * 0.125, content_width * 0.125]
     
+    col_widths_v = [content_width * 0.25, content_width * 0.125, content_width * 0.125, content_width * 0.125, content_width * 0.125, content_width * 0.125, content_width * 0.125]
     h3_r1 = t3.rows[0].cells
     h3_r1[0].merge(t3.rows[1].cells[0]).text = "Daerah"
     h3_r1[1].merge(h3_r1[2]).text = "Denggi"
@@ -443,19 +338,14 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         cell = h3_r1[i]
         set_cell_background(cell, "BFDFFF")
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-        if i == 0: cell.width = col_widths_v[0]
-        else: cell.width = col_widths_v[i] + col_widths_v[i+1]
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        if p.runs: apply_font(p.runs[0], 10, bold=True)
-        else: apply_font(p.add_run(cell.text), 10, bold=True)
+        apply_font(p.add_run(cell.text), 10, bold=True)
 
     h3_r2 = t3.rows[1].cells
     for i in range(1, 7):
         h3_r2[i].text = "Harian" if i % 2 != 0 else "Kum"
-        h3_r2[i].width = col_widths_v[i]
         set_cell_background(h3_r2[i], "BFDFFF")
-        h3_r2[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         p = h3_r2[i].paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         apply_font(p.runs[0], 9, bold=True)
@@ -464,7 +354,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         row_cells = t3.rows[i+2].cells
         for j in range(7):
             val = vector_df.iloc[i, j]
-            row_cells[j].width = col_widths_v[j]
             if pd.isna(val) or str(val).lower() == "nan": display_val = "-"
             elif j == 0: display_val = str(val).title() if str(val).upper() != "JUMLAH" else "JUMLAH"
             else:
@@ -473,13 +362,25 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             
             p = row_cells[j].paragraphs[0]
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT if j == 0 else WD_ALIGN_PARAGRAPH.CENTER
-            p.paragraph_format.space_before = Pt(2)
-            p.paragraph_format.space_after = Pt(2)
             run = p.add_run(display_val)
             if str(vector_df.iloc[i, 0]).upper() == "JUMLAH": set_cell_background(row_cells[j], "FFFF00") 
             elif j == 0: set_cell_background(row_cells[j], "FCE4D6") 
             apply_font(run, 9, bold=True)
-            row_cells[j].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+
+    # --- NEW: INSERT GRAPH HERE ---
+    doc.add_paragraph() # Space
+    graph_img = get_graph_image()
+    if graph_img:
+        p_graph = doc.add_paragraph()
+        p_graph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run_graph = p_graph.add_run()
+        run_graph.add_picture(graph_img, width=Inches(6.0))
+        
+        # Caption
+        p_caption = doc.add_paragraph()
+        p_caption.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run_caption = p_caption.add_run("Rajah 1 : Carta Kes Mingguan Denggi Didaftarkan Bagi Tahun 2025-2026 Negeri Selangor")
+        apply_font(run_caption, 9, bold=True)
 
     # --- SECTION 4.0 (BKK) ---
     doc.add_page_break()
@@ -502,109 +403,35 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     add_table_title(doc, "Jadual 4", "Senarai Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)")
     t4 = doc.add_table(rows=len(bkk_table_df) + 1, cols=len(bkk_table_df.columns))
     t4.style = 'Table Grid'
-    t4.width = content_width 
     
-    h4_col_count = len(bkk_table_df.columns)
     for i, col in enumerate(bkk_table_df.columns):
         cell = t4.rows[0].cells[i]
-        if i < h4_col_count-2: set_cell_background(cell, "BFDFFF")
-        elif i == h4_col_count-2: set_cell_background(cell, "FFFF00")
-        else: set_cell_background(cell, "C6E0B4")
-        cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+        set_cell_background(cell, "BFDFFF")
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        header_text = str(col).strip()
-        if header_text.upper() == "INSIDEN/BENCANA": header_text = "Insiden/Bencana"
-        elif "DIISYTIHAR" in header_text.upper(): header_text = "Diisytihar oleh CPRC KKM"
-        apply_font(p.add_run(header_text.replace(" ", "\n")), 8, bold=True)
+        apply_font(p.add_run(str(col).strip()), 8, bold=True)
     
     for r_idx, row_data in enumerate(bkk_table_df.values):
         cells = t4.rows[r_idx+1].cells
         is_last_row = (r_idx == len(bkk_table_df)-1)
         for c_idx, val in enumerate(row_data):
-            cells[c_idx].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
             p = cells[c_idx].paragraphs[0]
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT if c_idx == 0 else WD_ALIGN_PARAGRAPH.CENTER
             run = p.add_run(clean_val(val))
             apply_font(run, 8, bold=is_last_row or c_idx == 0)
             if is_last_row: set_cell_background(cells[c_idx], "FFFF00")
-            elif c_idx == 0: set_cell_background(cells[c_idx], "D9E9FF")
-            elif c_idx == bkk_table_df.shape[1]-2: set_cell_background(cells[c_idx], "FFFFB3")
-            elif c_idx == bkk_table_df.shape[1]-1: set_cell_background(cells[c_idx], "E2EFDA")
 
     doc.add_paragraph()
     add_pkd_note(doc)
-    footer = doc.add_paragraph()
-    apply_font(footer.add_run(f"*Sumber : Sistem e-notifikasi, Laporan Wabak KKM dimuat turun pada ({get_malay_date(today)} @ 10.00 am)"), 9, bold=False)
-
-    # --- BAHAGIAN TANDATANGAN (TANPA GRID) ---
-    doc.add_paragraph() 
     
-    sig_table = doc.add_table(rows=8, cols=3)
-    sig_table.alignment = WD_TABLE_ALIGNMENT.LEFT
-    sig_table.columns[0].width = Cm(2.5)
-    sig_table.columns[1].width = Cm(0.5)
-    sig_table.columns[2].width = Cm(10)
-
-    def fill_sig_row(row_idx, label):
-        row = sig_table.rows[row_idx].cells
-        p_label = row[0].paragraphs[0]
-        apply_font(p_label.add_run(label), 11, bold=False)
-        p_colon = row[1].paragraphs[0]
-        apply_font(p_colon.add_run(":"), 11, bold=False)
-
-    fill_sig_row(0, "Disediakan")
-    fill_sig_row(1, "Jawatan")
-    sig_table.rows[2].height = Pt(30)
-    fill_sig_row(3, "Disemak")
-    fill_sig_row(4, "Jawatan")
-    sig_table.rows[5].height = Pt(30)
-    fill_sig_row(6, "Disahkan")
-    fill_sig_row(7, "Jawatan")
-
-    # --- FIX: BUANG BORDER JADUAL TANDATANGAN ---
-    tbl = sig_table._tbl
-    tblPr = tbl.tblPr
-    if tblPr is None:
-        tblPr = parse_xml(r'<w:tblPr %s/>' % nsdecls('w'))
-        tbl.insert(0, tblPr)
-
-    tblBorders = parse_xml(r'<w:tblBorders %s>'
-                           r'<w:top w:val="none"/>'
-                           r'<w:left w:val="none"/>'
-                           r'<w:bottom w:val="none"/>'
-                           r'<w:right w:val="none"/>'
-                           r'<w:insideH w:val="none"/>'
-                           r'<w:insideV w:val="none"/>'
-                           r'</w:tblBorders>' % nsdecls('w'))
-    tblPr.append(tblBorders)
-
-    for row in sig_table.rows:
-        for cell in row.cells:
-            tc = cell._tc
-            tcPr = tc.get_or_add_tcPr()
-            tcBorders = parse_xml(r'<w:tcBorders %s>'
-                                  r'<w:top w:val="none"/>'
-                                  r'<w:left w:val="none"/>'
-                                  r'<w:bottom w:val="none"/>'
-                                  r'<w:right w:val="none"/>'
-                                  r'</w:tcBorders>' % nsdecls('w'))
-            tcPr.append(tcBorders)
-
     target = io.BytesIO()
     doc.save(target)
     target.seek(0)
     return target
 
 # --- STREAMLIT UI ---
-st.set_page_config(page_title="BWKK Report Generator", layout="wide")
-st.title("📊 BWKK Report Generator & Dashboard")
-
-# NEW: Dashboard Chart Section
-st.subheader("📈 Trend Kes Mingguan Denggi (Selangor)")
-display_dengue_trend()
-
-st.divider()
+st.set_page_config(page_title="BWKK Report Generator", layout="centered")
+st.title("📑 BWKK Report Generator")
 
 f1 = st.file_uploader("📂 Muat Naik Excel Notifikasi Harian", type=["xlsx", "xls"])
 f2 = st.file_uploader("📂 Muat Naik Excel Linelisting Wabak", type=["xlsx", "xls"])
