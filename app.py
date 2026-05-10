@@ -11,6 +11,7 @@ from docx.oxml.ns import nsdecls
 import io
 import os
 import re
+import matplotlib.pyplot as plt
 
 # --- KONSTAN & MAPPING DATA ---
 TEMPLATE_PKDS = [
@@ -28,8 +29,10 @@ AVG_HARIAN_FIGURES = {
 }
 
 SHEET_ID = "1bjyNcntm-I6nRaIVkVdJqJRAzn5r2tYFfjUAN0emv9w"
-GID = "0"
-GSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
+# GID untuk "GRAF TREND KES MINGGUAN" adalah 757820121 (berdasarkan pautan dikongsi)
+GID_GRAF = "757820121"
+GSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid=0"
+GSHEET_GRAF_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID_GRAF}"
 SHEET_BKK_URL = "https://docs.google.com/spreadsheets/d/1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c/export?format=csv&gid=1342717767"
 
 # --- HELPERS ---
@@ -99,7 +102,7 @@ def add_pkd_note(doc):
     p.paragraph_format.space_after = Pt(12)
 
 # --- DOCX GENERATOR ---
-def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty, bkk_details, df_yesterday_list):
+def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty, bkk_details, df_yesterday_list, chart_img):
     doc = Document()
     now_msia = get_msia_time()
     today = now_msia.date()
@@ -423,6 +426,16 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             apply_font(run, 9, bold=True)
             row_cells[j].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
 
+    # --- ADD CHART RAJAH 1 AFTER JADUAL 3 ---
+    if chart_img:
+        doc.add_paragraph()
+        add_table_title(doc, "Rajah 1", "Carta Kes Mingguan Denggi Didaftar Bagi Tahun 2025 - 2026 Negeri Selangor")
+        p_chart = doc.add_paragraph()
+        p_chart.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run_chart = p_chart.add_run()
+        run_chart.add_picture(chart_img, width=Inches(6.0))
+        doc.add_paragraph()
+
     # --- SECTION 4.0 (BKK) ---
     doc.add_page_break()
     p4_head = doc.add_paragraph()
@@ -538,6 +551,45 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     target.seek(0)
     return target
 
+# --- GSHEET CHART GENERATOR ---
+def fetch_and_generate_chart():
+    try:
+        # Load helaian spesifik untuk Graf
+        df_graf = pd.read_csv(GSHEET_GRAF_URL, header=None)
+        
+        # Ekstrak baris berdasarkan koordinat manual (Indeks CSV 0-based)
+        # b2:bb2 -> Baris 1, Kolum 1:53
+        # b6:bb6 -> Baris 5, Kolum 1:53
+        # b7:bb7 -> Baris 6, Kolum 1:53
+        # b8:bb8 -> Baris 7, Kolum 1:53
+        
+        weeks = df_graf.iloc[1, 1:53].tolist() # x-axis
+        y_2025 = pd.to_numeric(df_graf.iloc[5, 1:53], errors='coerce').tolist()
+        y_2026 = pd.to_numeric(df_graf.iloc[6, 1:53], errors='coerce').tolist()
+        y_median = pd.to_numeric(df_graf.iloc[7, 1:53], errors='coerce').tolist()
+
+        plt.figure(figsize=(12, 6))
+        plt.plot(weeks, y_median, label='Moving Median 4 thn (2022-2025)', color='green', linestyle='--', linewidth=1.5)
+        plt.plot(weeks, y_2025, label='2025', color='blue', marker='o', markersize=4, linewidth=2)
+        plt.plot(weeks, y_2026, label='2026', color='red', marker='s', markersize=4, linewidth=2)
+        
+        plt.title('Carta Kes Mingguan Denggi Didaftar Bagi Tahun 2025 - 2026 Negeri Selangor', fontsize=12, fontweight='bold')
+        plt.xlabel('Minggu Epidemiologi', fontsize=10)
+        plt.ylabel('Bilangan Kes', fontsize=10)
+        plt.legend()
+        plt.grid(True, linestyle=':', alpha=0.6)
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+
+        img_buf = io.BytesIO()
+        plt.savefig(img_buf, format='png', dpi=300)
+        plt.close()
+        img_buf.seek(0)
+        return img_buf
+    except Exception as e:
+        print(f"Error generating chart: {e}")
+        return None
+
 # --- STREAMLIT UI ---
 st.set_page_config(page_title="BWKK Report Generator", layout="centered")
 st.title("📄 BWKK Report Generator")
@@ -589,12 +641,14 @@ if f1 and f2:
                 wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'AKTIF': active_count, 'KUMULATIF': k})
             wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
+            # GSHEET Data Harian
             raw_gs = pd.read_csv(GSHEET_URL, header=None)
             mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
             v_data = raw_gs.iloc[mask_v.idxmax() : mask_v.idxmax() + 11, 13:20]
             v_data = v_data.dropna(how='all')
             v_data = v_data[~v_data.iloc[:, 0].astype(str).str.lower().str.contains('nan')]
 
+            # BKK Data
             df_bkk_full = pd.read_csv(SHEET_BKK_URL, header=None)
             insiden_semalam = df_bkk_full[df_bkk_full.iloc[:, 2].astype(str).str.contains(yesterday_str)]
             bkk_details = [{'kejadian': r[5], 'alamat': r[8], 'daerah': r[4]} for _, r in insiden_semalam.iterrows()]
@@ -602,7 +656,12 @@ if f1 and f2:
             bkk_raw.columns = bkk_raw.iloc[0]
             bkk_table_final = bkk_raw[1:].reset_index(drop=True).rename(columns={'GOMBAK':'GBK','HULU LANGAT':'HL','HULU SELANGOR':'HS','KLANG':'KLG','KUALA LANGAT':'KL','KUALA SELANGOR':'KS','PETALING':'PTG','SABAK BERNAM':'SB','SEPANG':'SPG'})
 
-            doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, (len(bkk_details)==0), bkk_details, df_yesterday_list)
+            # Jana Carta
+            chart_img = fetch_and_generate_chart()
+
+            # Jana Dokumen
+            doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, (len(bkk_details)==0), bkk_details, df_yesterday_list, chart_img)
+            
             st.success("✅ Laporan berjaya dijana!")
             st.download_button("⬇️ Muat Turun Laporan", data=doc_out, file_name=f"Laporan_BWKK_{today}.docx")
         except Exception as e:
