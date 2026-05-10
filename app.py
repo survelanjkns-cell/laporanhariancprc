@@ -266,7 +266,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     
     col_widths_t2 = [content_width * 0.40, content_width * 0.20, content_width * 0.20, content_width * 0.20]
 
-    for i, h in enumerate(["PENYAKIT", "HARIAN", "AKTIF", "KUMULATIF"]):
+    for i, h in enumerate(["Penyakit", "Harian", "Aktif", "Kumulatif"]):
         cell = t2.cell(0, i)
         cell.width = col_widths_t2[i]
         apply_font(cell.paragraphs[0].add_run(h), 8, bold=True)
@@ -286,7 +286,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             cells[idx].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     f2_cells = t2.rows[-1].cells
-    footer_vals = ["JUMLAH", str(int(wabak_df['HARIAN'].sum())), str(int(wabak_df['AKTIF'].sum())), str(int(wabak_df['KUMULATIF'].sum()))]
+    footer_vals = ["Jumlah", str(int(wabak_df['HARIAN'].sum())), str(int(wabak_df['AKTIF'].sum())), str(int(wabak_df['KUMULATIF'].sum()))]
     for i, txt in enumerate(footer_vals):
         f2_cells[i].width = col_widths_t2[i]
         apply_font(f2_cells[i].paragraphs[0].add_run(txt), 8, bold=True)
@@ -305,7 +305,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     set_repeat_table_header(t21.rows[0])
 
     widths_21 = [content_width * 0.05, content_width * 0.2, content_width * 0.2, content_width * 0.4, content_width * 0.15]
-    h21_headers = ["BIL", "WABAK", "DAERAH", "TEMPAT BERLAKU", "BIL KES (AR)"]
+    h21_headers = ["Bil", "Wabak", "Daerah", "Tempat Berlaku", "Bil Kes (AR)"]
     for i, txt in enumerate(h21_headers):
         cell = t21.cell(0, i)
         cell.width = widths_21[i]
@@ -389,10 +389,10 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     col_widths_t3 = [content_width * 0.3, content_width * 0.11, content_width * 0.11, content_width * 0.11, content_width * 0.11, content_width * 0.11, content_width * 0.15]
 
     h3_r1 = t3.rows[0].cells
-    h3_r1[0].merge(t3.rows[1].cells[0]).text = "DAERAH"
-    h3_r1[1].merge(h3_r1[2]).text = "DENGGI"
-    h3_r1[3].merge(h3_r1[4]).text = "MALARIA"
-    h3_r1[5].merge(h3_r1[6]).text = "CHIKUNGUNYA"
+    h3_r1[0].merge(t3.rows[1].cells[0]).text = "Daerah"
+    h3_r1[1].merge(h3_r1[2]).text = "Denggi"
+    h3_r1[3].merge(h3_r1[4]).text = "Malaria"
+    h3_r1[5].merge(h3_r1[6]).text = "Chikungunya"
     
     for i in [0, 1, 3, 5]:
         cell = h3_r1[i]
@@ -404,7 +404,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     h3_r2 = t3.rows[1].cells
     for i in range(1, 7):
-        h3_r2[i].text = "HARIAN" if i % 2 != 0 else "KUM"
+        h3_r2[i].text = "Harian" if i % 2 != 0 else "Kum"
         set_cell_background(h3_r2[i], "BFDFFF")
         p = h3_r2[i].paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
