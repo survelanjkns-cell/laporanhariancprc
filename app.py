@@ -175,7 +175,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         h_cells[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
     
     # Header PENYAKIT (Kolom 1)
-    apply_font(h_cells[0].paragraphs[0].add_run("PENYAKIT"), 8, bold=True)
+    apply_font(h_cells[0].paragraphs[0].add_run("Penyakit"), 8, bold=True)
     set_cell_background(h_cells[0], "BFDFFF")
     
     # Header PKD & Lain-lain (Center)
