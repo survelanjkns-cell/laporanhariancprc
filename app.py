@@ -33,7 +33,6 @@ GID = "0"
 GSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
 SHEET_BKK_URL = "https://docs.google.com/spreadsheets/d/1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c/export?format=csv&gid=1342717767"
 
-# URL Imej Graf
 CHART_IMAGE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTDprYai1uaP1L-JP6kuHRZX18AmDHX0ROEzRE37DaCHMo0cNWUvRa8R-65RZAK7XFWI6pb_-X-jF24/pubchart?oid=1681812411&format=image"
 
 # --- HELPERS ---
@@ -113,7 +112,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     section.top_margin = section.bottom_margin = section.left_margin = section.right_margin = Cm(2.54)
     content_width = section.page_width - section.left_margin - section.right_margin
 
-    # 1. Logo
     logo_path = "logo.png.jpg"
     if os.path.exists(logo_path):
         p_logo = doc.add_paragraph()
@@ -121,7 +119,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         run_logo = p_logo.add_run()
         run_logo.add_picture(logo_path, width=Inches(1.8))
 
-    # 2. Tajuk Utama
     titles = [
         ("LAPORAN HARIAN KEJADIAN BENCANA, WABAK, KECEMASAN, KRISIS (BWKK)", 10.5),
         ("PUSAT KESIAPSIAGAAN DAN TINDAKCEPAT KRISIS (CPRC)", 10.5),
@@ -136,7 +133,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     doc.add_paragraph().paragraph_format.space_after = Pt(18)
 
-    # 3. Jadual Tarikh Hijau
     info_table = doc.add_table(rows=1, cols=2)
     info_table.width = content_width 
     for i in range(2):
@@ -154,7 +150,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
-    # --- SECTION 1.0 ---
     p1_head = doc.add_paragraph()
     apply_font(p1_head.add_run("1.0 Ringkasan Laporan Input Enotifikasi"), 11, bold=True)
     
@@ -236,7 +231,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     doc.add_paragraph()
     add_pkd_note(doc)
 
-    # --- SECTION 2.0 (WABAK) ---
     doc.add_page_break()
     p2_head = doc.add_paragraph()
     apply_font(p2_head.add_run("2.0 Ringkasan Laporan Notifikasi Wabak"), 11, bold=True)
@@ -353,7 +347,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
                 if c not in [1, 4]:
                     if p.runs: apply_font(p.runs[0], 8, bold=False)
 
-    # --- SECTION 3.0 (VEKTOR) ---
     p3_head = doc.add_paragraph()
     p3_head.paragraph_format.page_break_before = True 
     apply_font(p3_head.add_run("3.0 Ringkasan Laporan Wabak Vektor"), 11, bold=True)
@@ -426,7 +419,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             apply_font(run, 9, bold=True)
             row_cells[j].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
 
-    # --- RAJAH 1: GRAF DENGGI ---
     try:
         response = requests.get(CHART_IMAGE_URL)
         if response.status_code == 200:
@@ -438,7 +430,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             run_rajah_title = p_rajah_head.add_run("Carta Kes Mingguan Denggi Didaftar Bagi Tahun 2025 - 2026 Negeri Selangor")
             apply_font(run_rajah_title, 11, bold=False)
 
-            # Masukkan Imej Graf
             img_stream = io.BytesIO(response.content)
             p_img = doc.add_paragraph()
             p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -450,7 +441,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     except Exception as e:
         st.error(f"Ralat semasa memproses Rajah 1: {e}")
 
-    # --- SECTION 4.0 (BKK) ---
     doc.add_page_break()
     p4_head = doc.add_paragraph()
     apply_font(p4_head.add_run("4.0 Ringkasan Laporan Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)"), 11, bold=True)
@@ -506,7 +496,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     footer = doc.add_paragraph()
     apply_font(footer.add_run(f"*Sumber : Sistem e-notifikasi, Laporan Wabak KKM dimuat turun pada ({get_malay_date(today)} @ 10.00 am)"), 9, bold=False)
 
-    # --- SIGNATURE ---
     doc.add_paragraph() 
     sig_table = doc.add_table(rows=8, cols=3)
     sig_table.alignment = WD_TABLE_ALIGNMENT.LEFT
@@ -547,8 +536,22 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 st.set_page_config(page_title="BWKK Report Generator", layout="centered")
 st.title("📋 BWKK Report Generator")
 
-f1 = st.file_uploader("📥 Muat Naik Excel Notifikasi Harian", type=["xlsx", "xls"])
-f2 = st.file_uploader("📥 Muat Naik Excel Linelisting Wabak", type=["xlsx", "xls"])
+# Mendapatkan tarikh semalam secara automatik untuk guideline
+now_msia = get_msia_time()
+yesterday = now_msia.date() - timedelta(days=1)
+tarikh_guideline = get_malay_date(yesterday)
+
+# 1. Bahagian Muat Naik Notifikasi Harian
+st.subheader("📥 Muat Naik Excel Notifikasi Harian")
+st.info(f"**Guideline:** Sila muat turun file notifikasi pada **{tarikh_guideline}** dari sistem eNotifikasi dan muat naik sini.")
+f1 = st.file_uploader("Pilih fail Notifikasi Harian", type=["xlsx", "xls"], label_visibility="collapsed")
+
+st.markdown("---")
+
+# 2. Bahagian Muat Naik Linelisting Wabak
+st.subheader("📥 Muat Naik Excel Linelisting Wabak")
+st.info("**Guideline:** Sila muat turun file google sheet **'LAPORAN WABAK NEGERI SELANGOR 3'** melalui email **cprc_sel@moh.gov.my** dan muat naik sini.")
+f2 = st.file_uploader("Pilih fail Linelisting Wabak", type=["xlsx", "xls"], label_visibility="collapsed")
 
 if f1 and f2:
     if st.button("🚀 Jana Laporan Lengkap"):
