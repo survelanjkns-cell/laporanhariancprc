@@ -11,7 +11,7 @@ from docx.oxml.ns import nsdecls
 import io
 import os
 import re
-import requests  # Diperlukan untuk mengambil imej graf
+import requests
 
 # --- KONSTAN & MAPPING DATA ---
 TEMPLATE_PKDS = [
@@ -21,7 +21,7 @@ TEMPLATE_PKDS = [
 ]
 
 AVG_HARIAN_FIGURES = {
-    "Denggi": 427, "Covid-19": 54, "Hfmd": 52, "Tuberculosis": 28,
+    "Denggi": 426, "Covid-19": 54, "Hfmd": 52, "Tuberculosis": 28,
     "Keracunan Makanan": 22, "Measles": 12, "Viral Hepatitis": 9,
     "Avian Influenza": 8, "Hiv/Aids": 7, "Leptosopsirosis": 6,
     "Dysentry": 5, "Syphilis": 5, "Typhoid/Paratyphoid": 5,
@@ -33,7 +33,7 @@ GID = "0"
 GSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
 SHEET_BKK_URL = "https://docs.google.com/spreadsheets/d/1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c/export?format=csv&gid=1342717767"
 
-# URL Imej Graf (Sila padam Chart Title di Google Sheets)
+# URL Imej Graf
 CHART_IMAGE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTDprYai1uaP1L-JP6kuHRZX18AmDHX0ROEzRE37DaCHMo0cNWUvRa8R-65RZAK7XFWI6pb_-X-jF24/pubchart?oid=1681812411&format=image"
 
 # --- HELPERS ---
@@ -426,7 +426,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             apply_font(run, 9, bold=True)
             row_cells[j].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
 
-    # --- RAJAH 1: GRAF DENGGI (TANPA CHART TITLE) ---
+    # --- RAJAH 1: GRAF DENGGI (DENGAN TAJUK PAKSI) ---
     try:
         response = requests.get(CHART_IMAGE_URL)
         if response.status_code == 200:
@@ -438,11 +438,28 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             run_rajah_title = p_rajah_head.add_run("Carta Kes Mingguan Denggi Didaftar Bagi Tahun 2025 - 2026 Negeri Selangor")
             apply_font(run_rajah_title, 11, bold=False)
 
+            # Masukkan Imej
             img_stream = io.BytesIO(response.content)
             p_img = doc.add_paragraph()
             p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
             run_img = p_img.add_run()
             run_img.add_picture(img_stream, width=Inches(6.2))
+
+            # Tambah Tajuk Paksi-Y di bawah graf
+            p_yaxis = doc.add_paragraph()
+            p_yaxis.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run_y = p_yaxis.add_run("Paksi-Y: Jumlah Kes")
+            apply_font(run_y, 9, bold=True)
+            p_yaxis.paragraph_format.space_before = Pt(0)
+            p_yaxis.paragraph_format.space_after = Pt(2)
+
+            # Tambah Tajuk Paksi-X di bawah graf
+            p_xaxis = doc.add_paragraph()
+            p_xaxis.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run_x = p_xaxis.add_run("Paksi-X: Minggu Epid")
+            apply_font(run_x, 9, bold=True)
+            p_xaxis.paragraph_format.space_after = Pt(12)
+            
         else:
             st.warning("Gagal memuat turun imej graf.")
     except Exception as e:
@@ -556,7 +573,6 @@ if f1 and f2:
             yesterday = today - timedelta(days=1)
             yesterday_str = yesterday.strftime("%d/%m/%Y")
 
-            # Sokongan format .xls
             engine_type = "xlrd" if f1.name.endswith(".xls") else "openpyxl"
             df1 = pd.read_excel(f1, engine=engine_type)
             df1 = df1[df1['Notifikasi Status'] != 'Abai Notifikasi']
