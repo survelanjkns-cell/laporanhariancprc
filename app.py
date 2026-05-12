@@ -426,7 +426,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             apply_font(run, 9, bold=True)
             row_cells[j].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
 
-    # --- RAJAH 1: GRAF DENGGI (DENGAN TAJUK PAKSI) ---
+    # --- RAJAH 1: GRAF DENGGI ---
     try:
         response = requests.get(CHART_IMAGE_URL)
         if response.status_code == 200:
@@ -438,27 +438,12 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             run_rajah_title = p_rajah_head.add_run("Carta Kes Mingguan Denggi Didaftar Bagi Tahun 2025 - 2026 Negeri Selangor")
             apply_font(run_rajah_title, 11, bold=False)
 
-            # Masukkan Imej
+            # Masukkan Imej Graf
             img_stream = io.BytesIO(response.content)
             p_img = doc.add_paragraph()
             p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
             run_img = p_img.add_run()
             run_img.add_picture(img_stream, width=Inches(6.2))
-
-            # Tambah Tajuk Paksi-Y di bawah graf
-            p_yaxis = doc.add_paragraph()
-            p_yaxis.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            run_y = p_yaxis.add_run("Paksi-Y: Jumlah Kes")
-            apply_font(run_y, 9, bold=True)
-            p_yaxis.paragraph_format.space_before = Pt(0)
-            p_yaxis.paragraph_format.space_after = Pt(2)
-
-            # Tambah Tajuk Paksi-X di bawah graf
-            p_xaxis = doc.add_paragraph()
-            p_xaxis.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            run_x = p_xaxis.add_run("Paksi-X: Minggu Epid")
-            apply_font(run_x, 9, bold=True)
-            p_xaxis.paragraph_format.space_after = Pt(12)
             
         else:
             st.warning("Gagal memuat turun imej graf.")
