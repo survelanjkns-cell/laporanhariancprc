@@ -538,7 +538,8 @@ st.title("📋 BWKK Report Generator")
 
 # Mendapatkan tarikh semalam secara automatik untuk guideline
 now_msia = get_msia_time()
-yesterday = now_msia.date() - timedelta(days=1)
+today = now_msia.date()
+yesterday = today - timedelta(days=1)
 tarikh_guideline = get_malay_date(yesterday)
 
 # 1. Bahagian Muat Naik Notifikasi Harian
@@ -613,7 +614,18 @@ if f1 and f2:
             bkk_table_final = bkk_raw[1:].reset_index(drop=True).rename(columns={'GOMBAK':'GBK','HULU LANGAT':'HL','HULU SELANGOR':'HS','KLANG':'KLG','KUALA LANGAT':'KL','KUALA SELANGOR':'KS','PETALING':'PTG','SABAK BERNAM':'SB','SEPANG':'SPG'})
 
             doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, (len(bkk_details)==0), bkk_details, df_yesterday_list)
-            st.success("✅ Laporan berjaya dijana!")
-            st.download_button("⬇️ Muat Turun Laporan", data=doc_out, file_name=f"Laporan_BWKK_{today}.docx")
+            
+            # --- BAHAGIAN NAMA FAIL DINAMIK ---
+            file_date = today.strftime("%d.%m.%y") # Menghasilkan format 14.05.26
+            file_name_custom = f"LAPORAN CPRC ({file_date}).docx"
+
+            st.success(f"✅ Laporan berjaya dijana untuk tarikh {file_date}!")
+            st.download_button(
+                label="⬇️ Muat Turun Laporan", 
+                data=doc_out, 
+                file_name=file_name_custom,
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )
+
         except Exception as e:
             st.error(f"Ralat: {e}")
