@@ -507,6 +507,10 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         p_colon = row[1].paragraphs[0]
         apply_font(p_colon.add_run(":"), 11, bold=False)
 
+    doc.add_paragraph()
+    add_pkd_note(doc)
+    doc.add_paragraph()
+    
     fill_sig_row(0, "Disediakan")
     fill_sig_row(1, "Jawatan")
     sig_table.rows[2].height = Pt(30)
