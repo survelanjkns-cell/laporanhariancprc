@@ -427,7 +427,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             p_rajah_head.alignment = WD_ALIGN_PARAGRAPH.LEFT
             run_rajah_label = p_rajah_head.add_run("Rajah 1 : ")
             apply_font(run_rajah_label, 11, bold=True)
-            run_rajah_title = p_rajah_head.add_run("Carta Kes Mingguan Denggi Didaftar Bagi Tahun 2025 - 2026 Negeri Selangor")
+            run_rajah_title = p_rajah_head.add_run("Tren Kes Mingguan Denggi Didaftar Bagi Tahun 2025 - 2026 Negeri Selangor")
             apply_font(run_rajah_title, 11, bold=False)
 
             img_stream = io.BytesIO(response.content)
