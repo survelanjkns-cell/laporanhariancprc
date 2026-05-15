@@ -99,7 +99,7 @@ def add_pkd_note(doc):
     note_text = "*Nota : GBK, Gombak; HL, Hulu Langat; HS, Hulu Selangor; KLG, Klang; KL, Kuala Langat; KS, Kuala Selangor; PTG, Petaling; SB, Sabak Bernam; SPG, Sepang."
     run = p.add_run(note_text)
     apply_font(run, 7, bold=False)
-    p.paragraph_format.space_after = Pt(12)
+    p.paragraph_format.space_after = Pt(6)
 
 # --- DOCX GENERATOR ---
 def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty, bkk_details, df_yesterday_list):
