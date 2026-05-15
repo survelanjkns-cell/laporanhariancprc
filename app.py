@@ -405,7 +405,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             val = vector_df.iloc[i, j]
             row_cells[j].width = col_widths_v[j]
             if pd.isna(val) or str(val).lower() == "nan": display_val = "-"
-            elif j == 0: display_val = str(val).title() if str(val).upper() != "JUMLAH" else "JUMLAH"
+            elif j == 0: display_val = str(val).title() if str(val).upper() != "Jumlah" else "Jumlah"
             else:
                 try: display_val = f"{int(float(val)):,}"
                 except: display_val = str(val)
@@ -415,7 +415,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             p.paragraph_format.space_before = Pt(2)
             p.paragraph_format.space_after = Pt(2)
             run = p.add_run(display_val)
-            if str(vector_df.iloc[i, 0]).upper() == "JUMLAH": set_cell_background(row_cells[j], "FFFF00") 
+            if str(vector_df.iloc[i, 0]).upper() == "Jumlah": set_cell_background(row_cells[j], "FFFF00") 
             elif j == 0: set_cell_background(row_cells[j], "FCE4D6") 
             apply_font(run, 9, bold=True)
             row_cells[j].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
