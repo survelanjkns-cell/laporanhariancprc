@@ -228,7 +228,8 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     set_cell_background(f_cells[len(TEMPLATE_PKDS)+1], "FFFF00")
     set_cell_background(f_cells[len(TEMPLATE_PKDS)+2], "FFC000")
 
-    add_pkd_note(doc)
+     doc.add_paragraph().paragraph_format.space_after = Pt(5)
+     add_pkd_note(doc)
 
     doc.add_page_break()
     p2_head = doc.add_paragraph()
