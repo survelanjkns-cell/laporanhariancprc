@@ -352,35 +352,73 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     p3_head.paragraph_format.page_break_before = True 
     apply_font(p3_head.add_run("3.0 Ringkasan Laporan Wabak Vektor"), 11, bold=True)
     
-   for i in range(len(vector_df)):
-        row_cells = t3.rows[i+2].cells
-        # Pre-check if this row is the summary row
-        is_jumlah_row = str(vector_df.iloc[i, 0]).strip().upper() == "Jumlah"
-        
-        for j in range(7):
-            val = vector_df.iloc[i, j]
-            row_cells[j].width = col_widths_v[j]
-            
-            if pd.isna(val) or str(val).lower() == "nan": 
-                display_val = "-"
-            elif j == 0: 
-                display_val = str(val).title() if not is_jumlah_row else "Jumlah"
-            else:
-                try: display_val = f"{int(float(val)):,}"
-                except: display_val = str(val)
-            
-            p = row_cells[j].paragraphs[0]
-            p.alignment = WD_ALIGN_PARAGRAPH.LEFT if j == 0 else WD_ALIGN_PARAGRAPH.CENTER
-            run = p.add_run(display_val)
-            
-            # Apply Colors
-            if is_jumlah_row:
-                set_cell_background(row_cells[j], "FFFF00") 
-            elif j == 0:
-                set_cell_background(row_cells[j], "FCE4D6") 
+  try: 
+        val_sum = float(vector_df.iloc[-1, 1]) + float(vector_df.iloc[-1, 3]) + float(vector_df.iloc[-1, 5])
+        xx_v = int(val_sum)
+    except: 
+        xx_v = 0
+    
+    xx_v_display = "Tiada" if xx_v == 0 else str(xx_v)
+    h31 = doc.add_paragraph()
+    h31.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
+    h31_text = f"3.1 Jadual di bawah menunjukkan jumlah wabak vektor harian dan kumulatif di negeri Selangor. {xx_v_display} input notifikasi wabak vektor telah diterima pada {get_malay_date(yesterday)} dengan pecahan mengikut penyakit seperti dalam jadual 3."
+    apply_font(h31.add_run(h31_text), 11, bold=False)
 
-            apply_font(run, 9, bold=True)
-            row_cells[j].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+    add_table_title(doc, "Jadual 3", "Senarai Notifikasi Wabak Vektor")
+    t3 = doc.add_table(rows=len(vector_df) + 2, cols=7)
+    t3.style = 'Table Grid'
+    t3.width = content_width 
+    t3.allow_autofit = False  
+
+    col_widths_v = [content_width * 0.25, content_width * 0.125, content_width * 0.125, content_width * 0.125, content_width * 0.125, content_width * 0.125, content_width * 0.125]
+    
+    h3_r1 = t3.rows[0].cells
+    h3_r1[0].merge(t3.rows[1].cells[0]).text = "Daerah"
+    h3_r1[1].merge(h3_r1[2]).text = "Denggi"
+    h3_r1[3].merge(h3_r1[4]).text = "Malaria"
+    h3_r1[5].merge(h3_r1[6]).text = "Chikungunya"
+    
+    for i in [0, 1, 3, 5]:
+        cell = h3_r1[i]
+        set_cell_background(cell, "BFDFFF")
+        cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+        if i == 0: cell.width = col_widths_v[0]
+        else: cell.width = col_widths_v[i] + col_widths_v[i+1]
+        p = cell.paragraphs[0]
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        if p.runs: apply_font(p.runs[0], 10, bold=True)
+        else: apply_font(p.add_run(cell.text), 10, bold=True)
+
+    h3_r2 = t3.rows[1].cells
+    for i in range(1, 7):
+        h3_r2[i].text = "Harian" if i % 2 != 0 else "Kum"
+        h3_r2[i].width = col_widths_v[i]
+        set_cell_background(h3_r2[i], "BFDFFF")
+        h3_r2[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+        p = h3_r2[i].paragraphs[0]
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        apply_font(p.runs[0], 9, bold=True)
+
+    for i in range(len(vector_df)):
+        row_cells = t3.rows[i+2].cells
+        for j in range(7):
+            val = vector_df.iloc[i, j]
+            row_cells[j].width = col_widths_v[j]
+            if pd.isna(val) or str(val).lower() == "nan": display_val = "-"
+            elif j == 0: display_val = str(val).title() if str(val).upper() != "Jumlah" else "Jumlah"
+            else:
+                try: display_val = f"{int(float(val)):,}"
+                except: display_val = str(val)
+            
+            p = row_cells[j].paragraphs[0]
+            p.alignment = WD_ALIGN_PARAGRAPH.LEFT if j == 0 else WD_ALIGN_PARAGRAPH.CENTER
+            p.paragraph_format.space_before = Pt(2)
+            p.paragraph_format.space_after = Pt(2)
+            run = p.add_run(display_val)
+            if str(vector_df.iloc[i, 0]).upper() == "Jumlah": set_cell_background(row_cells[j], "FFFF00") 
+            elif j == 0: set_cell_background(row_cells[j], "FCE4D6") 
+            apply_font(run, 9, bold=True)
+            row_cells[j].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
 
     try:
         response = requests.get(CHART_IMAGE_URL)
