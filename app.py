@@ -544,14 +544,14 @@ tarikh_guideline = get_malay_date(yesterday)
 
 # 1. Bahagian Muat Naik Notifikasi Harian
 st.subheader("📥 Muat Naik Excel Notifikasi Harian")
-st.info(f"**Guideline:** Sila muat turun file notifikasi pada **{tarikh_guideline}** dari sistem eNotifikasi dan muat naik sini.")
+st.info(f"**Guideline:** Sila muat turun file notifikasi pada **{tarikh_guideline}** dari sistem eNotifikasi dan muat naik di sini.")
 f1 = st.file_uploader("Pilih fail Notifikasi Harian", type=["xlsx", "xls"], label_visibility="collapsed")
 
 st.markdown("---")
 
 # 2. Bahagian Muat Naik Linelisting Wabak
 st.subheader("📥 Muat Naik Excel Linelisting Wabak")
-st.info("**Guideline:** Sila muat turun file google sheet **'LAPORAN WABAK NEGERI SELANGOR 3'** melalui email **cprc_sel@moh.gov.my** dan muat naik sini.")
+st.info("**Guideline:** Sila muat turun file google sheet **'LAPORAN WABAK NEGERI SELANGOR 3'** melalui email **cprc_sel@moh.gov.my** dan muat naik di sini.")
 f2 = st.file_uploader("Pilih fail Linelisting Wabak", type=["xlsx", "xls"], label_visibility="collapsed")
 
 if f1 and f2:
