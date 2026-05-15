@@ -228,7 +228,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     set_cell_background(f_cells[len(TEMPLATE_PKDS)+1], "FFFF00")
     set_cell_background(f_cells[len(TEMPLATE_PKDS)+2], "FFC000")
 
-    doc.add_paragraph()
     add_pkd_note(doc)
 
     doc.add_page_break()
@@ -491,7 +490,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             elif c_idx == bkk_table_df.shape[1]-2: set_cell_background(cells[c_idx], "FFFFB3")
             elif c_idx == bkk_table_df.shape[1]-1: set_cell_background(cells[c_idx], "E2EFDA")
 
-    doc.add_paragraph()
+
     add_pkd_note(doc)
     doc.add_paragraph()
 
