@@ -401,14 +401,15 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     for i in range(len(vector_df)):
         row_cells = t3.rows[i+2].cells
-        # Correctly determine if this is the "JUMLAH" row for formatting
+        # Logik pengesanan baris Jumlah (JUMLAH)
         is_jumlah_row = str(vector_df.iloc[i, 0]).strip().upper() == "JUMLAH"
         
         for j in range(7):
             val = vector_df.iloc[i, j]
             row_cells[j].width = col_widths_v[j]
             if pd.isna(val) or str(val).lower() == "nan": display_val = "-"
-            elif j == 0: display_val = str(val).title() if not is_jumlah_row else "JUMLAH"
+            elif j == 0: 
+                display_val = "Jumlah" if is_jumlah_row else str(val).title()
             else:
                 try: display_val = f"{int(float(val)):,}"
                 except: display_val = str(val)
@@ -419,7 +420,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             p.paragraph_format.space_after = Pt(2)
             run = p.add_run(display_val)
             
-            # Formatting Logic
             if is_jumlah_row: 
                 set_cell_background(row_cells[j], "FFFF00") 
             elif j == 0: 
@@ -613,7 +613,7 @@ if f1 and f2:
 
             doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, (len(bkk_details)==0), bkk_details, df_yesterday_list)
             
-            # --- Dynamic File Name ---
+            # --- Nama Fail Dinamik ---
             file_date = today.strftime("%d.%m.%y")
             file_name_custom = f"LAPORAN CPRC ({file_date}).docx"
 
