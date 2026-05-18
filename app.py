@@ -495,7 +495,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             # Membina struktur perincian mangsa & kematian mengikut permintaan
             if kes_val > 0:
                 if kem_val > 0:
-                    status_str = f" Sejumlah {kes_val} orang mangsa dan {kem_val} kematian terlibat dalam kejadian {kej_str} tersebut dengan {kem_val} kematian dilaporkan."
+                    status_str = f" Sejumlah {kes_val} orang mangsa terlibat dalam kejadian {kej_str} tersebut dengan {kem_val} kematian dilaporkan."
                 else:
                     status_str = f" Sejumlah {kes_val} orang mangsa terlibat dalam kejadian {kej_str} tersebut."
             else:
