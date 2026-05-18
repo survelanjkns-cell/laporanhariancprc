@@ -31,7 +31,13 @@ AVG_HARIAN_FIGURES = {
 SHEET_ID = "1bjyNcntm-I6nRaIVkVdJqJRAzn5r2tYFfjUAN0emv9w"
 GID = "0"
 GSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
-SHEET_BKK_URL = "https://docs.google.com/spreadsheets/d/1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c/export?format=csv&gid=1342717767"
+
+# --- KEMASKINI URL GOOGLE SHEET BKK (ASINGKAN DATA MENTAH & JADUAL) ---
+BKK_SPREADSHEET_ID = "1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c"
+# GID 1352807145 adalah sheet "2026" (Linelisting tempat cari tarikh)
+URL_BKK_LINELISTING = f"https://docs.google.com/spreadsheets/d/{BKK_SPREADSHEET_ID}/export?format=csv&gid=1352807145"
+# GID 1342717767 adalah sheet "JADUAL 4" (Untuk bina jadual word)
+URL_BKK_JADUAL = f"https://docs.google.com/spreadsheets/d/{BKK_SPREADSHEET_ID}/export?format=csv&gid=1342717767"
 
 CHART_IMAGE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTDprYai1uaP1L-JP6kuHRZX18AmDHX0ROEzRE37DaCHMo0cNWUvRa8R-65RZAK7XFWI6pb_-X-jF24/pubchart?oid=1681812411&format=image"
 
@@ -603,26 +609,27 @@ if f1 and f2:
             v_data = v_data.dropna(how='all')
             v_data = v_data[~v_data.iloc[:, 0].astype(str).str.lower().str.contains('nan')]
 
-            # --- LOGIK PENYAHPEPIJAT (DEBUGGING) BKK DIKEMASKINI DI SINI ---
-            df_bkk_full = pd.read_csv(SHEET_BKK_URL, header=None)
+            # --- KEMASKINI PENUH PEMPROSESAN BKK (PENGASINGAN SHEET BERDASARKAN GID) ---
+            # 1. Baca sheet raw linelisting data mentah untuk tapisan tarikh naratif
+            df_bkk_raw_data = pd.read_csv(URL_BKK_LINELISTING, header=None)
+            clean_date_series = df_bkk_raw_data.iloc[:, 2].astype(str).str.strip()
+            df_bkk_raw_data['datetime_lapor'] = pd.to_datetime(clean_date_series, dayfirst=True, errors='coerce').dt.date
             
-            # 1. Bersihkan kolum tarikh daripada sebarang leading/trailing spaces
-            clean_date_series = df_bkk_full.iloc[:, 2].astype(str).str.strip()
-            
-            # 2. Tukar dengan format eksplisit (dayfirst=True)
-            df_bkk_full['datetime_lapor'] = pd.to_datetime(clean_date_series, dayfirst=True, errors='coerce').dt.date
-            insiden_semalam = df_bkk_full[df_bkk_full['datetime_lapor'] == yesterday]
-            
-            # --- PAPARAN DIAGNOSTIK UNTUK PENGGUNA ---
-            st.write("### 🔍 Nota Diagnostik Tarikh (Semak jika tidak keluar):")
-            st.write(f"- Tarikh 'Yesterday' yang dicari oleh skrip: `{yesterday}`")
-            st.write("- 5 Tarikh terakhir dikesan di Google Sheet anda:")
-            st.write(df_bkk_full.iloc[-5:, [1, 2, 4, 5, 2]]) # Papar data sampel di web
-            
+            insiden_semalam = df_bkk_raw_data[df_bkk_raw_data['datetime_lapor'] == yesterday]
             bkk_details = [{'kejadian': r[5], 'alamat': r[8], 'daerah': r[4]} for _, r in insiden_semalam.iterrows()]
-            bkk_raw = df_bkk_full.iloc[1:, 33:47].dropna(how='all').reset_index(drop=True)
+            
+            # 2. Baca sheet khusus jadual ringkasan untuk ditukarkan ke fail Word
+            df_bkk_jadual_full = pd.read_csv(URL_BKK_JADUAL, header=None)
+            bkk_raw = df_bkk_jadual_full.iloc[1:, 33:47].dropna(how='all').reset_index(drop=True)
             bkk_raw.columns = bkk_raw.iloc[0]
             bkk_table_final = bkk_raw[1:].reset_index(drop=True).rename(columns={'GOMBAK':'GBK','HULU LANGAT':'HL','HULU SELANGOR':'HS','KLANG':'KLG','KUALA LANGAT':'KL','KUALA SELANGOR':'KS','PETALING':'PTG','SABAK BERNAM':'SB','SEPANG':'SPG'})
+
+            # --- PAPARAN DIAGNOSTIK YANG TELAH DIBETULKAN (TIADA DUPLICATE ERROR) ---
+            st.write("### 🔍 Nota Diagnostik Tarikh:")
+            st.write(f"- Tarikh 'Yesterday' yang dicari oleh skrip: `{yesterday}`")
+            st.write(f"- Jumlah kes insiden ditemui untuk tarikh tersebut: **{len(bkk_details)} kes**")
+            if len(bkk_details) > 0:
+                st.success("Kes berjaya dijumpai! Teks naratif automatik akan berubah dalam dokumen Word.")
 
             doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, (len(bkk_details)==0), bkk_details, df_yesterday_list)
             
