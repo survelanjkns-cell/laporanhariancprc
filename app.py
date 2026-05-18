@@ -504,7 +504,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
                 else:
                     status_str = ""
             
-            full_event_sentence = f"{prefix}kejadian {kej_str} dalam {alamat_str}, {daerah_str}.{status_str}"
+            full_event_sentence = f"{prefix}kejadian {kej_str} di {alamat_str}, {daerah_str}.{status_str}"
             narrative_parts.append(full_event_sentence)
             
         h41_text += " ".join(narrative_parts)
