@@ -603,12 +603,21 @@ if f1 and f2:
             v_data = v_data.dropna(how='all')
             v_data = v_data[~v_data.iloc[:, 0].astype(str).str.lower().str.contains('nan')]
 
-            # --- BAHAGIAN DETECT BKK YANG TELAH DIKEMASKINI ---
+            # --- LOGIK PENYAHPEPIJAT (DEBUGGING) BKK DIKEMASKINI DI SINI ---
             df_bkk_full = pd.read_csv(SHEET_BKK_URL, header=None)
             
-            # Tambahan dayfirst=True bagi memaksa pembacaan mengikut standard DD/MM/YYYY tempatan
-            df_bkk_full['datetime_lapor'] = pd.to_datetime(df_bkk_full.iloc[:, 2], dayfirst=True, errors='coerce').dt.date
+            # 1. Bersihkan kolum tarikh daripada sebarang leading/trailing spaces
+            clean_date_series = df_bkk_full.iloc[:, 2].astype(str).str.strip()
+            
+            # 2. Tukar dengan format eksplisit (dayfirst=True)
+            df_bkk_full['datetime_lapor'] = pd.to_datetime(clean_date_series, dayfirst=True, errors='coerce').dt.date
             insiden_semalam = df_bkk_full[df_bkk_full['datetime_lapor'] == yesterday]
+            
+            # --- PAPARAN DIAGNOSTIK UNTUK PENGGUNA ---
+            st.write("### 🔍 Nota Diagnostik Tarikh (Semak jika tidak keluar):")
+            st.write(f"- Tarikh 'Yesterday' yang dicari oleh skrip: `{yesterday}`")
+            st.write("- 5 Tarikh terakhir dikesan di Google Sheet anda:")
+            st.write(df_bkk_full.iloc[-5:, [1, 2, 4, 5, 2]]) # Papar data sampel di web
             
             bkk_details = [{'kejadian': r[5], 'alamat': r[8], 'daerah': r[4]} for _, r in insiden_semalam.iterrows()]
             bkk_raw = df_bkk_full.iloc[1:, 33:47].dropna(how='all').reset_index(drop=True)
