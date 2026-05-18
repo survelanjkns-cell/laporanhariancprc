@@ -469,9 +469,9 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         count = len(bkk_details)
         count_str = num_word.get(count, f"{count} ({count})")
         
-        h41_text = f"4.1 Jadual di bawah menunjukkan jumlah kejadian insiden bencana, kecemasan dan krisis (BKK) di negeri Selangor. Terdapat {count_str} kejadian dilaporkan pada {get_malay_date(yesterday)} iaitu "
+        h41_text = f"4.1 Jadual di bawah menunjukkan jumlah kejadian insiden bencana, kecemasan dan krisis (BKK) di negeri Selangor. Terdapat {count_str} kejadian dilaporkan pada {get_malay_date(yesterday)}."
         
-        ordinal_words = {1: "pertama, ", 2: "kedua, ", 3: "ketiga, ", 4: "keempat, ", 5: "kelima, "}
+        ordinal_words = {1: " Insiden pertama ialah ", 2: "Insiden kedua ialah ", 3: "Insiden ketiga ialah ", 4: "Insiden keempat ialah ", 5: "Insiden kelima ialah "}
         
         narrative_parts = []
         for idx, item in enumerate(bkk_details, start=1):
@@ -495,16 +495,16 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             # Membina struktur perincian mangsa & kematian mengikut permintaan
             if kes_val > 0:
                 if kem_val > 0:
-                    status_str = f" Sejumlah {kes_val} orang mangsa dan {kem_val} kematian yang terlibat dalam kejadian {kej_str} tersebut."
+                    status_str = f" Sejumlah {kes_val} orang mangsa dan {kem_val} kematian terlibat dalam kejadian {kej_str} tersebut dengan {kem_val} kematian dilaporkan."
                 else:
-                    status_str = f" Sejumlah {kes_val} orang mangsa yang terlibat di kejadian {kej_str} tersebut."
+                    status_str = f" Sejumlah {kes_val} orang mangsa terlibat dalam kejadian {kej_str} tersebut."
             else:
                 if kem_val > 0:
-                    status_str = f" Sejumlah {kem_val} kematian yang terlibat di kejadian {kej_str} tersebut."
+                    status_str = f" Sejumlah {kem_val} kematian terlibat dalam kejadian {kej_str} tersebut."
                 else:
                     status_str = ""
             
-            full_event_sentence = f"{prefix}kejadian {kej_str} di {alamat_str}, {daerah_str}.{status_str}"
+            full_event_sentence = f"{prefix}kejadian {kej_str} dalam {alamat_str}, {daerah_str}.{status_str}"
             narrative_parts.append(full_event_sentence)
             
         h41_text += " ".join(narrative_parts)
