@@ -122,15 +122,15 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         run_logo.add_picture(logo_path, width=Inches(1.8))
 
     titles = [
-        ("LAPORAN HARIAN KEJADIAN BENCANA, WABAK, KECEMASAN, KRISIS (BWKK)", 10.5),
-        ("PUSAT KESIAPSIAGAAN DAN TINDAKCEPAT KRISIS (CPRC)", 10.5),
-        ("JABATAN KESIHATAN NEGERI SELANGOR", 10.5)
+        "LAPORAN HARIAN KEJADIAN BENCANA, WABAK, KECEMASAN, KRISIS (BWKK)",
+        "PUSAT KESIAPSIAGAAN DAN TINDAKCEPAT KRISIS (CPRC)",
+        "JABATAN KESIHATAN NEGERI SELANGOR"
     ]
-    for text, size in titles:
+    for text in titles:
         para = doc.add_paragraph()
         para.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run = para.add_run(text)
-        apply_font(run, size, bold=True)
+        apply_font(run, 10.5, bold=True)
         para.paragraph_format.space_after = Pt(0)
 
     doc.add_paragraph().paragraph_format.space_after = Pt(18)
@@ -401,7 +401,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     for i in range(len(vector_df)):
         row_cells = t3.rows[i+2].cells
-        # Logik pengesanan baris Jumlah (JUMLAH)
         is_jumlah_row = str(vector_df.iloc[i, 0]).strip().upper() == "JUMLAH"
         
         for j in range(7):
@@ -604,8 +603,13 @@ if f1 and f2:
             v_data = v_data.dropna(how='all')
             v_data = v_data[~v_data.iloc[:, 0].astype(str).str.lower().str.contains('nan')]
 
+            # --- KEMASKINI BAHAGIAN DETECT BKK DI SINI ---
             df_bkk_full = pd.read_csv(SHEET_BKK_URL, header=None)
-            insiden_semalam = df_bkk_full[df_bkk_full.iloc[:, 2].astype(str).str.contains(yesterday.strftime("%d/%m/%Y"))]
+            
+            # Tukar data kolum 'TKH LAPOR' (indeks 2) ke objek date pandas untuk perbandingan tepat
+            df_bkk_full['datetime_lapor'] = pd.to_datetime(df_bkk_full.iloc[:, 2], errors='coerce').dt.date
+            insiden_semalam = df_bkk_full[df_bkk_full['datetime_lapor'] == yesterday]
+            
             bkk_details = [{'kejadian': r[5], 'alamat': r[8], 'daerah': r[4]} for _, r in insiden_semalam.iterrows()]
             bkk_raw = df_bkk_full.iloc[1:, 33:47].dropna(how='all').reset_index(drop=True)
             bkk_raw.columns = bkk_raw.iloc[0]
