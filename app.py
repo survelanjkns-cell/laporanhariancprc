@@ -32,7 +32,7 @@ SHEET_ID = "1bjyNcntm-I6nRaIVkVdJqJRAzn5r2tYFfjUAN0emv9w"
 GID = "0"
 GSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
 
-# --- KEMASKINI URL GOOGLE SHEET BKK (ASINGKAN DATA MENTAH & JADUAL) ---
+# --- URL GOOGLE SHEET BKK (RAW LINELISTING & JADUAL) ---
 BKK_SPREADSHEET_ID = "1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c"
 # GID 1352807145 adalah sheet "2026" (Linelisting tempat cari tarikh)
 URL_BKK_LINELISTING = f"https://docs.google.com/spreadsheets/d/{BKK_SPREADSHEET_ID}/export?format=csv&gid=1352807145"
@@ -467,7 +467,9 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         num_word = {1: "satu (1)", 2: "dua (2)", 3: "tiga (3)", 4: "empat (4)", 5: "lima (5)"}
         count = len(bkk_details)
         count_str = num_word.get(count, f"{count} ({count})")
-        insiden_list = [f"kejadian {item['kejadian'].lower()} di {item['alamat']}, {item['daerah']}" for item in bkk_details]
+        
+        # --- DIKEMASKINI DENGAN .title() UNTUK DAERAH (Contoh: Hulu Langat) ---
+        insiden_list = [f"kejadian {item['kejadian'].lower()} di {item['alamat']}, {str(item['daerah']).title()}" for item in bkk_details]
         detail_narrative = (", ".join(insiden_list[:-1]) + " dan " + insiden_list[-1]) if len(insiden_list) > 1 else insiden_list[0]
         h41_text = f"4.1 Jadual di bawah menunjukkan jumlah kejadian insiden bencana, kecemasan dan krisis (BKK) di negeri Selangor. Terdapat {count_str} kejadian dilaporkan pada {get_malay_date(yesterday)} iaitu {detail_narrative}."
     apply_font(h41.add_run(h41_text), 11, bold=False)
@@ -609,8 +611,8 @@ if f1 and f2:
             v_data = v_data.dropna(how='all')
             v_data = v_data[~v_data.iloc[:, 0].astype(str).str.lower().str.contains('nan')]
 
-            # --- KEMASKINI PENUH PEMPROSESAN BKK (PENGASINGAN SHEET BERDASARKAN GID) ---
-            # 1. Baca sheet raw linelisting data mentah untuk tapisan tarikh naratif
+            # --- PEMPROSESAN DATA GOOGLE SHEET BKK ---
+            # 1. Baca sheet raw linelisting data mentah untuk tapisan tarikh naratif (Sheet "2026")
             df_bkk_raw_data = pd.read_csv(URL_BKK_LINELISTING, header=None)
             clean_date_series = df_bkk_raw_data.iloc[:, 2].astype(str).str.strip()
             df_bkk_raw_data['datetime_lapor'] = pd.to_datetime(clean_date_series, dayfirst=True, errors='coerce').dt.date
@@ -618,13 +620,13 @@ if f1 and f2:
             insiden_semalam = df_bkk_raw_data[df_bkk_raw_data['datetime_lapor'] == yesterday]
             bkk_details = [{'kejadian': r[5], 'alamat': r[8], 'daerah': r[4]} for _, r in insiden_semalam.iterrows()]
             
-            # 2. Baca sheet khusus jadual ringkasan untuk ditukarkan ke fail Word
+            # 2. Baca sheet khusus jadual ringkasan untuk ditukarkan ke fail Word (Sheet "JADUAL 4")
             df_bkk_jadual_full = pd.read_csv(URL_BKK_JADUAL, header=None)
             bkk_raw = df_bkk_jadual_full.iloc[1:, 33:47].dropna(how='all').reset_index(drop=True)
             bkk_raw.columns = bkk_raw.iloc[0]
             bkk_table_final = bkk_raw[1:].reset_index(drop=True).rename(columns={'GOMBAK':'GBK','HULU LANGAT':'HL','HULU SELANGOR':'HS','KLANG':'KLG','KUALA LANGAT':'KL','KUALA SELANGOR':'KS','PETALING':'PTG','SABAK BERNAM':'SB','SEPANG':'SPG'})
 
-            # --- PAPARAN DIAGNOSTIK YANG TELAH DIBETULKAN (TIADA DUPLICATE ERROR) ---
+            # --- PAPARAN DIAGNOSTIK KECIL DI STREAMLIT ---
             st.write("### 🔍 Nota Diagnostik Tarikh:")
             st.write(f"- Tarikh 'Yesterday' yang dicari oleh skrip: `{yesterday}`")
             st.write(f"- Jumlah kes insiden ditemui untuk tarikh tersebut: **{len(bkk_details)} kes**")
