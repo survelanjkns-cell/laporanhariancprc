@@ -449,18 +449,19 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
             run_img = p_img.add_run()
             run_img.add_picture(img_stream, width=Inches(6.2))
-            
         else:
             st.warning("Gagal memuat turun imej graf.")
     except Exception as e:
         st.error(f"Ralat semasa memproses Rajah 1: {e}")
 
+    # --- KEMASKINI PENUH: BAHAGIAN 4.0 PENULISAN NARATIF BKK AUTOMATIK ---
     doc.add_page_break()
     p4_head = doc.add_paragraph()
     apply_font(p4_head.add_run("4.0 Ringkasan Laporan Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)"), 11, bold=True)
     
     h41 = doc.add_paragraph()
     h41.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
+    
     if is_bkk_empty:
         h41_text = f"4.1 Jadual di bawah menunjukkan jumlah kejadian insiden bencana, kecemasan dan krisis (BKK) di negeri Selangor. Tiada insiden dilaporkan pada {get_malay_date(yesterday)}."
     else:
@@ -468,12 +469,48 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         count = len(bkk_details)
         count_str = num_word.get(count, f"{count} ({count})")
         
-        # --- DIKEMASKINI DENGAN .title() UNTUK DAERAH (Contoh: Hulu Langat) ---
-        insiden_list = [f"kejadian {item['kejadian'].lower()} di {item['alamat']}, {str(item['daerah']).title()}" for item in bkk_details]
-        detail_narrative = (", ".join(insiden_list[:-1]) + " dan " + insiden_list[-1]) if len(insiden_list) > 1 else insiden_list[0]
-        h41_text = f"4.1 Jadual di bawah menunjukkan jumlah kejadian insiden bencana, kecemasan dan krisis (BKK) di negeri Selangor. Terdapat {count_str} kejadian dilaporkan pada {get_malay_date(yesterday)} iaitu {detail_narrative}."
+        h41_text = f"4.1 Jadual di bawah menunjukkan jumlah kejadian insiden bencana, kecemasan dan krisis (BKK) di negeri Selangor. Terdapat {count_str} kejadian dilaporkan pada {get_malay_date(yesterday)} iaitu "
+        
+        ordinal_words = {1: "pertama, ", 2: "kedua, ", 3: "ketiga, ", 4: "keempat, ", 5: "kelima, "}
+        
+        narrative_parts = []
+        for idx, item in enumerate(bkk_details, start=1):
+            prefix = ordinal_words.get(idx, f"ke-{idx}, ") if count > 1 else ""
+            
+            kej_str = str(item['kejadian']).lower()
+            alamat_str = str(item['alamat']).strip()
+            daerah_str = str(item['daerah']).title()  # Proper Case (e.g. Sabak Bernam)
+            
+            def clean_to_int(v):
+                if pd.isna(v) or str(v).strip() in ["", "-", "nan", "0"]:
+                    return 0
+                try:
+                    return int(float(str(v).strip()))
+                except:
+                    return 0
+
+            kes_val = clean_to_int(item.get('bil_kes', 0))
+            kem_val = clean_to_int(item.get('bil_kematian', 0))
+            
+            # Membina struktur perincian mangsa & kematian mengikut permintaan
+            if kes_val > 0:
+                if kem_val > 0:
+                    status_str = f" Sejumlah {kes_val} orang mangsa dan {kem_val} kematian yang terlibat di kejadian {kej_str} tersebut."
+                else:
+                    status_str = f" Sejumlah {kes_val} orang mangsa yang terlibat di kejadian {kej_str} tersebut."
+            else:
+                if kem_val > 0:
+                    status_str = f" Sejumlah {kem_val} kematian yang terlibat di kejadian {kej_str} tersebut."
+                else:
+                    status_str = ""
+            
+            full_event_sentence = f"{prefix}kejadian {kej_str} di {alamat_str}, {daerah_str}.{status_str}"
+            narrative_parts.append(full_event_sentence)
+            
+        h41_text += " ".join(narrative_parts)
+
     apply_font(h41.add_run(h41_text), 11, bold=False)
-    
+
     add_table_title(doc, "Jadual 4", "Senarai Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)")
     t4 = doc.add_table(rows=len(bkk_table_df) + 1, cols=len(bkk_table_df.columns))
     t4.style = 'Table Grid'
@@ -618,7 +655,15 @@ if f1 and f2:
             df_bkk_raw_data['datetime_lapor'] = pd.to_datetime(clean_date_series, dayfirst=True, errors='coerce').dt.date
             
             insiden_semalam = df_bkk_raw_data[df_bkk_raw_data['datetime_lapor'] == yesterday]
-            bkk_details = [{'kejadian': r[5], 'alamat': r[8], 'daerah': r[4]} for _, r in insiden_semalam.iterrows()]
+            
+            # Membaca data Kolum J (index 9 - Bil Kes) dan Kolum K (index 10 - Bil Kematian)
+            bkk_details = [{
+                'kejadian': r[5], 
+                'alamat': r[8], 
+                'daerah': r[4],
+                'bil_kes': r[9],       # Kolum J
+                'bil_kematian': r[10]  # Kolum K
+            } for _, r in insiden_semalam.iterrows()]
             
             # 2. Baca sheet khusus jadual ringkasan untuk ditukarkan ke fail Word (Sheet "JADUAL 4")
             df_bkk_jadual_full = pd.read_csv(URL_BKK_JADUAL, header=None)
