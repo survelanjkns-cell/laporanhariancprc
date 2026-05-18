@@ -603,11 +603,11 @@ if f1 and f2:
             v_data = v_data.dropna(how='all')
             v_data = v_data[~v_data.iloc[:, 0].astype(str).str.lower().str.contains('nan')]
 
-            # --- KEMASKINI BAHAGIAN DETECT BKK DI SINI ---
+            # --- BAHAGIAN DETECT BKK YANG TELAH DIKEMASKINI ---
             df_bkk_full = pd.read_csv(SHEET_BKK_URL, header=None)
             
-            # Tukar data kolum 'TKH LAPOR' (indeks 2) ke objek date pandas untuk perbandingan tepat
-            df_bkk_full['datetime_lapor'] = pd.to_datetime(df_bkk_full.iloc[:, 2], errors='coerce').dt.date
+            # Tambahan dayfirst=True bagi memaksa pembacaan mengikut standard DD/MM/YYYY tempatan
+            df_bkk_full['datetime_lapor'] = pd.to_datetime(df_bkk_full.iloc[:, 2], dayfirst=True, errors='coerce').dt.date
             insiden_semalam = df_bkk_full[df_bkk_full['datetime_lapor'] == yesterday]
             
             bkk_details = [{'kejadian': r[5], 'alamat': r[8], 'daerah': r[4]} for _, r in insiden_semalam.iterrows()]
