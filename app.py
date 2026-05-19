@@ -548,7 +548,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
 
     p4_intro = doc.add_paragraph()
-    apply_font(p4_intro.add_run("Your new text here"), 11)
+    apply_font(p4_intro.add_run(" "), 11)
 
     p4_head = doc.add_paragraph()
     apply_font(p4_head.add_run("5.0 Lain-lain (input secara manual)"), 11, bold=True)
