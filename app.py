@@ -245,10 +245,10 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     harian_total = int(wabak_df['HARIAN'].sum())
     h21 = doc.add_paragraph()
     h21.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
-    h21_text = f"2.1 Jadual di bawah menunjukkan jumlah wabak harian, aktif dan kumulatif di negeri Selangor. Sejumlah {harian_total} input notifikasi wabak diterima pada {get_malay_date(yesterday)}."
+    h21_text = f"Jadual di bawah menunjukkan jumlah wabak harian, aktif dan kumulatif di negeri Selangor. Sejumlah {harian_total} input notifikasi wabak diterima pada {get_malay_date(yesterday)}."
     apply_font(h21.add_run(h21_text), 11, bold=False)
 
-    add_table_title(doc, "Jadual 2", "Senarai Notifikasi Wabak")
+    add_table_title(doc, "Jadual 2.2", "Senarai Notifikasi Wabak")
     t2 = doc.add_table(rows=len(wabak_df) + 2, cols=4)
     t2.style = 'Table Grid'
     t2.alignment = WD_TABLE_ALIGNMENT.CENTER
@@ -367,7 +367,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     xx_v_display = "Tiada" if xx_v == 0 else str(xx_v)
     h31 = doc.add_paragraph()
     h31.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
-    h31_text = f"3.1 Jadual di bawah menunjukkan jumlah wabak vektor harian dan kumulatif di negeri Selangor. {xx_v_display} input notifikasi wabak vektor telah diterima pada {get_malay_date(yesterday)} dengan pecahan mengikut penyakit seperti dalam jadual 3."
+    h31_text = f"Jadual di bawah menunjukkan jumlah wabak vektor harian dan kumulatif di negeri Selangor. {xx_v_display} notifikasi wabak vektor telah diterima pada {get_malay_date(yesterday)} dengan pecahan mengikut penyakit seperti dalam Jadual 3."
     apply_font(h31.add_run(h31_text), 11, bold=False)
 
     add_table_title(doc, "Jadual 3", "Senarai Notifikasi Wabak Vektor")
@@ -397,7 +397,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     h3_r2 = t3.rows[1].cells
     for i in range(1, 7):
-        h3_r2[i].text = "Harian" if i % 2 != 0 else "Kum"
+        h3_r2[i].text = "Harian" if i % 2 != 0 else "Kumulatif"
         h3_r2[i].width = col_widths_v[i]
         set_cell_background(h3_r2[i], "BFDFFF")
         h3_r2[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
