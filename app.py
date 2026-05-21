@@ -101,13 +101,42 @@ def add_table_title(doc, label, title):
     p.paragraph_format.space_after = Pt(6)
 
 def add_pkd_note(doc):
+    # Cipta perenggan utama untuk label perkataan "*Nota :"
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.LEFT
     p.paragraph_format.space_before = Pt(8)
-    note_text = "*Nota : GBK, Gombak; HL, Hulu Langat; HS, Hulu Selangor; KLG, Klang; KL, Kuala Langat; KS, Kuala Selangor; PTG, Petaling; SB, Sabak Bernam; SPG, Sepang."
-    run = p.add_run(note_text)
-    apply_font(run, 7, bold=False)
-    p.paragraph_format.space_after = Pt(8)
+    p.paragraph_format.space_after = Pt(2)
+    
+    run_main = p.add_run("*Nota :")
+    apply_font(run_main, 7, bold=True)
+
+    # Senarai daerah disusun menurun ke bawah
+    senarai_daerah = [
+        "GBK = Gombak",
+        "HL = Hulu Langat",
+        "HS = Hulu Selangor",
+        "KLG = Klang",
+        "KL = Kuala Langat",
+        "KS = Kuala Selangor",
+        "PTG = Petaling",
+        "SB = Sabak Bernam",
+        "SPG = Sepang"
+    ]
+    
+    # Memasukkan setiap satu daerah secara baris demi baris (Enter ke bawah)
+    for daerah in senarai_daerah:
+        p_item = doc.add_paragraph()
+        p_item.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        p_item.paragraph_format.space_before = Pt(0)
+        p_item.paragraph_format.space_after = Pt(2)
+        # Menolak teks ke kanan sedikit (indent) sebanyak 0.4 inci supaya kelihatan selari di bawah label *Nota
+        p_item.paragraph_format.left_indent = Inches(0.4) 
+        
+        run_item = p_item.add_run(daerah)
+        apply_font(run_item, 7, bold=False)
+        
+    # Memberi jarak asal selepas senarai terakhir tamat
+    p_item.paragraph_format.space_after = Pt(8)
 
 # --- DOCX GENERATOR ---
 def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty, bkk_details, df_yesterday_list):
@@ -492,7 +521,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             kes_val = clean_to_int(item.get('bil_kes', 0))
             kem_val = clean_to_int(item.get('bil_kematian', 0))
             
-            # Membina struktur perincian mangsa & kematian mengikut permintaan
             if kes_val > 0:
                 if kem_val > 0:
                     status_str = f" Sejumlah {kes_val} orang mangsa terlibat dalam kejadian {kej_str} tersebut dengan {kem_val} kematian dilaporkan."
@@ -543,9 +571,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             elif c_idx == 0: set_cell_background(cells[c_idx], "D9E9FF")
             elif c_idx == bkk_table_df.shape[1]-2: set_cell_background(cells[c_idx], "FFFFB3")
             elif c_idx == bkk_table_df.shape[1]-1: set_cell_background(cells[c_idx], "E2EFDA")
-
-   
-
 
     p4_intro = doc.add_paragraph()
     apply_font(p4_intro.add_run(" "), 11)
@@ -656,23 +681,20 @@ if f1 and f2:
             v_data = v_data[~v_data.iloc[:, 0].astype(str).str.lower().str.contains('nan')]
 
             # --- PEMPROSESAN DATA GOOGLE SHEET BKK ---
-            # 1. Baca sheet raw linelisting data mentah untuk tapisan tarikh naratif (Sheet "2026")
             df_bkk_raw_data = pd.read_csv(URL_BKK_LINELISTING, header=None)
             clean_date_series = df_bkk_raw_data.iloc[:, 2].astype(str).str.strip()
             df_bkk_raw_data['datetime_lapor'] = pd.to_datetime(clean_date_series, dayfirst=True, errors='coerce').dt.date
             
             insiden_semalam = df_bkk_raw_data[df_bkk_raw_data['datetime_lapor'] == yesterday]
             
-            # Membaca data Kolum J (index 9 - Bil Kes) dan Kolum K (index 10 - Bil Kematian)
             bkk_details = [{
                 'kejadian': r[5], 
                 'alamat': r[8], 
                 'daerah': r[4],
-                'bil_kes': r[9],       # Kolum J
-                'bil_kematian': r[10]  # Kolum K
+                'bil_kes': r[9],       
+                'bil_kematian': r[10]  
             } for _, r in insiden_semalam.iterrows()]
             
-            # 2. Baca sheet khusus jadual ringkasan untuk ditukarkan ke fail Word (Sheet "JADUAL 4")
             df_bkk_jadual_full = pd.read_csv(URL_BKK_JADUAL, header=None)
             bkk_raw = df_bkk_jadual_full.iloc[1:, 33:47].dropna(how='all').reset_index(drop=True)
             bkk_raw.columns = bkk_raw.iloc[0]
