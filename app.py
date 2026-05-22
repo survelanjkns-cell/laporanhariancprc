@@ -224,7 +224,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
-    # --- 1.0 Ringkasan Laporan Input Enotifikasi ---
+    # --- 1.0 Ringkasan Laporan Input e-Notifikasi ---
     p1_head = doc.add_paragraph()
     apply_font(p1_head.add_run("1.0 Ringkasan Laporan Input Enotifikasi"), 11, bold=True)
     
