@@ -186,10 +186,10 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     total_notifications = int(col_sums['Grand Total'])
     h11 = doc.add_paragraph()
     h11.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
-    h11_text = f"Jadual di bawah menunjukkan jumlah input enotifikasi di negeri Selangor. Sejumlah {total_notifications} input notifikasi telah diterima pada {get_malay_date(yesterday)} dengan pecahan mengikut penyakit seperti dalam Jadual 1."
+    h11_text = f"Jadual di bawah menunjukkan jumlah input e-Notifikasi di negeri Selangor. Sejumlah {total_notifications} input notifikasi telah diterima pada {get_malay_date(yesterday)} dengan pecahan mengikut penyakit seperti dalam Jadual 1.1."
     apply_font(h11.add_run(h11_text), 11, bold=False)
  
-    add_table_title(doc, "Jadual 1", "Senarai Input eNotifikasi")
+    add_table_title(doc, "Jadual 1.1", "Senarai Input e-Notifikasi")
     t1 = doc.add_table(rows=len(matrix_df) + 2, cols=len(TEMPLATE_PKDS) + 3)
     t1.style = 'Table Grid'
     t1.width = content_width 
@@ -270,7 +270,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     h21_text = f"Jadual di bawah menunjukkan jumlah wabak harian, aktif dan kumulatif di negeri Selangor. Sejumlah {harian_total} input notifikasi wabak diterima pada {get_malay_date(yesterday)}."
     apply_font(h21.add_run(h21_text), 11, bold=False)
  
-    add_table_title(doc, "Jadual 2.2", "Senarai Notifikasi Wabak")
+    add_table_title(doc, "Jadual 2.1", "Senarai Notifikasi Wabak")
     t2 = doc.add_table(rows=len(wabak_df) + 2, cols=4)
     t2.style = 'Table Grid'
     t2.alignment = WD_TABLE_ALIGNMENT.CENTER
@@ -307,7 +307,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
  
     doc.add_paragraph()
     tarikh_semalam_str = get_malay_date(yesterday)
-    add_table_title(doc, "Jadual 2.1", f"Senarai Wabak Yang Dilaporkan pada {tarikh_semalam_str}")
+    add_table_title(doc, "Jadual 2.2", f"Senarai Wabak Yang Dilaporkan pada {tarikh_semalam_str}")
      
     t21 = doc.add_table(rows=1, cols=5)
     t21.style = 'Table Grid'
@@ -316,7 +316,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     set_repeat_table_header(t21.rows[0])
  
     widths_21 = [content_width * 0.05, content_width * 0.2, content_width * 0.2, content_width * 0.4, content_width * 0.15]
-    h21_headers = ["Bil", "Wabak", "Daerah", "Tempat Berlaku", "Bil Kes (AR)"]
+    h21_headers = ["Bil", "Wabak", "Daerah", "Tempat Berlaku", "Kadar Serangan"]
     for i, txt in enumerate(h21_headers):
         cell = t21.cell(0, i)
         cell.width = widths_21[i]
@@ -388,10 +388,10 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     xx_v_display = "Tiada" if xx_v == 0 else str(xx_v)
     h31 = doc.add_paragraph()
     h31.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
-    h31_text = f"Jadual di bawah menunjukkan jumlah wabak vektor harian dan kumulatif di negeri Selangor. {xx_v_display} notifikasi wabak vektor telah diterima pada {get_malay_date(yesterday)} dengan pecahan mengikut penyakit seperti dalam Jadual 3."
+    h31_text = f"Jadual di bawah menunjukkan jumlah wabak vektor harian dan kumulatif di negeri Selangor. Sebanyak {xx_v_display} notifikasi wabak vektor telah diterima pada {get_malay_date(yesterday)} dengan pecahan mengikut penyakit seperti dalam Jadual 3.1. Rajah 3.1 pula menunjukkan tren kes mingguan denggi yang didaftarkan dari tahun 2025 hingga kini."
     apply_font(h31.add_run(h31_text), 11, bold=False)
  
-    add_table_title(doc, "Jadual 3", "Senarai Notifikasi Wabak Vektor")
+    add_table_title(doc, "Jadual 3.1", "Senarai Notifikasi Wabak Vektor")
     t3 = doc.add_table(rows=len(vector_df) + 2, cols=7)
     t3.style = 'Table Grid'
     t3.width = content_width 
@@ -460,7 +460,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             doc.add_paragraph()
             p_rajah_head = doc.add_paragraph()
             p_rajah_head.alignment = WD_ALIGN_PARAGRAPH.LEFT
-            run_rajah_label = p_rajah_head.add_run("Rajah 1 : ")
+            run_rajah_label = p_rajah_head.add_run("Rajah 3.1 : ")
             apply_font(run_rajah_label, 11, bold=True)
             run_rajah_title = p_rajah_head.add_run("Tren Kes Mingguan Denggi Didaftar Bagi Tahun 2025 - 2026 Negeri Selangor")
             apply_font(run_rajah_title, 11, bold=False)
@@ -473,12 +473,12 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         else:
             st.warning("Gagal memuat turun imej graf.")
     except Exception as e:
-        st.error(f"Ralat semasa memproses Rajah 1: {e}")
+        st.error(f"Ralat semasa memproses Rajah 3.1: {e}")
  
     # --- 4.0 Ringkasan Laporan Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK) ---
     doc.add_page_break()
     p4_head = doc.add_paragraph()
-    apply_font(p4_head.add_run("4.0 Ringkasan Laporan Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)"), 11, bold=True)
+    apply_font(p4_head.add_run("4.0 Ringkasan Laporan Kejadian Bencana, Kecemasan dan Krisis (BKK)"), 11, bold=True)
  
     h41 = doc.add_paragraph()
     h41.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
