@@ -163,24 +163,21 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     doc.add_paragraph().paragraph_format.space_after = Pt(18)
 
-    # --- PENAMBAHAN/PERUBAHAN KOTAK HIJAU (GAMBAR 2) ---
+    # --- KOTAK HIJAU ---
     info_table = doc.add_table(rows=2, cols=2)
     info_table.alignment = WD_TABLE_ALIGNMENT.CENTER
     info_table.autofit = False
 
-    # Tetapkan lebar kolum (50% - 50%)
     col_widths_info = [content_width * 0.5, content_width * 0.5]
     for row in info_table.rows:
         for idx, width in enumerate(col_widths_info):
             row.cells[idx].width = width
 
-    # Warnakan latar belakang hijau lembut (C6E0B4) untuk semua cell
     for row in info_table.rows:
         for cell in row.cells:
             set_cell_background(cell, "C6E0B4")
             cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
 
-    # Baris 1 Kolum 1: Tarikh
     cell_tarikh = info_table.cell(0, 0)
     p_tarikh = cell_tarikh.paragraphs[0]
     p_tarikh.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -189,7 +186,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     run_tarikh = p_tarikh.add_run(f"Tarikh : {get_malay_date(today)}")
     apply_font(run_tarikh, 11, bold=True)
 
-    # Baris 1 Kolum 2: Minggu Epidemiologi
     cell_epi = info_table.cell(0, 1)
     p_epi = cell_epi.paragraphs[0]
     p_epi.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -198,7 +194,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     run_epi = p_epi.add_run(f"Minggu Epidemiologi : {get_epi_week(today)}")
     apply_font(run_epi, 11, bold=True)
 
-    # Baris 2: Ayat Tambahan (Gabungkan Kolum / Merge Cells)
     cell_nota = info_table.cell(1, 0)
     cell_nota.merge(info_table.cell(1, 1))
     p_nota = cell_nota.paragraphs[0]
@@ -207,10 +202,10 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     p_nota.paragraph_format.space_after = Pt(6)
     run_nota = p_nota.add_run("(Laporan ini adalah berdasarkan data yang diterima sehingga jam 8.00 pagi)")
     apply_font(run_nota, 11, bold=True)
-    # --- TAMAT BAHAGIAN KOTAK HIJAU ---
 
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
+    # --- 1.0 Ringkasan Laporan Input Enotifikasi ---
     p1_head = doc.add_paragraph()
     apply_font(p1_head.add_run("1.0 Ringkasan Laporan Input Enotifikasi"), 11, bold=True)
     
@@ -292,6 +287,8 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     add_pkd_note(doc)
 
     doc.add_page_break()
+    
+    # --- 2.0 Ringkasan Laporan Notifikasi Wabak ---
     p2_head = doc.add_paragraph()
     apply_font(p2_head.add_run("2.0 Ringkasan Laporan Notifikasi Wabak"), 11, bold=True)
     
@@ -406,6 +403,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
                 p.alignment = WD_ALIGN_PARAGRAPH.LEFT if c == 3 else WD_ALIGN_PARAGRAPH.CENTER
                 if p.runs: apply_font(p.runs[0], 8, bold=False)
 
+    # --- 3.0 Ringkasan Laporan Wabak Vektor ---
     p3_head = doc.add_paragraph()
     p3_head.paragraph_format.page_break_before = True 
     apply_font(p3_head.add_run("3.0 Ringkasan Laporan Wabak Vektor"), 11, bold=True)
@@ -506,7 +504,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     except Exception as e:
         st.error(f"Ralat semasa memproses Rajah 3.1: {e}")
 
-    # --- 4.0 Ringkasan Laporan Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK) ---
+    # --- 4.0 Ringkasan Laporan Kejadian Bencana, Kecemasan dan Krisis (BKK) ---
     doc.add_page_break()
     p4_head = doc.add_paragraph()
     apply_font(p4_head.add_run("4.0 Ringkasan Laporan Kejadian Bencana, Kecemasan dan Krisis (BKK)"), 11, bold=True)
@@ -607,9 +605,21 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     p4_intro = doc.add_paragraph()
     apply_font(p4_intro.add_run(" "), 11)
 
-    p4_head = doc.add_paragraph()
-    apply_font(p4_head.add_run("5.0 Lain-lain (Input secara manual)"), 11, bold=True)
+    # --- 5.0 Lain-lain ---
+    p5_head = doc.add_paragraph()
+    apply_font(p5_head.add_run("5.0 Lain-lain (Input secara manual)"), 11, bold=True)
     
+    p5_space = doc.add_paragraph()
+    apply_font(p5_space.add_run("\n\n\n"), 11) # Menyediakan ruang kosong bertulis manual
+
+    # --- 6.0 Rumusan oleh Ketua Petugas CPRC Selangor ---
+    p6_head = doc.add_paragraph()
+    apply_font(p6_head.add_run("6.0 Rumusan oleh Ketua Petugas CPRC Selangor (Input secara manual)"), 11, bold=True)
+    
+    p6_space = doc.add_paragraph()
+    apply_font(p6_space.add_run("\n\n\n"), 11) # Menyediakan ruang kosong bertulis manual
+
+    # --- JADUAL TANDATANGAN (DIALIKH KE PALING BAWAH) ---
     doc.add_paragraph() 
     sig_table = doc.add_table(rows=11, cols=3)
     sig_table.alignment = WD_TABLE_ALIGNMENT.LEFT
