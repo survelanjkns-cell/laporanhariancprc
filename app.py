@@ -688,12 +688,12 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     fill_sig_row(2, "Tarikh")
     sig_table.rows[3].height = Pt(12)  # Kurangkan ketinggian ruang kosong pemisah
 
-    fill_sig_row(4, "Disemak")
+    fill_sig_row(4, "Disemak oleh")
     fill_sig_row(5, "Jawatan")
     fill_sig_row(6, "Tarikh")
     sig_table.rows[7].height = Pt(12)  # Kurangkan ketinggian ruang kosong pemisah
 
-    fill_sig_row(8, "Disahkan")
+    fill_sig_row(8, "Disahkan oleh")
     fill_sig_row(9, "Jawatan")
     fill_sig_row(10, "Tarikh")
 
