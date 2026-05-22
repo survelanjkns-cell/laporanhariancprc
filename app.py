@@ -567,7 +567,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             
             if kes_val > 0:
                 if kes_val == 1:
-                    mangsa_prefix = " Seorang mangsa terlibat"
+                    mangsa_prefix = " Sejumlah seorang mangsa terlibat"
                 else:
                     mangsa_prefix = f" Sejumlah {kes_str_formatted} orang mangsa terlibat"
 
