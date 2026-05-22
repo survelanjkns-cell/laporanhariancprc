@@ -512,7 +512,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     h41 = doc.add_paragraph()
     h41.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
 
-    penutup_text = " Jadual di bawah menunjukkan jumlah kejadian insiden bencana, kecemasan dan krisis (BKK) yang telah dilaporkan di negeri Selangor."
+    penutup_text = " Jadual di bawah menunjukkan jumlah kejadian bencana, kecemasan dan krisis (BKK) yang telah dilaporkan di negeri Selangor pada tahun 2026 mengikut daerah."
 
     if is_bkk_empty:
         h41_text = f"Tiada insiden dilaporkan pada {get_malay_date(yesterday)}.{penutup_text}"
@@ -521,9 +521,9 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         count = len(bkk_details)
         count_str = num_word.get(count, f"{count} ({count})")
         
-        h41_text = f"Terdapat {count_str} kejadian dilaporkan pada {get_malay_date(yesterday)}."
+        h41_text = f"Terdapat {count_str} kejadian yang dilaporkan pada {get_malay_date(yesterday)}."
         
-        ordinal_words = {1: " Insiden pertama ialah ", 2: " Insiden kedua ialah ", 3: " Insiden ketiga ialah ", 4: " Insiden keempat ialah ", 5: " Insiden kelima ialah "}
+        ordinal_words = {1: " Kejadian pertama ialah ", 2: " Kejadian kedua ialah ", 3: " Kejadian ketiga ialah ", 4: " Kejadian keempat ialah ", 5: " Kejadian kelima ialah "}
         
         narrative_parts = []
         for idx, item in enumerate(bkk_details, start=1):
@@ -556,9 +556,9 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
                     status_str = ""
             
             if count == 1:
-                full_event_sentence = f" Kejadian {kej_str} berlaku di {alamat_str}, {daerah_str}.{status_str}"
+                full_event_sentence = f" {kej_str} berlaku di {alamat_str}, {daerah_str}.{status_str}"
             else:
-                full_event_sentence = f"{prefix}kejadian {kej_str} di {alamat_str}, {daerah_str}.{status_str}"
+                full_event_sentence = f"{prefix}{kej_str} di {alamat_str}, {daerah_str}.{status_str}"
                 
             narrative_parts.append(full_event_sentence)
             
