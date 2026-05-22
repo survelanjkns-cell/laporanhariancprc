@@ -636,24 +636,24 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     # --- 5.0 Lain-lain ---
     p5_head = doc.add_paragraph()
-    p5_head.paragraph_format.space_before = Pt(12)  # Mengawal jarak atas tajuk 5.0
-    p5_head.paragraph_format.space_after = Pt(6)    # Mengawal jarak bawah tajuk 5.0
+    p5_head.paragraph_format.space_before = Pt(12)  
+    p5_head.paragraph_format.space_after = Pt(6)    
     apply_font(p5_head.add_run("5.0 Lain-lain (Input secara manual)"), 11, bold=True)
     
     p5_space = doc.add_paragraph()
     p5_space.paragraph_format.space_before = Pt(0)
-    p5_space.paragraph_format.space_after = Pt(18)  # Menjadikan jarak kosong manual lebih rapat sebelum tajuk 6.0
+    p5_space.paragraph_format.space_after = Pt(18)  
     apply_font(p5_space.add_run(""), 11)
 
     # --- 6.0 Rumusan oleh Ketua Petugas CPRC Selangor ---
     p6_head = doc.add_paragraph()
-    p6_head.paragraph_format.space_before = Pt(12)  # Mengawal jarak atas tajuk 6.0
-    p6_head.paragraph_format.space_after = Pt(6)    # Mengawal jarak bawah tajuk 6.0
+    p6_head.paragraph_format.space_before = Pt(12)  
+    p6_head.paragraph_format.space_after = Pt(6)    
     apply_font(p6_head.add_run("6.0 Rumusan oleh Ketua Petugas CPRC Selangor (Input secara manual)"), 11, bold=True)
     
     p6_space = doc.add_paragraph()
     p6_space.paragraph_format.space_before = Pt(0)
-    p6_space.paragraph_format.space_after = Pt(18)  # Menjadikan jarak kosong manual lebih rapat sebelum jadual tandatangan
+    p6_space.paragraph_format.space_after = Pt(18)  
     apply_font(p6_space.add_run(""), 11)
 
     # --- JADUAL TANDATANGAN ---
@@ -666,7 +666,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     def fill_sig_row(row_idx, label):
         row = sig_table.rows[row_idx].cells
         p_label = row[0].paragraphs[0]
-        p_label.paragraph_format.space_before = Pt(2)  # Merapatkan jarak baris teks dalam sel
+        p_label.paragraph_format.space_before = Pt(2)  
         p_label.paragraph_format.space_after = Pt(2)
         apply_font(p_label.add_run(label), 11, bold=False)
         
@@ -678,12 +678,12 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     fill_sig_row(0, "Disediakan oleh")
     fill_sig_row(1, "Jawatan")
     fill_sig_row(2, "Tarikh")
-    sig_table.rows[3].height = Pt(18)  # Ruang kosong tanda tangan dirapatkan sedikit
+    sig_table.rows[3].height = Pt(18)  
 
     fill_sig_row(4, "Disemak")
     fill_sig_row(5, "Jawatan")
     fill_sig_row(6, "Tarikh")
-    sig_table.rows[7].height = Pt(18)  # Ruang kosong tanda tangan dirapatkan sedikit
+    sig_table.rows[7].height = Pt(18)  
 
     fill_sig_row(8, "Disahkan")
     fill_sig_row(9, "Jawatan")
@@ -760,7 +760,8 @@ if f1 and f2:
                     return True if (pd.isna(tamat) or tamat >= today) else False
                 active_count = disease_df.apply(check_active, axis=1).sum()
                 wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'AKTIF': active_count, 'KUMULATIF': k})
-            |wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
+            
+            wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
             raw_gs = pd.read_csv(GSHEET_URL, header=None)
             mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
