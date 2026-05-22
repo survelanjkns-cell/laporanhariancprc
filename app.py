@@ -105,18 +105,18 @@ def add_pkd_note(doc):
     p.paragraph_format.space_after = Pt(2)
     
     run_main = p.add_run("*Nota :")
-    apply_font(run_main, 7, bold=True)
+    apply_font(run_main, 8, bold=True)
 
     senarai_daerah = [
-        "GBK = Gombak",
-        "HL = Hulu Langat",
-        "HS = Hulu Selangor",
-        "KLG = Klang",
-        "KL = Kuala Langat",
-        "KS = Kuala Selangor",
-        "PTG = Petaling",
-        "SB = Sabak Bernam",
-        "SPG = Sepang"
+    "GBK = Gombak",
+    "HL = Hulu Langat",
+    "HS = Hulu Selangor",
+    "KLG = Klang",
+    "KL = Kuala Langat",
+    "KS = Kuala Selangor",
+    "PTG = Petaling",
+    "SB = Sabak Bernam",
+    "SPG = Sepang"
     ]
     
     for daerah in senarai_daerah:
@@ -219,7 +219,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     p_nota.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_nota.paragraph_format.space_before = Pt(2)
     p_nota.paragraph_format.space_after = Pt(6)
-    run_nota = p_nota.add_run("(Laporan ini adalah berdasarkan data yang diterima sehingga jam 8.00 pagi)")
+    run_nota = p_nota.add_run("(Laporan adalah berdasarkan data yang diterima sehingga jam 8.00 pagi)")
     apply_font(run_nota, 11, bold=True)
 
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
@@ -234,7 +234,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     h11_text = f"Jadual di bawah menunjukkan jumlah input e-Notifikasi di negeri Selangor. Sejumlah {total_notifications} input notifikasi telah diterima pada {get_malay_date(yesterday)} dengan pecahan mengikut penyakit seperti dalam Jadual 1.1."
     apply_font(h11.add_run(h11_text), 11, bold=False)
 
-    add_table_title(doc, "Jadual 1.1", "Senarai Input e-Notifikasi")
+    add_table_title(doc, "Jadual 1.1", "Jumlah Input e-Notifikasi")
     t1 = doc.add_table(rows=len(matrix_df) + 2, cols=len(TEMPLATE_PKDS) + 3)
     t1.style = 'Table Grid'
     t1.width = content_width 
@@ -256,7 +256,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     
     apply_font(h_cells[len(TEMPLATE_PKDS)+1].paragraphs[0].add_run("Jumlah"), 8, bold=True)
     set_cell_background(h_cells[len(TEMPLATE_PKDS)+1], "FFFF00")
-    apply_font(h_cells[len(TEMPLATE_PKDS)+2].paragraphs[0].add_run("Average Harian"), 8, bold=True)
+    apply_font(h_cells[len(TEMPLATE_PKDS)+2].paragraphs[0].add_run("Purata Harian"), 8, bold=True)
     set_cell_background(h_cells[len(TEMPLATE_PKDS)+2], "FFC000")
 
     for r_idx, (penyakit, row_data) in enumerate(matrix_df.iterrows()):
@@ -539,7 +539,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         count = len(bkk_details)
         count_str = format_bkk_number(count, is_person=False)
         
-        h41_text = f"Terdapat {count_str} kejadian yang dilaporkan pada {get_malay_date(yesterday)}."
+        h41_text = f"Terdapat {count_str} kejadian BKK yang dilaporkan pada {get_malay_date(yesterday)}."
         
         ordinal_words = {1: " Kejadian pertama ialah ", 2: " Kejadian kedua ialah ", 3: " Kejadian ketiga ialah ", 4: " Kejadian keempat ialah ", 5: " Kejadian kelima ialah "}
         
@@ -567,9 +567,9 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             
             if kes_val > 0:
                 if kes_val == 1:
-                    mangsa_prefix = " Sejumlah seorang mangsa terlibat"
+                    mangsa_prefix = "Seorang mangsa terlibat"
                 else:
-                    mangsa_prefix = f" Sejumlah {kes_str_formatted} orang mangsa terlibat"
+                    mangsa_prefix = f"{kes_str_formatted} orang mangsa terlibat"
 
                 if kem_val > 0:
                     if kem_val == 1:
@@ -581,9 +581,9 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             else:
                 if kem_val > 0:
                     if kem_val == 1:
-                        status_str = f" Seorang kematian dilaporkan dalam kejadian {kej_str} tersebut."
+                        status_str = f" 1 kematian dilaporkan dalam kejadian {kej_str} tersebut."
                     else:
-                        status_str = f" Sejumlah {kem_str_formatted} kematian dilaporkan dalam kejadian {kej_str} tersebut."
+                        status_str = f" {kem_str_formatted} kematian dilaporkan dalam kejadian {kej_str} tersebut."
                 else:
                     status_str = ""
             
