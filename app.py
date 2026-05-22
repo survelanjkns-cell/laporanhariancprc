@@ -547,15 +547,17 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     h4_col_count = len(bkk_table_df.columns)
     for i, col in enumerate(bkk_table_df.columns):
         cell = t4.rows[0].cells[i]
-        if i < h4_col_count-2: set_cell_background(cell, "BFDFFF")
-        elif i == h4_col_count-2: set_cell_background(cell, "FFFF00")
-        else: set_cell_background(cell, "C6E0B4")
+        # Mengubah suai kod warna latar belakang kerana kolum terakhir (Diisytihar) sudah tiada
+        if i < h4_col_count-1: 
+            set_cell_background(cell, "BFDFFF")
+        else: 
+            set_cell_background(cell, "FFFF00") # Kolum 'Jumlah' (kolum terakhir yang baru) jadi Kuning
+            
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         header_text = str(col).strip()
         if header_text.upper() == "INSIDEN/BENCANA": header_text = "Insiden/Bencana"
-        elif "DIISYTIHAR" in header_text.upper(): header_text = "Diisytihar oleh CPRC KKM"
         apply_font(p.add_run(header_text.replace(" ", "\n")), 8, bold=True)
     
     for r_idx, row_data in enumerate(bkk_table_df.values):
@@ -567,10 +569,12 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT if c_idx == 0 else WD_ALIGN_PARAGRAPH.CENTER
             run = p.add_run(clean_val(val))
             apply_font(run, 8, bold=is_last_row or c_idx == 0)
-            if is_last_row: set_cell_background(cells[c_idx], "FFFF00")
-            elif c_idx == 0: set_cell_background(cells[c_idx], "D9E9FF")
-            elif c_idx == bkk_table_df.shape[1]-2: set_cell_background(cells[c_idx], "FFFFB3")
-            elif c_idx == bkk_table_df.shape[1]-1: set_cell_background(cells[c_idx], "E2EFDA")
+            if is_last_row: 
+                set_cell_background(cells[c_idx], "FFFF00")
+            elif c_idx == 0: 
+                set_cell_background(cells[c_idx], "D9E9FF")
+            elif c_idx == bkk_table_df.shape[1]-1: 
+                set_cell_background(cells[c_idx], "FFFFB3") # Set warna Kuning Lembut untuk kolum Jumlah harian
 
     p4_intro = doc.add_paragraph()
     apply_font(p4_intro.add_run(" "), 11)
@@ -579,9 +583,9 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     apply_font(p4_head.add_run("5.0 Lain-lain (Input secara manual)"), 11, bold=True)
     
     doc.add_paragraph() 
-    sig_table = doc.add_table(rows=11, cols=3)  # Ditambah saiz baris daripada 8 ke 11 untuk memuatkan 'Tarikh :'
+    sig_table = doc.add_table(rows=11, cols=3)
     sig_table.alignment = WD_TABLE_ALIGNMENT.LEFT
-    sig_table.columns[0].width = Cm(3.2)       # Lebarkan sedikit ruangan kolum label supaya 'Disediakan oleh' muat satu baris
+    sig_table.columns[0].width = Cm(3.2)
     sig_table.columns[1].width = Cm(0.5)
     sig_table.columns[2].width = Cm(10)
 
@@ -595,12 +599,12 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     fill_sig_row(0, "Disediakan oleh")
     fill_sig_row(1, "Jawatan")
     fill_sig_row(2, "Tarikh")
-    sig_table.rows[3].height = Pt(25) # Ruang kosong/tandatangan
+    sig_table.rows[3].height = Pt(25)
 
     fill_sig_row(4, "Disemak")
     fill_sig_row(5, "Jawatan")
     fill_sig_row(6, "Tarikh")
-    sig_table.rows[7].height = Pt(25) # Ruang kosong/tandatangan
+    sig_table.rows[7].height = Pt(25)
 
     fill_sig_row(8, "Disahkan")
     fill_sig_row(9, "Jawatan")
@@ -701,6 +705,8 @@ if f1 and f2:
             } for _, r in insiden_semalam.iterrows()]
             
             df_bkk_jadual_full = pd.read_csv(URL_BKK_JADUAL, header=None)
+            
+            # --- PERUBAHAN DI SINI: Slicing diubah dari 33:47 ke 33:46 untuk buang kolum 'Diisytihar' ---
             bkk_raw = df_bkk_jadual_full.iloc[1:, 33:46].dropna(how='all').reset_index(drop=True)
             bkk_raw.columns = bkk_raw.iloc[0]
             bkk_table_final = bkk_raw[1:].reset_index(drop=True).rename(columns={'GOMBAK':'GBK','HULU LANGAT':'HL','HULU SELANGOR':'HS','KLANG':'KLG','KUALA LANGAT':'KL','KUALA SELANGOR':'KS','PETALING':'PTG','SABAK BERNAM':'SB','SEPANG':'SPG'})
