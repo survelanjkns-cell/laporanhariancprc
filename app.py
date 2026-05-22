@@ -573,17 +573,17 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
                 if kem_val > 0:
                     if kem_val == 1:
-                        status_str = f"{mangsa_prefix} dalam kejadian {kej_str} tersebut dengan seorang kematian dilaporkan."
+                        status_str = f"{mangsa_prefix} dalam kejadian tersebut dengan seorang kematian dilaporkan."
                     else:
-                        status_str = f"{mangsa_prefix} dalam kejadian {kej_str} tersebut dengan {kem_str_formatted} kematian dilaporkan."
+                        status_str = f"{mangsa_prefix} dalam kejadian tersebut dengan {kem_str_formatted} kematian dilaporkan."
                 else:
-                    status_str = f"{mangsa_prefix} dalam kejadian {kej_str} tersebut."
+                    status_str = f"{mangsa_prefix} dalam kejadian tersebut."
             else:
                 if kem_val > 0:
                     if kem_val == 1:
-                        status_str = f" 1 kematian dilaporkan dalam kejadian {kej_str} tersebut."
+                        status_str = f" 1 kematian dilaporkan dalam kejadian tersebut."
                     else:
-                        status_str = f" {kem_str_formatted} kematian dilaporkan dalam kejadian {kej_str} tersebut."
+                        status_str = f" {kem_str_formatted} kematian dilaporkan dalam kejadian tersebut."
                 else:
                     status_str = ""
             
