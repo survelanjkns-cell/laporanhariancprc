@@ -523,7 +523,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             
             if kes_val > 0:
                 if kem_val > 0:
-                    status_str = f" Sejumlah {kes_val} orang mangsa terlibat dalam kejadian {kej_str} tersebut dengan {kem_val} kematian dilaporkan. Jadual di bawah menunjukkan jumlah kejadian insiden bencana, kecemasan dan krisis (BKK) yang telah dilaporkan di negeri Selangor. "
+                    status_str = f" Sejumlah {kes_val} orang mangsa terlibat dalam kejadian {kej_str} tersebut dengan {kem_val} kematian dilaporkan."
                 else:
                     status_str = f" Sejumlah {kes_val} orang mangsa terlibat dalam kejadian {kej_str} tersebut."
             else:
