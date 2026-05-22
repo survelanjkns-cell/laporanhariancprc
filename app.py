@@ -388,7 +388,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     xx_v_display = "Tiada" if xx_v == 0 else str(xx_v)
     h31 = doc.add_paragraph()
     h31.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
-    h31_text = f"Jadual di bawah menunjukkan jumlah wabak vektor harian and kumulatif di negeri Selangor. {xx_v_display} notifikasi wabak vektor telah diterima pada {get_malay_date(yesterday)} dengan pecahan mengikut penyakit seperti dalam Jadual 3."
+    h31_text = f"Jadual di bawah menunjukkan jumlah wabak vektor harian dan kumulatif di negeri Selangor. {xx_v_display} notifikasi wabak vektor telah diterima pada {get_malay_date(yesterday)} dengan pecahan mengikut penyakit seperti dalam Jadual 3."
     apply_font(h31.add_run(h31_text), 11, bold=False)
  
     add_table_title(doc, "Jadual 3", "Senarai Notifikasi Wabak Vektor")
@@ -475,7 +475,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     except Exception as e:
         st.error(f"Ralat semasa memproses Rajah 1: {e}")
  
-    # --- KEMASKINI PENUH: BAHAGIAN 4.0 PENULISAN NARATIF BKK AUTOMATIK ---
+    # --- 4.0 Ringkasan Laporan Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK) ---
     doc.add_page_break()
     p4_head = doc.add_paragraph()
     apply_font(p4_head.add_run("4.0 Ringkasan Laporan Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)"), 11, bold=True)
@@ -535,7 +535,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             
         h41_text += "".join(narrative_parts) + penutup_text
  
-    # Memasukkan run teks ke dokumen dengan selamat
     apply_font(h41.add_run(h41_text), 11, bold=False)
  
     add_table_title(doc, "Jadual 4", "Senarai Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)")
@@ -707,10 +706,19 @@ if f1 and f2:
             bkk_raw = df_bkk_jadual_full.iloc[1:, 33:46].dropna(how='all').reset_index(drop=True)
             bkk_raw.columns = bkk_raw.iloc[0]
             
-            # --- PERUBAHAN DI SINI: Rename kolum lagenda 'Moving median 4 tahun...' jika wujud di dalam DataFrame ---
+            # --- PERBAIKAN DI SINI: Guna pendekatan fungsi lambda regex untuk tukar nama kolum ---
+            # Cara ini akan mencari mana-mana kolum berunsur "Moving" atau "median" dan menukarnya secara tepat tanpa peduli variasi teksnya
+            new_cols = []
+            for col in bkk_raw.columns:
+                col_str = str(col).strip()
+                if re.search(r'(moving|median|4 tahun)', col_str, re.IGNORECASE):
+                    new_cols.append('Purata Bergerak 4 Tahun (2022,2023,2024,2025)')
+                else:
+                    new_cols.append(col_str)
+            bkk_raw.columns = new_cols
+ 
             bkk_table_final = bkk_raw[1:].reset_index(drop=True).rename(columns={
-                'GOMBAK':'GBK','HULU LANGAT':'HL','HULU SELANGOR':'HS','KLANG':'KLG','KUALA LANGAT':'KL','KUALA SELANGOR':'KS','PETALING':'PTG','SABAK BERNAM':'SB','SEPANG':'SPG',
-                'Moving median 4 tahun (2022,2023,2024,2025)': 'Purata Bergerak 4 Tahun (2022,2023,2024,2025)'
+                'GOMBAK':'GBK','HULU LANGAT':'HL','HULU SELANGOR':'HS','KLANG':'KLG','KUALA LANGAT':'KL','KUALA SELANGOR':'KS','PETALING':'PTG','SABAK BERNAM':'SB','SEPANG':'SPG'
             })
  
             st.write("### 🔍 Nota Diagnostik Tarikh:")
