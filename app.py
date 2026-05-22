@@ -492,13 +492,13 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     h41.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
     
     if is_bkk_empty:
-        h41_text = f"4.1 Jadual di bawah menunjukkan jumlah kejadian insiden bencana, kecemasan dan krisis (BKK) di negeri Selangor. Tiada insiden dilaporkan pada {get_malay_date(yesterday)}."
+        h41_text = f"Tiada insiden dilaporkan pada {get_malay_date(yesterday)}. Jadual di bawah menunjukkan jumlah kejadian insiden bencana, kecemasan dan krisis (BKK) yang telah dilaporkan di negeri Selangor. "
     else:
         num_word = {1: "satu (1)", 2: "dua (2)", 3: "tiga (3)", 4: "empat (4)", 5: "lima (5)"}
         count = len(bkk_details)
         count_str = num_word.get(count, f"{count} ({count})")
         
-        h41_text = f"4.1 Jadual di bawah menunjukkan jumlah kejadian insiden bencana, kecemasan dan krisis (BKK) di negeri Selangor. Terdapat {count_str} kejadian dilaporkan pada {get_malay_date(yesterday)}."
+        h41_text = f"Terdapat {count_str} kejadian dilaporkan pada {get_malay_date(yesterday)}."
         
         ordinal_words = {1: " Insiden pertama ialah ", 2: "Insiden kedua ialah ", 3: "Insiden ketiga ialah ", 4: "Insiden keempat ialah ", 5: "Insiden kelima ialah "}
         
@@ -523,12 +523,12 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             
             if kes_val > 0:
                 if kem_val > 0:
-                    status_str = f" Sejumlah {kes_val} orang mangsa terlibat dalam kejadian {kej_str} tersebut dengan {kem_val} kematian dilaporkan."
+                    status_str = f" Sejumlah {kes_val} orang mangsa terlibat dalam kejadian {kej_str} tersebut dengan {kem_val} kematian dilaporkan. Jadual di bawah menunjukkan jumlah kejadian insiden bencana, kecemasan dan krisis (BKK) yang telah dilaporkan di negeri Selangor. "
                 else:
-                    status_str = f" Sejumlah {kes_val} orang mangsa terlibat dalam kejadian {kej_str} tersebut."
+                    status_str = f" Sejumlah {kes_val} orang mangsa terlibat dalam kejadian {kej_str} tersebut. Jadual di bawah menunjukkan jumlah kejadian insiden bencana, kecemasan dan krisis (BKK) yang telah dilaporkan di negeri Selangor."
             else:
                 if kem_val > 0:
-                    status_str = f" Sejumlah {kem_val} kematian terlibat dalam kejadian {kej_str} tersebut."
+                    status_str = f" Sejumlah {kem_val} kematian terlibat dalam kejadian {kej_str} tersebut. Jadual di bawah menunjukkan jumlah kejadian insiden bencana, kecemasan dan krisis (BKK) yang telah dilaporkan di negeri Selangor."
                 else:
                     status_str = ""
             
@@ -576,7 +576,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     apply_font(p4_intro.add_run(" "), 11)
 
     p4_head = doc.add_paragraph()
-    apply_font(p4_head.add_run("5.0 Lain-lain (input secara manual)"), 11, bold=True)
+    apply_font(p4_head.add_run("5.0 Lain-lain (Input secara manual)"), 11, bold=True)
     
     doc.add_paragraph() 
     sig_table = doc.add_table(rows=8, cols=3)
