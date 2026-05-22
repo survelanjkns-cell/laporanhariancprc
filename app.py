@@ -636,31 +636,24 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     # --- 5.0 Lain-lain ---
     p5_head = doc.add_paragraph()
-    p5_head.paragraph_format.space_before = Pt(12)  
-    p5_head.paragraph_format.space_after = Pt(6)    
     apply_font(p5_head.add_run("5.0 Lain-lain (Input secara manual)"), 11, bold=True)
     
     p5_space = doc.add_paragraph()
-    p5_space.paragraph_format.space_before = Pt(0)
-    p5_space.paragraph_format.space_after = Pt(18)  
     apply_font(p5_space.add_run(""), 11)
 
     # --- 6.0 Rumusan oleh Ketua Petugas CPRC Selangor ---
     p6_head = doc.add_paragraph()
-    p6_head.paragraph_format.space_before = Pt(12)  
-    p6_head.paragraph_format.space_after = Pt(6)    
     apply_font(p6_head.add_run("6.0 Rumusan oleh Ketua Petugas CPRC Selangor (Input secara manual)"), 11, bold=True)
     
     p6_space = doc.add_paragraph()
-    p6_space.paragraph_format.space_before = Pt(0)
-    p6_space.paragraph_format.space_after = Pt(18)  
     apply_font(p6_space.add_run(""), 11)
 
     # --- JADUAL TANDATANGAN ---
+    doc.add_paragraph() 
     sig_table = doc.add_table(rows=11, cols=3)
     sig_table.alignment = WD_TABLE_ALIGNMENT.LEFT
     
-    # Mengecilkan lajur pertama supaya teks dekat dengan colon (:)
+    # Tetapkan lebar lajur
     sig_table.columns[0].width = Cm(2.5)
     sig_table.columns[1].width = Cm(0.3)
     sig_table.columns[2].width = Cm(10)
@@ -668,36 +661,36 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     def fill_sig_row(row_idx, label):
         row = sig_table.rows[row_idx].cells
         
-        # Lajur Teks (e.g. Disediakan oleh)
+        # Lajur wording (i.e., Disemak oleh)
         p_label = row[0].paragraphs[0]
-        p_label.paragraph_format.space_before = Pt(0)  # Rapatkan jarak menegak atas
-        p_label.paragraph_format.space_after = Pt(0)   # Rapatkan jarak menegak bawah
-        p_label.paragraph_format.line_spacing = 1.0    # Set line spacing paling rapat
+        p_label.paragraph_format.space_before = Pt(0)
+        p_label.paragraph_format.space_after = Pt(0)
+        p_label.paragraph_format.line_spacing = 1.0  # single spacing
         apply_font(p_label.add_run(label), 11, bold=False)
         
-        # Lajur Titik Bertindih (:)
+        # Lajur colon (:)
         p_colon = row[1].paragraphs[0]
         p_colon.paragraph_format.space_before = Pt(0)
         p_colon.paragraph_format.space_after = Pt(0)
-        p_colon.paragraph_format.line_spacing = 1.0
+        p_colon.paragraph_format.line_spacing = 1.0  # single spacing
         apply_font(p_colon.add_run(":"), 11, bold=False)
 
-    # Isian baris dengan jarak menegak yang telah dikurangkan
+    # Isi wording mengikut permintaan gambar kedua
     fill_sig_row(0, "Disediakan oleh")
     fill_sig_row(1, "Jawatan")
     fill_sig_row(2, "Tarikh")
-    sig_table.rows[3].height = Pt(12)  # Kurangkan ketinggian ruang kosong pemisah
+    sig_table.rows[3].height = Pt(25) # Ruang untuk tanda tangan
 
-    fill_sig_row(4, "Disemak oleh")
+    fill_sig_row(4, "Disemak oleh") # Diubah daripada "Disemak"
     fill_sig_row(5, "Jawatan")
     fill_sig_row(6, "Tarikh")
-    sig_table.rows[7].height = Pt(12)  # Kurangkan ketinggian ruang kosong pemisah
+    sig_table.rows[7].height = Pt(25) # Ruang untuk tanda tangan
 
-    fill_sig_row(8, "Disahkan oleh")
+    fill_sig_row(8, "Disahkan")
     fill_sig_row(9, "Jawatan")
     fill_sig_row(10, "Tarikh")
 
-    # Buang border/garisan jadual
+    # Buang table borders
     tbl = sig_table._tbl
     tblPr = tbl.tblPr
     if tblPr is None:
