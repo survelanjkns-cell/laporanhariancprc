@@ -659,36 +659,45 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     # --- JADUAL TANDATANGAN ---
     sig_table = doc.add_table(rows=11, cols=3)
     sig_table.alignment = WD_TABLE_ALIGNMENT.LEFT
-    sig_table.columns[0].width = Cm(3.2)
-    sig_table.columns[1].width = Cm(0.5)
+    
+    # Mengecilkan lajur pertama supaya teks dekat dengan colon (:)
+    sig_table.columns[0].width = Cm(2.5)
+    sig_table.columns[1].width = Cm(0.3)
     sig_table.columns[2].width = Cm(10)
 
     def fill_sig_row(row_idx, label):
         row = sig_table.rows[row_idx].cells
+        
+        # Lajur Teks (e.g. Disediakan oleh)
         p_label = row[0].paragraphs[0]
-        p_label.paragraph_format.space_before = Pt(2)  
-        p_label.paragraph_format.space_after = Pt(2)
+        p_label.paragraph_format.space_before = Pt(0)  # Rapatkan jarak menegak atas
+        p_label.paragraph_format.space_after = Pt(0)   # Rapatkan jarak menegak bawah
+        p_label.paragraph_format.line_spacing = 1.0    # Set line spacing paling rapat
         apply_font(p_label.add_run(label), 11, bold=False)
         
+        # Lajur Titik Bertindih (:)
         p_colon = row[1].paragraphs[0]
-        p_colon.paragraph_format.space_before = Pt(2)
-        p_colon.paragraph_format.space_after = Pt(2)
+        p_colon.paragraph_format.space_before = Pt(0)
+        p_colon.paragraph_format.space_after = Pt(0)
+        p_colon.paragraph_format.line_spacing = 1.0
         apply_font(p_colon.add_run(":"), 11, bold=False)
 
+    # Isian baris dengan jarak menegak yang telah dikurangkan
     fill_sig_row(0, "Disediakan oleh")
     fill_sig_row(1, "Jawatan")
     fill_sig_row(2, "Tarikh")
-    sig_table.rows[3].height = Pt(18)  
+    sig_table.rows[3].height = Pt(12)  # Kurangkan ketinggian ruang kosong pemisah
 
     fill_sig_row(4, "Disemak")
     fill_sig_row(5, "Jawatan")
     fill_sig_row(6, "Tarikh")
-    sig_table.rows[7].height = Pt(18)  
+    sig_table.rows[7].height = Pt(12)  # Kurangkan ketinggian ruang kosong pemisah
 
     fill_sig_row(8, "Disahkan")
     fill_sig_row(9, "Jawatan")
     fill_sig_row(10, "Tarikh")
 
+    # Buang border/garisan jadual
     tbl = sig_table._tbl
     tblPr = tbl.tblPr
     if tblPr is None:
