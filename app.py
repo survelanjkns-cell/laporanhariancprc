@@ -686,7 +686,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     fill_sig_row(6, "Tarikh")
     sig_table.rows[7].height = Pt(25) # Ruang untuk tanda tangan
 
-    fill_sig_row(8, "Disahkan")
+    fill_sig_row(8, "Disahkan oleh")
     fill_sig_row(9, "Jawatan")
     fill_sig_row(10, "Tarikh")
 
