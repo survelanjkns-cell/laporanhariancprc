@@ -34,9 +34,7 @@ GSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=c
 
 # --- URL GOOGLE SHEET BKK (RAW LINELISTING & JADUAL) ---
 BKK_SPREADSHEET_ID = "1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c"
-# GID 1352807145 adalah sheet "2026" (Linelisting tempat cari tarikh)
 URL_BKK_LINELISTING = f"https://docs.google.com/spreadsheets/d/{BKK_SPREADSHEET_ID}/export?format=csv&gid=1352807145"
-# GID 1342717767 adalah sheet "JADUAL 4" (Untuk bina jadual word)
 URL_BKK_JADUAL = f"https://docs.google.com/spreadsheets/d/{BKK_SPREADSHEET_ID}/export?format=csv&gid=1342717767"
 
 CHART_IMAGE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTDprYai1uaP1L-JP6kuHRZX18AmDHX0ROEzRE37DaCHMo0cNWUvRa8R-65RZAK7XFWI6pb_-X-jF24/pubchart?oid=1681812411&format=image"
@@ -101,7 +99,6 @@ def add_table_title(doc, label, title):
     p.paragraph_format.space_after = Pt(6)
 
 def add_pkd_note(doc):
-    # Cipta perenggan utama untuk label perkataan "*Nota :"
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.LEFT
     p.paragraph_format.space_before = Pt(8)
@@ -110,7 +107,6 @@ def add_pkd_note(doc):
     run_main = p.add_run("*Nota :")
     apply_font(run_main, 7, bold=True)
 
-    # Senarai daerah disusun menurun ke bawah
     senarai_daerah = [
         "GBK = Gombak",
         "HL = Hulu Langat",
@@ -123,19 +119,16 @@ def add_pkd_note(doc):
         "SPG = Sepang"
     ]
     
-    # Memasukkan setiap satu daerah secara baris demi baris (Enter ke bawah)
     for daerah in senarai_daerah:
         p_item = doc.add_paragraph()
         p_item.alignment = WD_ALIGN_PARAGRAPH.LEFT
         p_item.paragraph_format.space_before = Pt(0)
         p_item.paragraph_format.space_after = Pt(2)
-        # Menolak teks ke kanan sedikit (indent) sebanyak 0.4 inci supaya kelihatan selari di bawah label *Nota
         p_item.paragraph_format.left_indent = Inches(0.4) 
         
         run_item = p_item.add_run(daerah)
         apply_font(run_item, 7, bold=False)
         
-    # Memberi jarak asal selepas senarai terakhir tamat
     p_item.paragraph_format.space_after = Pt(8)
 
 # --- DOCX GENERATOR ---
@@ -483,73 +476,67 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     except Exception as e:
         st.error(f"Ralat semasa memproses Rajah 1: {e}")
 
-# --- KEMASKINI PENUH: BAHAGIAN 4.0 PENULISAN NARATIF BKK AUTOMATIK ---
-doc.add_page_break()
-p4_head = doc.add_paragraph()
-apply_font(p4_head.add_run("4.0 Ringkasan Laporan Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)"), 11, bold=True)
+    # --- KEMASKINI PENUH: BAHAGIAN 4.0 PENULISAN NARATIF BKK AUTOMATIK ---
+    doc.add_page_break()
+    p4_head = doc.add_paragraph()
+    apply_font(p4_head.add_run("4.0 Ringkasan Laporan Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)"), 11, bold=True)
 
-h41 = doc.add_paragraph()
-h41.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
+    h41 = doc.add_paragraph()
+    h41.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
 
-# Ayat penutup standard yang wajib ada di penghujung perenggan 4.0
-penutup_text = " Jadual di bawah menunjukkan jumlah kejadian insiden bencana, kecemasan dan krisis (BKK) yang telah dilaporkan di negeri Selangor."
+    penutup_text = " Jadual di bawah menunjukkan jumlah kejadian insiden bencana, kecemasan dan krisis (BKK) yang telah dilaporkan di negeri Selangor."
 
-if is_bkk_empty:
-    # Jika tiada insiden, gabungkan terus dengan ayat penutup
-    h41_text = f"Tiada insiden dilaporkan pada {get_malay_date(yesterday)}.{penutup_text}"
-else:
-    num_word = {1: "satu (1)", 2: "dua (2)", 3: "tiga (3)", 4: "empat (4)", 5: "lima (5)"}
-    count = len(bkk_details)
-    count_str = num_word.get(count, f"{count} ({count})")
-    
-    h41_text = f"Terdapat {count_str} kejadian dilaporkan pada {get_malay_date(yesterday)}."
-    
-    ordinal_words = {1: " Insiden pertama ialah ", 2: " Insiden kedua ialah ", 3: " Insiden ketiga ialah ", 4: " Insiden keempat ialah ", 5: " Insiden kelima ialah "}
-    
-    narrative_parts = []
-    for idx, item in enumerate(bkk_details, start=1):
-        prefix = ordinal_words.get(idx, f" Insiden ke-{idx} ialah ") if count > 1 else ""
+    if is_bkk_empty:
+        h41_text = f"Tiada insiden dilaporkan pada {get_malay_date(yesterday)}.{penutup_text}"
+    else:
+        num_word = {1: "satu (1)", 2: "dua (2)", 3: "tiga (3)", 4: "empat (4)", 5: "lima (5)"}
+        count = len(bkk_details)
+        count_str = num_word.get(count, f"{count} ({count})")
         
-        kej_str = str(item['kejadian']).lower()
-        alamat_str = str(item['alamat']).strip()
-        daerah_str = str(item['daerah']).title()  # Proper Case (e.g. Sabak Bernam)
+        h41_text = f"Terdapat {count_str} kejadian dilaporkan pada {get_malay_date(yesterday)}."
         
-        def clean_to_int(v):
-            if pd.isna(v) or str(v).strip() in ["", "-", "nan", "0"]:
-                return 0
-            try:
-                return int(float(str(v).strip()))
-            except:
-                return 0
-
-        kes_val = clean_to_int(item.get('bil_kes', 0))
-        kem_val = clean_to_int(item.get('bil_kematian', 0))
+        ordinal_words = {1: " Insiden pertama ialah ", 2: " Insiden kedua ialah ", 3: " Insiden ketiga ialah ", 4: " Insiden keempat ialah ", 5: " Insiden kelima ialah "}
         
-        if kes_val > 0:
-            if kem_val > 0:
-                status_str = f" Sejumlah {kes_val} orang mangsa terlibat dalam kejadian {kej_str} tersebut dengan {kem_val} kematian dilaporkan."
-            else:
-                status_str = f" Sejumlah {kes_val} orang mangsa terlibat dalam kejadian {kej_str} tersebut."
-        else:
-            if kem_val > 0:
-                status_str = f" Sejumlah {kem_val} kematian dilaporkan dalam kejadian {kej_str} tersebut."
-            else:
-                status_str = ""
-        
-        # Membina struktur ayat bagi setiap insiden
-        if count == 1:
-            full_event_sentence = f" Kejadian {kej_str} berlaku di {alamat_str}, {daerah_str}.{status_str}"
-        else:
-            full_event_sentence = f"{prefix}kejadian {kej_str} di {alamat_str}, {daerah_str}.{status_str}"
+        narrative_parts = []
+        for idx, item in enumerate(bkk_details, start=1):
+            prefix = ordinal_words.get(idx, f" Insiden ke-{idx} ialah ") if count > 1 else ""
             
-        narrative_parts.append(full_event_sentence)
-        
-    # Gabungkan semua naratif insiden dan diakhiri dengan ayat penutup yang diminta
-    h41_text += "".join(narrative_parts) + penutup_text
+            kej_str = str(item['kejadian']).lower()
+            alamat_str = str(item['alamat']).strip()
+            daerah_str = str(item['daerah']).title()
+            
+            def clean_to_int(v):
+                if pd.isna(v) or str(v).strip() in ["", "-", "nan", "0"]:
+                    return 0
+                try:
+                    return int(float(str(v).strip()))
+                except:
+                    return 0
 
-# Masukkan teks penuh yang telah siap digubah ke dalam dokumen
-apply_font(h41.add_run(h41_text), 11)
+            kes_val = clean_to_int(item.get('bil_kes', 0))
+            kem_val = clean_to_int(item.get('bil_kematian', 0))
+            
+            if kes_val > 0:
+                if kem_val > 0:
+                    status_str = f" Sejumlah {kes_val} orang mangsa terlibat dalam kejadian {kej_str} tersebut dengan {kem_val} kematian dilaporkan."
+                else:
+                    status_str = f" Sejumlah {kes_val} orang mangsa terlibat dalam kejadian {kej_str} tersebut."
+            else:
+                if kem_val > 0:
+                    status_str = f" Sejumlah {kem_val} kematian dilaporkan dalam kejadian {kej_str} tersebut."
+                else:
+                    status_str = ""
+            
+            if count == 1:
+                full_event_sentence = f" Kejadian {kej_str} berlaku di {alamat_str}, {daerah_str}.{status_str}"
+            else:
+                full_event_sentence = f"{prefix}kejadian {kej_str} di {alamat_str}, {daerah_str}.{status_str}"
+                
+            narrative_parts.append(full_event_sentence)
+            
+        h41_text += "".join(narrative_parts) + penutup_text
 
+    # Memasukkan run teks ke dokumen dengan selamat (bebas ralat identasi)
     apply_font(h41.add_run(h41_text), 11, bold=False)
 
     add_table_title(doc, "Jadual 4", "Senarai Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)")
