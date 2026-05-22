@@ -131,6 +131,25 @@ def add_pkd_note(doc):
         
     p_item.paragraph_format.space_after = Pt(8)
 
+def format_bkk_number(val, is_person=False):
+    try:
+        num = int(float(str(val).strip()))
+    except:
+        num = 0
+        
+    if num == 0:
+        return "0"
+        
+    if num == 1 and is_person:
+        return "seorang"
+    
+    num_word = {
+        1: "satu (1)", 2: "dua (2)", 3: "tiga (3)", 4: "empat (4)", 5: "lima (5)",
+        6: "enam (6)", 7: "tujuh (7)", 8: "lapan (8)", 9: "sembilan (9)"
+    }
+    
+    return num_word.get(num, str(num))
+
 # --- DOCX GENERATOR ---
 def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty, bkk_details, df_yesterday_list):
     doc = Document()
@@ -517,9 +536,8 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     if is_bkk_empty:
         h41_text = f"Tiada insiden dilaporkan pada {get_malay_date(yesterday)}.{penutup_text}"
     else:
-        num_word = {1: "satu (1)", 2: "dua (2)", 3: "tiga (3)", 4: "empat (4)", 5: "lima (5)"}
         count = len(bkk_details)
-        count_str = num_word.get(count, f"{count} ({count})")
+        count_str = format_bkk_number(count, is_person=False)
         
         h41_text = f"Terdapat {count_str} kejadian yang dilaporkan pada {get_malay_date(yesterday)}."
         
@@ -544,14 +562,28 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             kes_val = clean_to_int(item.get('bil_kes', 0))
             kem_val = clean_to_int(item.get('bil_kematian', 0))
             
+            kes_str_formatted = format_bkk_number(kes_val, is_person=True)
+            kem_str_formatted = format_bkk_number(kem_val, is_person=True)
+            
             if kes_val > 0:
-                if kem_val > 0:
-                    status_str = f" Sejumlah {kes_val} orang mangsa terlibat dalam kejadian {kej_str} tersebut dengan {kem_val} kematian dilaporkan."
+                if kes_val == 1:
+                    mangsa_prefix = " Seorang mangsa terlibat"
                 else:
-                    status_str = f" Sejumlah {kes_val} orang mangsa terlibat dalam kejadian {kej_str} tersebut."
+                    mangsa_prefix = f" Sejumlah {kes_str_formatted} orang mangsa terlibat"
+
+                if kem_val > 0:
+                    if kem_val == 1:
+                        status_str = f"{mangsa_prefix} dalam kejadian {kej_str} tersebut dengan seorang kematian dilaporkan."
+                    else:
+                        status_str = f"{mangsa_prefix} dalam kejadian {kej_str} tersebut dengan {kem_str_formatted} kematian dilaporkan."
+                else:
+                    status_str = f"{mangsa_prefix} dalam kejadian {kej_str} tersebut."
             else:
                 if kem_val > 0:
-                    status_str = f" Sejumlah {kem_val} kematian dilaporkan dalam kejadian {kej_str} tersebut."
+                    if kem_val == 1:
+                        status_str = f" Seorang kematian dilaporkan dalam kejadian {kej_str} tersebut."
+                    else:
+                        status_str = f" Sejumlah {kem_str_formatted} kematian dilaporkan dalam kejadian {kej_str} tersebut."
                 else:
                     status_str = ""
             
@@ -610,16 +642,16 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     apply_font(p5_head.add_run("5.0 Lain-lain (Input secara manual)"), 11, bold=True)
     
     p5_space = doc.add_paragraph()
-    apply_font(p5_space.add_run("\n\n\n"), 11) # Menyediakan ruang kosong bertulis manual
+    apply_font(p5_space.add_run("\n\n\n"), 11)
 
     # --- 6.0 Rumusan oleh Ketua Petugas CPRC Selangor ---
     p6_head = doc.add_paragraph()
     apply_font(p6_head.add_run("6.0 Rumusan oleh Ketua Petugas CPRC Selangor (Input secara manual)"), 11, bold=True)
     
     p6_space = doc.add_paragraph()
-    apply_font(p6_space.add_run("\n\n\n"), 11) # Menyediakan ruang kosong bertulis manual
+    apply_font(p6_space.add_run("\n\n\n"), 11)
 
-    # --- JADUAL TANDATANGAN (DIALIKH KE PALING BAWAH) ---
+    # --- JADUAL TANDATANGAN ---
     doc.add_paragraph() 
     sig_table = doc.add_table(rows=11, cols=3)
     sig_table.alignment = WD_TABLE_ALIGNMENT.LEFT
