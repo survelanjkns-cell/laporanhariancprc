@@ -568,7 +568,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     apply_font(h41.add_run(h41_text), 11, bold=False)
 
-    add_table_title(doc, "Jadual 4", "Senarai Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)")
+    add_table_title(doc, "Jadual 4.1", "Jumlah Kejadian Bencana, Kecemasan dan Krisis (BKK) di Selangor Pada Tahun 2026")
     t4 = doc.add_table(rows=len(bkk_table_df) + 1, cols=len(bkk_table_df.columns))
     t4.style = 'Table Grid'
     t4.width = content_width 
