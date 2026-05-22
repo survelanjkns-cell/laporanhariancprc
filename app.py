@@ -463,7 +463,8 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             p_rajah_head.alignment = WD_ALIGN_PARAGRAPH.LEFT
             run_rajah_label = p_rajah_head.add_run("Rajah 1 : ")
             apply_font(run_rajah_label, 11, bold=True)
-            run_rajah_title = p_rajah_head.add_run("Tren Kes Mingguan Denggi Didaftar Bagi Tahun 2025 - 2026 Negeri Selangor")
+            # Teks penerangan rajah disesuaikan dengan permintaan baharu anda (Purata Bergerak)
+            run_rajah_title = p_rajah_head.add_run("Tren Kes Mingguan Denggi Didaftar Serta Purata Bergerak 4 Tahun (2022,2023,2024,2025) Negeri Selangor")
             apply_font(run_rajah_title, 11, bold=False)
 
             img_stream = io.BytesIO(response.content)
@@ -536,7 +537,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             
         h41_text += "".join(narrative_parts) + penutup_text
 
-    # Memasukkan run teks ke dokumen dengan selamat (bebas ralat identasi)
     apply_font(h41.add_run(h41_text), 11, bold=False)
 
     add_table_title(doc, "Jadual 4", "Senarai Kejadian Insiden Bencana, Kecemasan dan Krisis (BKK)")
@@ -547,11 +547,10 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     h4_col_count = len(bkk_table_df.columns)
     for i, col in enumerate(bkk_table_df.columns):
         cell = t4.rows[0].cells[i]
-        # Mengubah suai kod warna latar belakang kerana kolum terakhir (Diisytihar) sudah tiada
         if i < h4_col_count-1: 
             set_cell_background(cell, "BFDFFF")
         else: 
-            set_cell_background(cell, "FFFF00") # Kolum 'Jumlah' (kolum terakhir yang baru) jadi Kuning
+            set_cell_background(cell, "FFFF00")
             
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         p = cell.paragraphs[0]
@@ -574,7 +573,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             elif c_idx == 0: 
                 set_cell_background(cells[c_idx], "D9E9FF")
             elif c_idx == bkk_table_df.shape[1]-1: 
-                set_cell_background(cells[c_idx], "FFFFB3") # Set warna Kuning Lembut untuk kolum Jumlah harian
+                set_cell_background(cells[c_idx], "FFFFB3")
 
     p4_intro = doc.add_paragraph()
     apply_font(p4_intro.add_run(" "), 11)
@@ -705,8 +704,6 @@ if f1 and f2:
             } for _, r in insiden_semalam.iterrows()]
             
             df_bkk_jadual_full = pd.read_csv(URL_BKK_JADUAL, header=None)
-            
-            # --- PERUBAHAN DI SINI: Slicing diubah dari 33:47 ke 33:46 untuk buang kolum 'Diisytihar' ---
             bkk_raw = df_bkk_jadual_full.iloc[1:, 33:46].dropna(how='all').reset_index(drop=True)
             bkk_raw.columns = bkk_raw.iloc[0]
             bkk_table_final = bkk_raw[1:].reset_index(drop=True).rename(columns={'GOMBAK':'GBK','HULU LANGAT':'HL','HULU SELANGOR':'HS','KLANG':'KLG','KUALA LANGAT':'KL','KUALA SELANGOR':'KS','PETALING':'PTG','SABAK BERNAM':'SB','SEPANG':'SPG'})
