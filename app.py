@@ -579,9 +579,9 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     apply_font(p4_head.add_run("5.0 Lain-lain (Input secara manual)"), 11, bold=True)
     
     doc.add_paragraph() 
-    sig_table = doc.add_table(rows=8, cols=3)
+    sig_table = doc.add_table(rows=11, cols=3)  # Ditambah saiz baris daripada 8 ke 11 untuk memuatkan 'Tarikh :'
     sig_table.alignment = WD_TABLE_ALIGNMENT.LEFT
-    sig_table.columns[0].width = Cm(2.5)
+    sig_table.columns[0].width = Cm(3.2)       # Lebarkan sedikit ruangan kolum label supaya 'Disediakan oleh' muat satu baris
     sig_table.columns[1].width = Cm(0.5)
     sig_table.columns[2].width = Cm(10)
 
@@ -592,14 +592,19 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         p_colon = row[1].paragraphs[0]
         apply_font(p_colon.add_run(":"), 11, bold=False)
 
-    fill_sig_row(0, "Disediakan")
+    fill_sig_row(0, "Disediakan oleh")
     fill_sig_row(1, "Jawatan")
-    sig_table.rows[2].height = Pt(30)
-    fill_sig_row(3, "Disemak")
-    fill_sig_row(4, "Jawatan")
-    sig_table.rows[5].height = Pt(30)
-    fill_sig_row(6, "Disahkan")
-    fill_sig_row(7, "Jawatan")
+    fill_sig_row(2, "Tarikh")
+    sig_table.rows[3].height = Pt(25) # Ruang kosong/tandatangan
+
+    fill_sig_row(4, "Disemak")
+    fill_sig_row(5, "Jawatan")
+    fill_sig_row(6, "Tarikh")
+    sig_table.rows[7].height = Pt(25) # Ruang kosong/tandatangan
+
+    fill_sig_row(8, "Disahkan")
+    fill_sig_row(9, "Jawatan")
+    fill_sig_row(10, "Tarikh")
 
     tbl = sig_table._tbl
     tblPr = tbl.tblPr
