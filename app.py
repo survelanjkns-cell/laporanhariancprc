@@ -701,7 +701,7 @@ if f1 and f2:
             } for _, r in insiden_semalam.iterrows()]
             
             df_bkk_jadual_full = pd.read_csv(URL_BKK_JADUAL, header=None)
-            bkk_raw = df_bkk_jadual_full.iloc[1:, 33:47].dropna(how='all').reset_index(drop=True)
+            bkk_raw = df_bkk_jadual_full.iloc[1:, 33:46].dropna(how='all').reset_index(drop=True)
             bkk_raw.columns = bkk_raw.iloc[0]
             bkk_table_final = bkk_raw[1:].reset_index(drop=True).rename(columns={'GOMBAK':'GBK','HULU LANGAT':'HL','HULU SELANGOR':'HS','KLANG':'KLG','KUALA LANGAT':'KL','KUALA SELANGOR':'KS','PETALING':'PTG','SABAK BERNAM':'SB','SEPANG':'SPG'})
 
