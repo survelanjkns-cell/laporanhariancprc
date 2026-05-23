@@ -305,7 +305,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     apply_font(p2_head.add_run("2.0 Ringkasan Laporan Notifikasi Wabak"), 11, bold=True)
     
     harian_total = int(wabak_df['HARIAN'].sum())
-    # Diubah di sini: Menggunakan format_bkk_number untuk memformat angka di bawah 10 menjadi teks perkataan
     harian_total_str = format_bkk_number(harian_total, is_person=False)
     
     h21 = doc.add_paragraph()
@@ -319,7 +318,8 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     t2.alignment = WD_TABLE_ALIGNMENT.CENTER
     t2.autofit = False  
     
-    col_widths_t2 = [content_width * 0.40, content_width * 0.20, content_width * 0.20, content_width * 0.20]
+    # DIUBAH DI SINI: Lebar lajur Penyakit dibesarkan kepada 55%, lajur lain dikecilkan kepada 15% supaya RSV sebaris
+    col_widths_t2 = [content_width * 0.55, content_width * 0.15, content_width * 0.15, content_width * 0.15]
 
     for i, h in enumerate(["Penyakit", "Harian", "Aktif", "Kumulatif"]):
         cell = t2.cell(0, i)
