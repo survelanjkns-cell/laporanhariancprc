@@ -429,7 +429,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     except: 
         xx_v = 0
     
-    # DIUBAH DI SINI: Menggunakan format_bkk_number untuk memformat jumlah kes harian bagi Bahagian 3.0 jika bawah 10
     if xx_v == 0:
         xx_v_display = "Tiada"
     else:
@@ -796,8 +795,10 @@ if f1 and f2:
                     new_cols.append(col_str)
             bkk_raw.columns = new_cols
 
+            # DIUBAH DI SINI: Menambah 'PK P.KLANG': 'PK PK' ke dalam logik rename columns
             bkk_table_final = bkk_raw[1:].reset_index(drop=True).rename(columns={
-                'GOMBAK':'GBK','HULU LANGAT':'HL','HULU SELANGOR':'HS','KLANG':'KLG','KUALA LANGAT':'KL','KUALA SELANGOR':'KS','PETALING':'PTG','SABAK BERNAM':'SB','SEPANG':'SPG'
+                'GOMBAK':'GBK','HULU LANGAT':'HL','HULU SELANGOR':'HS','KLANG':'KLG','KUALA LANGAT':'KL','KUALA SELANGOR':'KS','PETALING':'PTG','SABAK BERNAM':'SB','SEPANG':'SPG',
+                'PK P.KLANG': 'PK PK'
             })
 
             doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, (len(bkk_details)==0), bkk_details, df_yesterday_list)
