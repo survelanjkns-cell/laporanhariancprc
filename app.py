@@ -124,7 +124,7 @@ def add_pkd_note(doc):
     run_item = p.add_run(teks_daerah)
     apply_font(run_item, 7, bold=False)
 
-# KOD BARU: Fungsi untuk menghasilkan nota khusus bagi Jadual BKK (Jadual 4.1)
+# DIUBAH DI SINI: Hanya memaparkan nota PK PK dan PK KLIA sahaja untuk Jadual 4.1
 def add_bkk_note(doc):
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.LEFT
@@ -136,15 +136,6 @@ def add_bkk_note(doc):
     apply_font(run_main, 8, bold=True)
 
     senarai_nota_bkk = [
-        "GBK = Gombak",
-        "HL = Hulu Langat",
-        "HS = Hulu Selangor",
-        "KLG = Klang",
-        "KL = Kuala Langat",
-        "KS = Kuala Selangor",
-        "PTG = Petaling",
-        "SB = Sabak Bernam",
-        "SPG = Sepang",
         "PK PK = Pejabat Kesihatan Pelabuhan Klang",
         "PK KLIA = Pejabat Kesihatan KLIA"
     ]
@@ -663,7 +654,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             elif c_idx == bkk_table_df.shape[1]-1: 
                 set_cell_background(cells[c_idx], "FFFFB3") 
 
-    # DIUBAH DI SINI: Memanggil fungsi nota baru bagi Jadual BKK selepas jadual selesai dibina
+    # Memanggil fungsi nota yang telah diubah suai khusus untuk PK PK dan PK KLIA sahaja
     add_bkk_note(doc)
 
     # --- 5.0 Lain-lain ---
