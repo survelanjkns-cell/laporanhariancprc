@@ -102,34 +102,31 @@ def add_pkd_note(doc):
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.LEFT
     p.paragraph_format.space_before = Pt(8)
-    p.paragraph_format.space_after = Pt(2)
-    
-    run_main = p.add_run("*Nota :")
+    p.paragraph_format.space_after = Pt(8)
+    p.paragraph_format.line_spacing = 1.15  # Mengimbas jarak baris yang lebih kemas
+
+    # Menambah kepala nota dengan breakline \n di hujungnya
+    run_main = p.add_run("*Nota :\n")
     apply_font(run_main, 8, bold=True)
 
     senarai_daerah = [
-    "GBK = Gombak",
-    "HL = Hulu Langat",
-    "HS = Hulu Selangor",
-    "KLG = Klang",
-    "KL = Kuala Langat",
-    "KS = Kuala Selangor",
-    "PTG = Petaling",
-    "SB = Sabak Bernam",
-    "SPG = Sepang"
+        "GBK = Gombak",
+        "HL = Hulu Langat",
+        "HS = Hulu Selangor",
+        "KLG = Klang",
+        "KL = Kuala Langat",
+        "KS = Kuala Selangor",
+        "PTG = Petaling",
+        "SB = Sabak Bernam",
+        "SPG = Sepang"
     ]
     
-    for daerah in senarai_daerah:
-        p_item = doc.add_paragraph()
-        p_item.alignment = WD_ALIGN_PARAGRAPH.LEFT
-        p_item.paragraph_format.space_before = Pt(0)
-        p_item.paragraph_format.space_after = Pt(2)
-        p_item.paragraph_format.left_indent = Inches(0.4) 
-        
-        run_item = p_item.add_run(daerah)
-        apply_font(run_item, 7, bold=False)
-        
-    p_item.paragraph_format.space_after = Pt(8)
+    # Menggabungkan semua daerah sebaris ke bawah menggunakan pembatas \n
+    teks_daerah = "\n".join(senarai_daerah)
+    
+    # Menulis keseluruhan senarai daerah di dalam run dan perenggan yang sama
+    run_item = p.add_run(teks_daerah)
+    apply_font(run_item, 7, bold=False)
 
 def format_bkk_number(val, is_person=False):
     try:
