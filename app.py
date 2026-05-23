@@ -317,10 +317,12 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     add_pkd_note(doc)
 
-    doc.add_page_break()
+    # DIUBAH DI SINI: Membuang doc.add_page_break() untuk mengekalkan kesinambungan dokumen
     
     # --- 2.0 Ringkasan Laporan Notifikasi Wabak ---
     p2_head = doc.add_paragraph()
+    # Menambah ketetapan space_before untuk memberikan ruang pembatas yang kemas berbanding perenggan atas
+    p2_head.paragraph_format.space_before = Pt(24)
     apply_font(p2_head.add_run("2.0 Ringkasan Laporan Notifikasi Wabak"), 11, bold=True)
     
     harian_total = int(wabak_df['HARIAN'].sum())
@@ -672,18 +674,14 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     # --- JADUAL TANDATANGAN (PLAIN TEXT FORMAT WITH ALIGNED COLONS) ---
     doc.add_paragraph() 
     
-    # Fungsi pembantu untuk membina baris teks tandatangan dengan kedudukan colon sebaris tetap (2.0 Inci)
     def add_sig_block(doc, title):
-        # Tajuk Utama Blok (e.g., Disediakan oleh, Disemak oleh, Disahkan oleh)
         p_main = doc.add_paragraph()
         p_main.paragraph_format.space_before = Pt(12)
         p_main.paragraph_format.space_after = Pt(2)
         p_main.paragraph_format.line_spacing = 1.0
-        # Tetapkan Tab Stop tegar pada 2.0 Inci daripada margin kiri
         p_main.paragraph_format.tab_stops.add_tab_stop(Inches(2.0))
         apply_font(p_main.add_run(f"{title}\t:"), 11, bold=False)
         
-        # Baris Jawatan
         p_jawatan = doc.add_paragraph()
         p_jawatan.paragraph_format.space_before = Pt(2)
         p_jawatan.paragraph_format.space_after = Pt(2)
@@ -691,7 +689,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         p_jawatan.paragraph_format.tab_stops.add_tab_stop(Inches(2.0))
         apply_font(p_jawatan.add_run("Jawatan\t:"), 11, bold=False)
         
-        # Baris Tarikh
         p_tarikh = doc.add_paragraph()
         p_tarikh.paragraph_format.space_before = Pt(2)
         p_tarikh.paragraph_format.space_after = Pt(2)
@@ -699,23 +696,18 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         p_tarikh.paragraph_format.tab_stops.add_tab_stop(Inches(2.0))
         apply_font(p_tarikh.add_run("Tarikh\t:"), 11, bold=False)
 
-    # Membina Blok 1: Disediakan oleh
     add_sig_block(doc, "Disediakan oleh")
     
-    # Letak perenggan kosong bertindak sebagai gap ruang tanda tangan (height Pt(25))
     p_gap1 = doc.add_paragraph()
     p_gap1.paragraph_format.space_before = Pt(25)
     p_gap1.paragraph_format.space_after = Pt(0)
 
-    # Membina Blok 2: Disemak oleh
     add_sig_block(doc, "Disemak oleh")
     
-    # Letak perenggan kosong bertindak sebagai gap ruang tanda tangan
     p_gap2 = doc.add_paragraph()
     p_gap2.paragraph_format.space_before = Pt(25)
     p_gap2.paragraph_format.space_after = Pt(0)
 
-    # Membina Blok 3: Disahkan oleh
     add_sig_block(doc, "Disahkan oleh")
 
     target = io.BytesIO()
