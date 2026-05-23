@@ -128,7 +128,6 @@ def add_bkk_note(doc):
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.LEFT
     p.paragraph_format.space_before = Pt(8)
-    # DIUBAH DI SINI: Ditambah jarak selepas nota (space_after) supaya tidak rapat dengan tajuk 5.0
     p.paragraph_format.space_after = Pt(30) 
     p.paragraph_format.line_spacing = 1.15
 
@@ -654,7 +653,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             elif c_idx == bkk_table_df.shape[1]-1: 
                 set_cell_background(cells[c_idx], "FFFFB3") 
 
-    # Memanggil fungsi nota PK PK dan PK KLIA
     add_bkk_note(doc)
 
     # --- 5.0 Lain-lain ---
@@ -671,51 +669,50 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     p6_space = doc.add_paragraph()
     apply_font(p6_space.add_run(""), 11)
 
-    # --- JADUAL TANDATANGAN ---
+    # --- DIUBAH DI SINI: JADUAL TANDATANGAN (PLAIN TEXT FORMAT) ---
     doc.add_paragraph() 
-    sig_table = doc.add_table(rows=11, cols=3)
-    sig_table.alignment = WD_TABLE_ALIGNMENT.LEFT
     
-    sig_table.columns[0].width = Cm(2.5)
-    sig_table.columns[1].width = Cm(0.3)
-    sig_table.columns[2].width = Cm(10)
-
-    def fill_sig_row(row_idx, label):
-        row = sig_table.rows[row_idx].cells
+    # Fungsi pembantu untuk membina baris teks tandatangan dengan colon rapat
+    def add_sig_block(doc, title):
+        # Tajuk Utama Blok (e.g., Disediakan oleh, Disemak oleh, Disahkan oleh)
+        p_main = doc.add_paragraph()
+        p_main.paragraph_format.space_before = Pt(12)
+        p_main.paragraph_format.space_after = Pt(2)
+        p_main.paragraph_format.line_spacing = 1.0
+        apply_font(p_main.add_run(title), 11, bold=False)
         
-        p_label = row[0].paragraphs[0]
-        p_label.paragraph_format.space_before = Pt(0)
-        p_label.paragraph_format.space_after = Pt(0)
-        p_label.paragraph_format.line_spacing = 1.0
-        apply_font(p_label.add_run(label), 11, bold=False)
+        # Baris Jawatan
+        p_jawatan = doc.add_paragraph()
+        p_jawatan.paragraph_format.space_before = Pt(2)
+        p_jawatan.paragraph_format.space_after = Pt(2)
+        p_jawatan.paragraph_format.line_spacing = 1.0
+        apply_font(p_jawatan.add_run("Jawatan :"), 11, bold=False)
         
-        p_colon = row[1].paragraphs[0]
-        p_colon.paragraph_format.space_before = Pt(0)
-        p_colon.paragraph_format.space_after = Pt(0)
-        p_colon.paragraph_format.line_spacing = 1.0
-        apply_font(p_colon.add_run(":"), 11, bold=False)
+        # Baris Tarikh
+        p_tarikh = doc.add_paragraph()
+        p_tarikh.paragraph_format.space_before = Pt(2)
+        p_tarikh.paragraph_format.space_after = Pt(2)
+        p_tarikh.paragraph_format.line_spacing = 1.0
+        apply_font(p_tarikh.add_run("Tarikh :"), 11, bold=False)
 
-    fill_sig_row(0, "Disediakan oleh")
-    fill_sig_row(1, "Jawatan")
-    fill_sig_row(2, "Tarikh")
-    sig_table.rows[3].height = Pt(25)
+    # Membina Blok 1: Disediakan oleh
+    add_sig_block(doc, "Disediakan oleh :")
+    
+    # Letak perenggan kosong bertindak sebagai gap ruang tanda tangan (bersamaan height Pt(25))
+    p_gap1 = doc.add_paragraph()
+    p_gap1.paragraph_format.space_before = Pt(25)
+    p_gap1.paragraph_format.space_after = Pt(0)
 
-    fill_sig_row(4, "Disemak oleh")
-    fill_sig_row(5, "Jawatan")
-    fill_sig_row(6, "Tarikh")
-    sig_table.rows[7].height = Pt(25)
+    # Membina Blok 2: Disemak oleh
+    add_sig_block(doc, "Disemak oleh :")
+    
+    # Letak perenggan kosong bertindak sebagai gap ruang tanda tangan
+    p_gap2 = doc.add_paragraph()
+    p_gap2.paragraph_format.space_before = Pt(25)
+    p_gap2.paragraph_format.space_after = Pt(0)
 
-    fill_sig_row(8, "Disahkan oleh")
-    fill_sig_row(9, "Jawatan")
-    fill_sig_row(10, "Tarikh")
-
-    tbl = sig_table._tbl
-    tblPr = tbl.tblPr
-    if tblPr is None:
-        tblPr = parse_xml(r'<w:tblPr %s/>' % nsdecls('w'))
-        tbl.insert(0, tblPr)
-    tblBorders = parse_xml(r'<w:tblBorders %s><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/><w:insideH w:val="none"/><w:insideV w:val="none"/></w:tblBorders>' % nsdecls('w'))
-    tblPr.append(tblBorders)
+    # Membina Blok 3: Disahkan oleh
+    add_sig_block(doc, "Disahkan oleh :")
 
     target = io.BytesIO()
     doc.save(target)
@@ -763,9 +760,9 @@ if f1 and f2:
             addr_col = 'Tempat Berlaku Wabak\n(Alamat diisi lengkap dengan :- No rumah, nama jalan, nama tempat, daerah dan Negeri)'
             cat_col = 'Kategori Tempat\n(Kategori premis berdasarkan tempat berlaku wabak)'
             df_yesterday = df2[df2['Tarikh Isytihar Wabak'] == yesterday].copy()
-            df_yesterday_list = df_yesterday[['PENYAKIT', 'DAERAH (HURUF BESAR)', addr_col, cat_col, 'Bilangan Kes', 'Bilangan Terdedah']].values.tolist()
+            df_yesterday_list = df_yesterday[['PENYAGIT', 'DAERAH (HURUF BESAR)', addr_col, cat_col, 'Bilangan Kes', 'Bilangan Terdedah']].values.tolist()
 
-            df2_filt = df2[df2['Tarikh Isytihar Wabak'] >= date(2026, 1, 4)].copy()
+            df2_filt = doc_out = df2[df2['Tarikh Isytihar Wabak'] >= date(2026, 1, 4)].copy()
             def group_inf(n): return "ILI/ Influenza" if any(x in str(n).upper() for x in ["INFLUENZA", "ILI"]) else n
             df2_filt['PENYAKIT'] = df2_filt['PENYAKIT'].apply(group_inf)
             
