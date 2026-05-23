@@ -318,7 +318,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     t2.alignment = WD_TABLE_ALIGNMENT.CENTER
     t2.autofit = False  
     
-    # DIUBAH DI SINI: Lajur dipendekkan ke 48% (cukup-cukup selepas RSV), manakala baki lajur dikembalikan menjadi 17.33% setiap satu
     col_widths_t2 = [content_width * 0.48, content_width * 0.1733, content_width * 0.1733, content_width * 0.1733]
 
     for i, h in enumerate(["Penyakit", "Harian", "Aktif", "Kumulatif"]):
@@ -381,7 +380,9 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
                 row[i].width = widths_21[i]
                 row[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
             
-            row[0].text = str(idx)
+            # DIUBAH DI SINI: Menambahkan tanda titik "." selepas nombor turutan Bil
+            row[0].text = f"{idx}."
+            
             p_wabak = row[1].paragraphs[0]
             p_wabak.alignment = WD_ALIGN_PARAGRAPH.CENTER
             run_name = p_wabak.add_run(str(item[0]))
