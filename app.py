@@ -760,7 +760,7 @@ if f1 and f2:
             addr_col = 'Tempat Berlaku Wabak\n(Alamat diisi lengkap dengan :- No rumah, nama jalan, nama tempat, daerah dan Negeri)'
             cat_col = 'Kategori Tempat\n(Kategori premis berdasarkan tempat berlaku wabak)'
             df_yesterday = df2[df2['Tarikh Isytihar Wabak'] == yesterday].copy()
-            df_yesterday_list = df_yesterday[['PENYAGIT', 'DAERAH (HURUF BESAR)', addr_col, cat_col, 'Bilangan Kes', 'Bilangan Terdedah']].values.tolist()
+            df_yesterday_list = df_yesterday[['PENYAKIT', 'DAERAH (HURUF BESAR)', addr_col, cat_col, 'Bilangan Kes', 'Bilangan Terdedah']].values.tolist()
 
             df2_filt = doc_out = df2[df2['Tarikh Isytihar Wabak'] >= date(2026, 1, 4)].copy()
             def group_inf(n): return "ILI/ Influenza" if any(x in str(n).upper() for x in ["INFLUENZA", "ILI"]) else n
