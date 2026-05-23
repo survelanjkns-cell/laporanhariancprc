@@ -124,12 +124,12 @@ def add_pkd_note(doc):
     run_item = p.add_run(teks_daerah)
     apply_font(run_item, 7, bold=False)
 
-# DIUBAH DI SINI: Hanya memaparkan nota PK PK dan PK KLIA sahaja untuk Jadual 4.1
 def add_bkk_note(doc):
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.LEFT
     p.paragraph_format.space_before = Pt(8)
-    p.paragraph_format.space_after = Pt(8)
+    # DIUBAH DI SINI: Ditambah jarak selepas nota (space_after) supaya tidak rapat dengan tajuk 5.0
+    p.paragraph_format.space_after = Pt(30) 
     p.paragraph_format.line_spacing = 1.15
 
     run_main = p.add_run("*Nota :\n")
@@ -654,7 +654,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             elif c_idx == bkk_table_df.shape[1]-1: 
                 set_cell_background(cells[c_idx], "FFFFB3") 
 
-    # Memanggil fungsi nota yang telah diubah suai khusus untuk PK PK dan PK KLIA sahaja
+    # Memanggil fungsi nota PK PK dan PK KLIA
     add_bkk_note(doc)
 
     # --- 5.0 Lain-lain ---
