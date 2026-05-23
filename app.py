@@ -657,7 +657,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     # --- 5.0 Lain-lain ---
     p5_head = doc.add_paragraph()
-    apply_font(p5_head.add_run("5.0 Lain-lain (Input secara manual jika ada)"), 11, bold=True)
+    apply_font(p5_head.add_run("5.0 Lain-lain (Input secara manual)"), 11, bold=True)
     
     p5_space = doc.add_paragraph()
     apply_font(p5_space.add_run(""), 11)
@@ -669,35 +669,35 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     p6_space = doc.add_paragraph()
     apply_font(p6_space.add_run(""), 11)
 
-    # --- DIUBAH DI SINI: JADUAL TANDATANGAN (PLAIN TEXT FORMAT WITH ALIGNED COLONS) ---
+    # --- JADUAL TANDATANGAN (PLAIN TEXT FORMAT WITH ALIGNED COLONS) ---
     doc.add_paragraph() 
     
-    # Fungsi pembantu untuk membina baris teks tandatangan dengan kedudukan colon sebaris
+    # Fungsi pembantu untuk membina baris teks tandatangan dengan kedudukan colon sebaris tetap (2.0 Inci)
     def add_sig_block(doc, title):
         # Tajuk Utama Blok (e.g., Disediakan oleh, Disemak oleh, Disahkan oleh)
         p_main = doc.add_paragraph()
         p_main.paragraph_format.space_before = Pt(12)
         p_main.paragraph_format.space_after = Pt(2)
         p_main.paragraph_format.line_spacing = 1.0
-        # Menggunakan tab '\t' dinamik mengikut panjang tajuk untuk menetapkan kedudukan colon
-        if "Disediakan" in title or "Disahkan" in title:
-            apply_font(p_main.add_run(f"{title}\t:"), 11, bold=False)
-        else: # Ditambah dua kali '\t' untuk perkataan "Disemak oleh" yang lebih pendek
-            apply_font(p_main.add_run(f"{title}\t\t:"), 11, bold=False)
+        # Tetapkan Tab Stop tegar pada 2.0 Inci daripada margin kiri
+        p_main.paragraph_format.tab_stops.add_tab_stop(Inches(2.0))
+        apply_font(p_main.add_run(f"{title}\t:"), 11, bold=False)
         
         # Baris Jawatan
         p_jawatan = doc.add_paragraph()
         p_jawatan.paragraph_format.space_before = Pt(2)
         p_jawatan.paragraph_format.space_after = Pt(2)
         p_jawatan.paragraph_format.line_spacing = 1.0
-        apply_font(p_jawatan.add_run("Jawatan\t\t:"), 11, bold=False)
+        p_jawatan.paragraph_format.tab_stops.add_tab_stop(Inches(2.0))
+        apply_font(p_jawatan.add_run("Jawatan\t:"), 11, bold=False)
         
         # Baris Tarikh
         p_tarikh = doc.add_paragraph()
         p_tarikh.paragraph_format.space_before = Pt(2)
         p_tarikh.paragraph_format.space_after = Pt(2)
         p_tarikh.paragraph_format.line_spacing = 1.0
-        apply_font(p_tarikh.add_run("Tarikh\t\t:"), 11, bold=False)
+        p_tarikh.paragraph_format.tab_stops.add_tab_stop(Inches(2.0))
+        apply_font(p_tarikh.add_run("Tarikh\t:"), 11, bold=False)
 
     # Membina Blok 1: Disediakan oleh
     add_sig_block(doc, "Disediakan oleh")
