@@ -124,6 +124,35 @@ def add_pkd_note(doc):
     run_item = p.add_run(teks_daerah)
     apply_font(run_item, 7, bold=False)
 
+# KOD BARU: Fungsi untuk menghasilkan nota khusus bagi Jadual BKK (Jadual 4.1)
+def add_bkk_note(doc):
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    p.paragraph_format.space_before = Pt(8)
+    p.paragraph_format.space_after = Pt(8)
+    p.paragraph_format.line_spacing = 1.15
+
+    run_main = p.add_run("*Nota :\n")
+    apply_font(run_main, 8, bold=True)
+
+    senarai_nota_bkk = [
+        "GBK = Gombak",
+        "HL = Hulu Langat",
+        "HS = Hulu Selangor",
+        "KLG = Klang",
+        "KL = Kuala Langat",
+        "KS = Kuala Selangor",
+        "PTG = Petaling",
+        "SB = Sabak Bernam",
+        "SPG = Sepang",
+        "PK PK = Pejabat Kesihatan Pelabuhan Klang",
+        "PK KLIA = Pejabat Kesihatan KLIA"
+    ]
+    
+    teks_nota = "\n".join(senarai_nota_bkk)
+    run_item = p.add_run(teks_nota)
+    apply_font(run_item, 7, bold=False)
+
 def format_bkk_number(val, is_person=False):
     try:
         num = int(float(str(val).strip()))
@@ -634,6 +663,9 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             elif c_idx == bkk_table_df.shape[1]-1: 
                 set_cell_background(cells[c_idx], "FFFFB3") 
 
+    # DIUBAH DI SINI: Memanggil fungsi nota baru bagi Jadual BKK selepas jadual selesai dibina
+    add_bkk_note(doc)
+
     # --- 5.0 Lain-lain ---
     p5_head = doc.add_paragraph()
     apply_font(p5_head.add_run("5.0 Lain-lain (Input secara manual)"), 11, bold=True)
@@ -795,7 +827,6 @@ if f1 and f2:
                     new_cols.append(col_str)
             bkk_raw.columns = new_cols
 
-            # DIUBAH DI SINI: Menambah 'PK P.KLANG': 'PK PK' ke dalam logik rename columns
             bkk_table_final = bkk_raw[1:].reset_index(drop=True).rename(columns={
                 'GOMBAK':'GBK','HULU LANGAT':'HL','HULU SELANGOR':'HS','KLANG':'KLG','KUALA LANGAT':'KL','KUALA SELANGOR':'KS','PETALING':'PTG','SABAK BERNAM':'SB','SEPANG':'SPG',
                 'PK P.KLANG': 'PK PK'
