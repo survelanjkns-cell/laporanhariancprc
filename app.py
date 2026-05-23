@@ -532,7 +532,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     h41 = doc.add_paragraph()
     h41.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
 
-    penutup_text = " Jadual di bawah menunjukkan jumlah kejadian bencana, kecemasan dan krisis (BKK) yang telah dilaporkan di negeri Selangor pada tahun 2026 mengikut daerah."
+    penutup_text = " Jadual 4.1 di bawah menunjukkan jumlah kejadian bencana, kecemasan dan krisis (BKK) yang telah dilaporkan di negeri Selangor pada tahun 2026 mengikut daerah."
 
     if is_bkk_empty:
         h41_text = f"Tiada insiden dilaporkan pada {get_malay_date(yesterday)}.{penutup_text}"
@@ -568,9 +568,9 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             
             if kes_val > 0:
                 if kes_val == 1:
-                    mangsa_prefix = "Seorang mangsa terlibat"
+                    mangsa_prefix = " Seorang mangsa terlibat"
                 else:
-                    mangsa_prefix = f"{kes_str_formatted} orang mangsa terlibat"
+                    mangsa_prefix = f"Sejumlah {kes_str_formatted} orang mangsa terlibat"
 
                 if kem_val > 0:
                     if kem_val == 1:
@@ -582,7 +582,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             else:
                 if kem_val > 0:
                     if kem_val == 1:
-                        status_str = f" 1 kematian dilaporkan dalam kejadian tersebut."
+                        status_str = f" satu (1) kematian dilaporkan dalam kejadian tersebut."
                     else:
                         status_str = f" {kem_str_formatted} kematian dilaporkan dalam kejadian tersebut."
                 else:
