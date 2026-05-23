@@ -103,9 +103,8 @@ def add_pkd_note(doc):
     p.alignment = WD_ALIGN_PARAGRAPH.LEFT
     p.paragraph_format.space_before = Pt(8)
     p.paragraph_format.space_after = Pt(8)
-    p.paragraph_format.line_spacing = 1.15  # Mengimbas jarak baris yang lebih kemas
+    p.paragraph_format.line_spacing = 1.15
 
-    # Menambah kepala nota dengan breakline \n di hujungnya
     run_main = p.add_run("*Nota :\n")
     apply_font(run_main, 8, bold=True)
 
@@ -121,10 +120,7 @@ def add_pkd_note(doc):
         "SPG = Sepang"
     ]
     
-    # Menggabungkan semua daerah sebaris ke bawah menggunakan pembatas \n
     teks_daerah = "\n".join(senarai_daerah)
-    
-    # Menulis keseluruhan senarai daerah di dalam run dan perenggan yang sama
     run_item = p.add_run(teks_daerah)
     apply_font(run_item, 7, bold=False)
 
@@ -309,9 +305,12 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     apply_font(p2_head.add_run("2.0 Ringkasan Laporan Notifikasi Wabak"), 11, bold=True)
     
     harian_total = int(wabak_df['HARIAN'].sum())
+    # Diubah di sini: Menggunakan format_bkk_number untuk memformat angka di bawah 10 menjadi teks perkataan
+    harian_total_str = format_bkk_number(harian_total, is_person=False)
+    
     h21 = doc.add_paragraph()
     h21.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
-    h21_text = f"Jadual di bawah menunjukkan jumlah wabak harian, aktif dan kumulatif di negeri Selangor. Sejumlah {harian_total} input notifikasi wabak diterima pada {get_malay_date(yesterday)}."
+    h21_text = f"Jadual di bawah menunjukkan jumlah wabak harian, aktif dan kumulatif di negeri Selangor. Sejumlah {harian_total_str} input notifikasi wabak diterima pada {get_malay_date(yesterday)}."
     apply_font(h21.add_run(h21_text), 11, bold=False)
 
     add_table_title(doc, "Jadual 2.1", "Senarai Notifikasi Wabak")
@@ -650,7 +649,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     sig_table = doc.add_table(rows=11, cols=3)
     sig_table.alignment = WD_TABLE_ALIGNMENT.LEFT
     
-    # Tetapkan lebar lajur
     sig_table.columns[0].width = Cm(2.5)
     sig_table.columns[1].width = Cm(0.3)
     sig_table.columns[2].width = Cm(10)
@@ -658,36 +656,32 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     def fill_sig_row(row_idx, label):
         row = sig_table.rows[row_idx].cells
         
-        # Lajur wording (i.e., Disemak oleh)
         p_label = row[0].paragraphs[0]
         p_label.paragraph_format.space_before = Pt(0)
         p_label.paragraph_format.space_after = Pt(0)
-        p_label.paragraph_format.line_spacing = 1.0  # single spacing
+        p_label.paragraph_format.line_spacing = 1.0
         apply_font(p_label.add_run(label), 11, bold=False)
         
-        # Lajur colon (:)
         p_colon = row[1].paragraphs[0]
         p_colon.paragraph_format.space_before = Pt(0)
         p_colon.paragraph_format.space_after = Pt(0)
-        p_colon.paragraph_format.line_spacing = 1.0  # single spacing
+        p_colon.paragraph_format.line_spacing = 1.0
         apply_font(p_colon.add_run(":"), 11, bold=False)
 
-    # Isi wording mengikut permintaan gambar kedua
     fill_sig_row(0, "Disediakan oleh")
     fill_sig_row(1, "Jawatan")
     fill_sig_row(2, "Tarikh")
-    sig_table.rows[3].height = Pt(25) # Ruang untuk tanda tangan
+    sig_table.rows[3].height = Pt(25)
 
-    fill_sig_row(4, "Disemak oleh") # Diubah daripada "Disemak"
+    fill_sig_row(4, "Disemak oleh")
     fill_sig_row(5, "Jawatan")
     fill_sig_row(6, "Tarikh")
-    sig_table.rows[7].height = Pt(25) # Ruang untuk tanda tangan
+    sig_table.rows[7].height = Pt(25)
 
     fill_sig_row(8, "Disahkan oleh")
     fill_sig_row(9, "Jawatan")
     fill_sig_row(10, "Tarikh")
 
-    # Buang table borders
     tbl = sig_table._tbl
     tblPr = tbl.tblPr
     if tblPr is None:
@@ -788,7 +782,6 @@ if f1 and f2:
             bkk_raw = df_bkk_jadual_full.iloc[1:, 33:46].dropna(how='all').reset_index(drop=True)
             bkk_raw.columns = bkk_raw.iloc[0]
             
-            # --- PEMPROSESAN INSENSITIF KES NAMA KOLUM ---
             new_cols = []
             for col in bkk_raw.columns:
                 col_str = str(col).strip()
