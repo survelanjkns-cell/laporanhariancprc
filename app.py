@@ -329,7 +329,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     # --- 2.0 Ringkasan Laporan Notifikasi Wabak ---
     p2_head = doc.add_paragraph()
     
-    # Memaksa bahagian 2.0 bermula di halaman baharu selepas nota kaki PKD
+    # KEMASKINI 1: Memaksa bahagian 2.0 bermula di halaman baharu selepas nota kaki PKD
     p2_head.paragraph_format.page_break_before = True 
     p2_head.paragraph_format.space_before = Pt(12)
     
@@ -681,12 +681,12 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     p6_space = doc.add_paragraph()
     apply_font(p6_space.add_run(""), 11)
 
-    # --- JADUAL TANDATANGAN (PLAIN TEXT FORMAT WITH ALIGNED COLONS) ---
+    # --- JADUAL TANDATANGAN (KEMASKINI: JARAK DIKURANGKAN SUPAYA RAPAT) ---
     doc.add_paragraph() 
     
     def add_sig_block(doc, title):
         p_main = doc.add_paragraph()
-        p_main.paragraph_format.space_before = Pt(12)
+        p_main.paragraph_format.space_before = Pt(8) # Jarak atas dikurangkan sedikit
         p_main.paragraph_format.space_after = Pt(2)
         p_main.paragraph_format.line_spacing = 1.0
         p_main.paragraph_format.tab_stops.add_tab_stop(Inches(2.0))
@@ -706,18 +706,23 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         p_tarikh.paragraph_format.tab_stops.add_tab_stop(Inches(2.0))
         apply_font(p_tarikh.add_run("Tarikh\t:"), 11, bold=False)
 
+    # 1. Disediakan oleh
     add_sig_block(doc, "Disediakan oleh")
     
+    # KEMASKINI 2: Menukar gap dari Pt(25) ke Pt(12) supaya blok kedua lebih rapat
     p_gap1 = doc.add_paragraph()
-    p_gap1.paragraph_format.space_before = Pt(25)
+    p_gap1.paragraph_format.space_before = Pt(12) 
     p_gap1.paragraph_format.space_after = Pt(0)
 
+    # 2. Disemak oleh
     add_sig_block(doc, "Disemak oleh")
     
+    # KEMASKINI 3: Menukar gap dari Pt(25) ke Pt(12) supaya blok ketiga lebih rapat
     p_gap2 = doc.add_paragraph()
-    p_gap2.paragraph_format.space_before = Pt(25)
+    p_gap2.paragraph_format.space_before = Pt(12)
     p_gap2.paragraph_format.space_after = Pt(0)
 
+    # 3. Disahkan oleh
     add_sig_block(doc, "Disahkan oleh")
 
     target = io.BytesIO()
