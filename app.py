@@ -193,7 +193,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         para.paragraph_format.space_before = Pt(0)
         para.paragraph_format.line_spacing = 1.0
         
-        # Jarak bawah 6pt diletakkan pada baris tajuk terakhir supaya tidak terlalu rapat dengan kotak hijau
         if idx == len(titles) - 1:
             para.paragraph_format.space_after = Pt(6)
         else:
@@ -230,18 +229,15 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     run_epi = p_epi.add_run(f"Minggu Epidemiologi : {get_epi_week(today)}")
     apply_font(run_epi, 11, bold=True)
 
-    # --- KEMASKINI AYAT KETERANGAN DINAMIK DUA BARIS ---
     cell_nota = info_table.cell(1, 0)
     cell_nota.merge(info_table.cell(1, 1))
     p_nota = cell_nota.paragraphs[0]
     p_nota.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_nota.paragraph_format.space_before = Pt(2)
     p_nota.paragraph_format.space_after = Pt(6)
-    p_nota.paragraph_format.line_spacing = 1.15  # Memberi ruang visual antara dua baris ayat
+    p_nota.paragraph_format.line_spacing = 1.15  
 
-    # Baris 1: Menggunakan tarikh semalam secara automatik
     ayat_baris1 = f"Data harian adalah berdasarkan input yang direkodkan pada {get_malay_date(yesterday)}\n"
-    # Baris 2: Menggunakan tarikh hari ini secara automatik
     ayat_baris2 = f"Dimuat turun & disemak pada {get_malay_date(today)} jam 8.00 pagi"
     
     run_nota = p_nota.add_run(ayat_baris1 + ayat_baris2)
@@ -332,7 +328,11 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     
     # --- 2.0 Ringkasan Laporan Notifikasi Wabak ---
     p2_head = doc.add_paragraph()
-    p2_head.paragraph_format.space_before = Pt(24)
+    
+    # Memaksa bahagian 2.0 bermula di halaman baharu selepas nota kaki PKD
+    p2_head.paragraph_format.page_break_before = True 
+    p2_head.paragraph_format.space_before = Pt(12)
+    
     apply_font(p2_head.add_run("2.0 Ringkasan Laporan Notifikasi Wabak"), 11, bold=True)
     
     harian_total = int(wabak_df['HARIAN'].sum())
