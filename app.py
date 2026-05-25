@@ -190,11 +190,11 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         para.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run = para.add_run(text)
         apply_font(run, 10.5, bold=True)
+        para.paragraph_format.space_before = Pt(0)
         para.paragraph_format.space_after = Pt(0)
+        para.paragraph_format.line_spacing = 1.0
 
-    doc.add_paragraph().paragraph_format.space_after = Pt(18)
-
-    # --- KOTAK HIJAU ---
+    # --- KOTAK HIJAU (Diletakkan rapat di bawah tajuk utama) ---
     info_table = doc.add_table(rows=2, cols=2)
     info_table.alignment = WD_TABLE_ALIGNMENT.CENTER
     info_table.autofit = False
@@ -316,12 +316,9 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     set_cell_background(f_cells[len(TEMPLATE_PKDS)+2], "FFC000")
 
     add_pkd_note(doc)
-
-    # DIUBAH DI SINI: Membuang doc.add_page_break() untuk mengekalkan kesinambungan dokumen
     
     # --- 2.0 Ringkasan Laporan Notifikasi Wabak ---
     p2_head = doc.add_paragraph()
-    # Menambah ketetapan space_before untuk memberikan ruang pembatas yang kemas berbanding perenggan atas
     p2_head.paragraph_format.space_before = Pt(24)
     apply_font(p2_head.add_run("2.0 Ringkasan Laporan Notifikasi Wabak"), 11, bold=True)
     
