@@ -252,7 +252,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     total_notifications = int(col_sums['Grand Total'])
     h11 = doc.add_paragraph()
     h11.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
-    h11_text = f"Jadual di bawah menunjukkan jumlah input e-Notifikasi di negeri Selangor. Sejumlah {total_notifications} input notifikasi telah diterima pada {get_malay_date(yesterday)} dengan pecahan mengikut penyakit seperti dalam Jadual 1.1."
+    h11_text = f"Jadual di bawah menunjukkan jumlah input e-Notifikasi di negeri Selangor yang direkodkan pada {get_malay_date(yesterday)}. Sejumlah {total_notifications} input notifikasi telah dierkodkan pada tarikh tersebut dengan pecahan mengikut penyakit seperti dalam Jadual 1.1."
     apply_font(h11.add_run(h11_text), 11, bold=False)
 
     add_table_title(doc, "Jadual 1.1", "Jumlah Input e-Notifikasi")
@@ -337,7 +337,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     
     h21 = doc.add_paragraph()
     h21.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
-    h21_text = f"Jadual di bawah menunjukkan jumlah wabak harian, aktif dan kumulatif di negeri Selangor. Sejumlah {harian_total_str} input notifikasi wabak diterima pada {get_malay_date(yesterday)}."
+    h21_text = f"Jadual di bawah menunjukkan jumlah wabak harian, aktif dan kumulatif di negeri Selangor. Sejumlah {harian_total_str} input notifikasi wabak telah direkodkan pada {get_malay_date(yesterday)}."
     apply_font(h21.add_run(h21_text), 11, bold=False)
 
     add_table_title(doc, "Jadual 2.1", "Senarai Notifikasi Wabak")
@@ -464,7 +464,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         
     h31 = doc.add_paragraph()
     h31.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
-    h31_text = f"Jadual di bawah menunjukkan jumlah wabak vektor harian dan kumulatif di negeri Selangor. Sebanyak {xx_v_display} notifikasi wabak vektor telah diterima pada {get_malay_date(yesterday)} dengan pecahan mengikut penyakit seperti dalam Jadual 3.1. Rajah 3.1 pula menunjukkan tren kes mingguan denggi yang didaftarkan dari tahun 2025 hingga kini."
+    h31_text = f"Jadual di bawah menunjukkan jumlah wabak vektor harian dan kumulatif di negeri Selangor. Sebanyak {xx_v_display} notifikasi wabak vektor telah direkodkan pada {get_malay_date(yesterday)} dengan pecahan mengikut penyakit seperti dalam Jadual 3.1. Rajah 3.1 pula menunjukkan tren kes mingguan denggi yang didaftarkan dari tahun 2025 hingga kini."
     apply_font(h31.add_run(h31_text), 11, bold=False)
 
     add_table_title(doc, "Jadual 3.1", "Senarai Notifikasi Wabak Vektor")
