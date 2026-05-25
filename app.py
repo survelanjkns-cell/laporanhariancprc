@@ -185,16 +185,21 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         "PUSAT KESIAPSIAGAAN DAN TINDAKCEPAT KRISIS (CPRC)",
         "JABATAN KESIHATAN NEGERI SELANGOR"
     ]
-    for text in titles:
+    for idx, text in enumerate(titles):
         para = doc.add_paragraph()
         para.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run = para.add_run(text)
         apply_font(run, 10.5, bold=True)
         para.paragraph_format.space_before = Pt(0)
-        para.paragraph_format.space_after = Pt(0)
         para.paragraph_format.line_spacing = 1.0
+        
+        # Jarak bawah 6pt diletakkan hanya pada baris tajuk terakhir untuk impak visual yang seimbang
+        if idx == len(titles) - 1:
+            para.paragraph_format.space_after = Pt(6)
+        else:
+            para.paragraph_format.space_after = Pt(0)
 
-    # --- KOTAK HIJAU (Diletakkan rapat di bawah tajuk utama) ---
+    # --- KOTAK HIJAU ---
     info_table = doc.add_table(rows=2, cols=2)
     info_table.alignment = WD_TABLE_ALIGNMENT.CENTER
     info_table.autofit = False
