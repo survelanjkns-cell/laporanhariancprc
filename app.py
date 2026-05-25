@@ -238,7 +238,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     p_nota.paragraph_format.line_spacing = 1.15  
 
     ayat_baris1 = f"Data harian adalah berdasarkan input yang direkodkan pada {get_malay_date(yesterday)}\n"
-    ayat_baris2 = f"Dimuat turun & disemak pada {get_malay_date(today)} jam 8.00 pagi"
+    ayat_baris2 = f"Dimuat turun dan disemak pada {get_malay_date(today)}, jam 8.00 pagi"
     
     run_nota = p_nota.add_run(ayat_baris1 + ayat_baris2)
     apply_font(run_nota, 11, bold=True)
@@ -252,7 +252,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     total_notifications = int(col_sums['Grand Total'])
     h11 = doc.add_paragraph()
     h11.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
-    h11_text = f"Jadual di bawah menunjukkan jumlah input e-Notifikasi di negeri Selangor yang direkodkan pada {get_malay_date(yesterday)}. Sejumlah {total_notifications} input notifikasi telah dierkodkan pada tarikh tersebut dengan pecahan mengikut penyakit seperti dalam Jadual 1.1."
+    h11_text = f"Jadual di bawah menunjukkan jumlah input e-Notifikasi di negeri Selangor yang direkodkan pada {get_malay_date(yesterday)}. Sejumlah {total_notifications} input notifikasi diterima pada tarikh tersebut dengan pecahan mengikut penyakit seperti dalam Jadual 1.1."
     apply_font(h11.add_run(h11_text), 11, bold=False)
 
     add_table_title(doc, "Jadual 1.1", "Jumlah Input e-Notifikasi")
