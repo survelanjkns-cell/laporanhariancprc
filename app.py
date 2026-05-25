@@ -231,7 +231,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     p_nota.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_nota.paragraph_format.space_before = Pt(2)
     p_nota.paragraph_format.space_after = Pt(6)
-    run_nota = p_nota.add_run("(Data harian adalah berdasarkan input yang direkodkan pada {get_malay_date(today)}\nDimuat turun & disemak pada {get_malay_date} jam 8.00 pagi)")
+    run_nota = p_nota.add_run("(Laporan adalah berdasarkan data yang diterima sehingga jam 8.00 pagi)")
     apply_font(run_nota, 11, bold=True)
 
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
