@@ -328,11 +328,8 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     
     # --- 2.0 Ringkasan Laporan Notifikasi Wabak ---
     p2_head = doc.add_paragraph()
-    
-    # KEMASKINI 1: Memaksa bahagian 2.0 bermula di halaman baharu selepas nota kaki PKD
     p2_head.paragraph_format.page_break_before = True 
     p2_head.paragraph_format.space_before = Pt(12)
-    
     apply_font(p2_head.add_run("2.0 Ringkasan Laporan Notifikasi Wabak"), 11, bold=True)
     
     harian_total = int(wabak_df['HARIAN'].sum())
@@ -681,12 +678,12 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     p6_space = doc.add_paragraph()
     apply_font(p6_space.add_run(""), 11)
 
-    # --- JADUAL TANDATANGAN (KEMASKINI: JARAK DIKURANGKAN SUPAYA RAPAT) ---
+    # --- JADUAL TANDATANGAN (KEMASKINI: PADAT DAN RAPAT SEPERTI CONTOH GAMBAR) ---
     doc.add_paragraph() 
     
     def add_sig_block(doc, title):
         p_main = doc.add_paragraph()
-        p_main.paragraph_format.space_before = Pt(8) # Jarak atas dikurangkan sedikit
+        p_main.paragraph_format.space_before = Pt(12)  # Jarak permulaan sebelum tajuk blok
         p_main.paragraph_format.space_after = Pt(2)
         p_main.paragraph_format.line_spacing = 1.0
         p_main.paragraph_format.tab_stops.add_tab_stop(Inches(2.0))
@@ -709,20 +706,10 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     # 1. Disediakan oleh
     add_sig_block(doc, "Disediakan oleh")
     
-    # KEMASKINI 2: Menukar gap dari Pt(25) ke Pt(12) supaya blok kedua lebih rapat
-    p_gap1 = doc.add_paragraph()
-    p_gap1.paragraph_format.space_before = Pt(12) 
-    p_gap1.paragraph_format.space_after = Pt(0)
-
-    # 2. Disemak oleh
+    # 2. Disemak oleh (Perenggan kosong pemisah dibuang terus supaya tiada jurang besar)
     add_sig_block(doc, "Disemak oleh")
     
-    # KEMASKINI 3: Menukar gap dari Pt(25) ke Pt(12) supaya blok ketiga lebih rapat
-    p_gap2 = doc.add_paragraph()
-    p_gap2.paragraph_format.space_before = Pt(12)
-    p_gap2.paragraph_format.space_after = Pt(0)
-
-    # 3. Disahkan oleh
+    # 3. Disahkan oleh (Perenggan kosong pemisah dibuang terus supaya rapat)
     add_sig_block(doc, "Disahkan oleh")
 
     target = io.BytesIO()
