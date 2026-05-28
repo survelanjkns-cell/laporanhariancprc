@@ -562,7 +562,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     penutup_text = " Jadual 4.1 di bawah menunjukkan jumlah kejadian bencana, kecemasan dan krisis (BKK) yang telah dilaporkan di negeri Selangor pada tahun 2026 mengikut daerah."
 
     if is_bkk_empty:
-        h41_text = f"Tiada insiden dilaporkan pada {get_malay_date(yesterday)}.{penutup_text}"
+        h41_text = f"Tiada kejadian BKK dilaporkan pada {get_malay_date(yesterday)}.{penutup_text}"
     else:
         count = len(bkk_details)
         count_str = format_bkk_number(count, is_person=False)
