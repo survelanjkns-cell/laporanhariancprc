@@ -821,7 +821,7 @@ if f1 and f2:
             doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, (len(bkk_details)==0), bkk_details, df_yesterday_list)
             
             file_date = today.strftime("%d.%m.%y")
-            file_name_custom = f"LAPORAN CPRC ({file_date}).docx"
+            file_name_custom = f"Laporan CPRC Selangor ({file_date}).docx"
 
             st.success(f"✅ Laporan berjaya dijana untuk tarikh {file_date}!")
             st.download_button(
