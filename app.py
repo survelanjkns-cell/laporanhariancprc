@@ -58,6 +58,8 @@ def format_penyakit_name(name):
         return "Keracunan Makanan"
     if name_str in ["DENGUE/DHF", "DENGUE"]:
         return "Denggi"
+    if "MONKEYPOX" in name_str:
+        return "Mpox"     
     return name_str.title()
 
 def set_cell_background(cell, hex_color):
