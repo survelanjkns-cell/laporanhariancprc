@@ -680,12 +680,12 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     p6_space = doc.add_paragraph()
     apply_font(p6_space.add_run(""), 11)
 
-    # --- JADUAL TANDATANGAN (KEMASKINI: PADAT DAN RAPAT SEPERTI CONTOH GAMBAR) ---
+    # --- JADUAL TANDATANGAN ---
     doc.add_paragraph() 
     
     def add_sig_block(doc, title):
         p_main = doc.add_paragraph()
-        p_main.paragraph_format.space_before = Pt(12)  # Jarak permulaan sebelum tajuk blok
+        p_main.paragraph_format.space_before = Pt(12)  
         p_main.paragraph_format.space_after = Pt(2)
         p_main.paragraph_format.line_spacing = 1.0
         p_main.paragraph_format.tab_stops.add_tab_stop(Inches(2.0))
@@ -708,10 +708,10 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     # 1. Disediakan oleh
     add_sig_block(doc, "Disediakan oleh")
     
-    # 2. Disemak oleh (Perenggan kosong pemisah dibuang terus supaya tiada jurang besar)
+    # 2. Disemak oleh
     add_sig_block(doc, "Disemak oleh")
     
-    # 3. Disahkan oleh (Perenggan kosong pemisah dibuang terus supaya rapat)
+    # 3. Disahkan oleh
     add_sig_block(doc, "Disahkan oleh")
 
     target = io.BytesIO()
@@ -753,12 +753,20 @@ if f1 and f2:
 
             engine_type2 = "xlrd" if f2.name.endswith(".xls") else "openpyxl"
             df2 = pd.read_excel(f2, sheet_name="SELANGOR 2", engine=engine_type2)
+            
             df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date
             df2['Tarikh Sebenar Tamat Wabak'] = pd.to_datetime(df2['Tarikh Sebenar Tamat Wabak '], errors='coerce').dt.date
             df2['Tarikh Wabak Dijangka Tamat'] = pd.to_datetime(df2['Tarikh Wabak Dijangka Tamat'], errors='coerce').dt.date
 
             addr_col = 'Tempat Berlaku Wabak\n(Alamat diisi lengkap dengan :- No rumah, nama jalan, nama tempat, daerah dan Negeri)'
             cat_col = 'Kategori Tempat\n(Kategori premis berdasarkan tempat berlaku wabak)'
+            
+            # -------------------------------------------------------------------------
+            # PROSES PENAPISAN DUPLICATE REKOD (EXCLUDE ALAMAT SAMA PADA TARIKH/PENYAKIT SAMA)
+            # -------------------------------------------------------------------------
+            df2 = df2.drop_duplicates(subset=['PENYAKIT', 'Tarikh Isytihar Wabak', addr_col], keep='first')
+            # -------------------------------------------------------------------------
+
             df_yesterday = df2[df2['Tarikh Isytihar Wabak'] == yesterday].copy()
             df_yesterday_list = df_yesterday[['PENYAKIT', 'DAERAH (HURUF BESAR)', addr_col, cat_col, 'Bilangan Kes', 'Bilangan Terdedah']].values.tolist()
 
