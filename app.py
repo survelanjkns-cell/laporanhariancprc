@@ -32,6 +32,11 @@ SHEET_ID = "1bjyNcntm-I6nRaIVkVdJqJRAzn5r2tYFfjUAN0emv9w"
 GID = "0"
 GSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
 
+# --- URL GOOGLE SHEET WABAK (BARU) ---
+SHEET_ID_WABAK = "1igGx5z2aIvIvPQ31D86KX1kRNtWWFS1iUGOgbOw-J-A"
+# Menggunakan format eksport CSV untuk Sheet1 (gid=0 biasanya lalai untuk helaian pertama)
+URL_LIVE_WABAK = f"https://docs.google.com/spreadsheets/d/{SHEET_ID_WABAK}/export?format=csv&gid=0"
+
 # --- URL GOOGLE SHEET BKK (RAW LINELISTING & JADUAL) ---
 BKK_SPREADSHEET_ID = "1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c"
 URL_BKK_LINELISTING = f"https://docs.google.com/spreadsheets/d/{BKK_SPREADSHEET_ID}/export?format=csv&gid=1352807145"
@@ -733,113 +738,111 @@ st.info(f"**Guideline:** Sila muat turun file notifikasi pada **{tarikh_guidelin
 f1 = st.file_uploader("Pilih fail Notifikasi Harian", type=["xlsx", "xls"], label_visibility="collapsed")
 
 st.markdown("---")
+st.info("ℹ️ **Nota Automasi:** Fail Linelisting Wabak kini dibaca secara automatik terus dari Google Sheets. Anda tidak perlu memuat naiknya lagi.")
 
-st.subheader("📁 Muat Naik Excel Linelisting Wabak")
-st.info("**Guideline:** Sila muat turun file google sheet **'LAPORAN WABAK NEGERI SELANGOR 3'** melalui email **cprc_sel@moh.gov.my** dan muat naik di sini.")
-f2 = st.file_uploader("Pilih fail Linelisting Wabak", type=["xlsx", "xls"], label_visibility="collapsed")
-
-if f1 and f2:
+if f1:
     if st.button("🚀 Jana Laporan Lengkap"):
-        try:
-            engine_type = "xlrd" if f1.name.endswith(".xls") else "openpyxl"
-            df1 = pd.read_excel(f1, engine=engine_type)
-            df1 = df1[df1['Notifikasi Status'] != 'Abai Notifikasi']
-            df1 = df1[df1['Pejabat Kesihatan'].isin(TEMPLATE_PKDS)]
-            matrix = pd.crosstab(df1['Diagnosis'], df1['Pejabat Kesihatan']).reindex(columns=TEMPLATE_PKDS, fill_value=0)
-            matrix['Grand Total'] = matrix.sum(axis=1)
-            matrix['Average Harian'] = [AVG_HARIAN_FIGURES.get(format_penyakit_name(idx), 0) for idx in matrix.index]
-            matrix = matrix.sort_values(by='Grand Total', ascending=False)
-            col_totals = matrix[TEMPLATE_PKDS + ['Grand Total']].sum(axis=0)
+        with st.spinner("Sedang memproses data dan memuat turun jadual wabak secara live..."):
+            try:
+                engine_type = "xlrd" if f1.name.endswith(".xls") else "openpyxl"
+                df1 = pd.read_excel(f1, engine=engine_type)
+                df1 = df1[df1['Notifikasi Status'] != 'Abai Notifikasi']
+                df1 = df1[df1['Pejabat Kesihatan'].isin(TEMPLATE_PKDS)]
+                matrix = pd.crosstab(df1['Diagnosis'], df1['Pejabat Kesihatan']).reindex(columns=TEMPLATE_PKDS, fill_value=0)
+                matrix['Grand Total'] = matrix.sum(axis=1)
+                matrix['Average Harian'] = [AVG_HARIAN_FIGURES.get(format_penyakit_name(idx), 0) for idx in matrix.index]
+                matrix = matrix.sort_values(by='Grand Total', ascending=False)
+                col_totals = matrix[TEMPLATE_PKDS + ['Grand Total']].sum(axis=0)
 
-            engine_type2 = "xlrd" if f2.name.endswith(".xls") else "openpyxl"
-            df2 = pd.read_excel(f2, sheet_name="SELANGOR 2", engine=engine_type2)
-            
-            df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date
-            df2['Tarikh Sebenar Tamat Wabak'] = pd.to_datetime(df2['Tarikh Sebenar Tamat Wabak '], errors='coerce').dt.date
-            df2['Tarikh Wabak Dijangka Tamat'] = pd.to_datetime(df2['Tarikh Wabak Dijangka Tamat'], errors='coerce').dt.date
+                # --- PROSES MEMBACA GOOGLE SHEET WABAK BARU (LIVE CSV) ---
+                df2 = pd.read_csv(URL_LIVE_WABAK)
+                
+                df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date
+                df2['Tarikh Sebenar Tamat Wabak'] = pd.to_datetime(df2['Tarikh Sebenar Tamat Wabak '], errors='coerce').dt.date
+                df2['Tarikh Wabak Dijangka Tamat'] = pd.to_datetime(df2['Tarikh Wabak Dijangka Tamat'], errors='coerce').dt.date
 
-            addr_col = 'Tempat Berlaku Wabak\n(Alamat diisi lengkap dengan :- No rumah, nama jalan, nama tempat, daerah dan Negeri)'
-            cat_col = 'Kategori Tempat\n(Kategori premis berdasarkan tempat berlaku wabak)'
-            
-            # -------------------------------------------------------------------------
-            # PROSES PENAPISAN DUPLICATE REKOD (EXCLUDE ALAMAT SAMA PADA TARIKH/PENYAKIT SAMA)
-            # -------------------------------------------------------------------------
-            df2 = df2.drop_duplicates(subset=['PENYAKIT', 'Tarikh Isytihar Wabak', addr_col], keep='first')
-            # -------------------------------------------------------------------------
+                addr_col = 'Tempat Berlaku Wabak\n(Alamat diisi lengkap dengan :- No rumah, nama jalan, nama tempat, daerah dan Negeri)'
+                cat_col = 'Kategori Tempat\n(Kategori premis berdasarkan tempat berlaku wabak)'
+                
+                # -------------------------------------------------------------------------
+                # PROSES PENAPISAN DUPLICATE REKOD (EXCLUDE ALAMAT SAMA PADA TARIKH/PENYAKIT SAMA)
+                # -------------------------------------------------------------------------
+                df2 = doc_out = df2.drop_duplicates(subset=['PENYAKIT', 'Tarikh Isytihar Wabak', addr_col], keep='first')
+                # -------------------------------------------------------------------------
 
-            df_yesterday = df2[df2['Tarikh Isytihar Wabak'] == yesterday].copy()
-            df_yesterday_list = df_yesterday[['PENYAKIT', 'DAERAH (HURUF BESAR)', addr_col, cat_col, 'Bilangan Kes', 'Bilangan Terdedah']].values.tolist()
+                df_yesterday = df2[df2['Tarikh Isytihar Wabak'] == yesterday].copy()
+                df_yesterday_list = df_yesterday[['PENYAKIT', 'DAERAH (HURUF BESAR)', addr_col, cat_col, 'Bilangan Kes', 'Bilangan Terdedah']].values.tolist()
 
-            df2_filt = df2[df2['Tarikh Isytihar Wabak'] >= date(2026, 1, 4)].copy()
-            def group_inf(n): return "ILI/ Influenza" if any(x in str(n).upper() for x in ["INFLUENZA", "ILI"]) else n
-            df2_filt['PENYAKIT'] = df2_filt['PENYAKIT'].apply(group_inf)
-            
-            wb_sum = []
-            for d in df2_filt['PENYAKIT'].unique():
-                if pd.isna(d): continue
-                disease_df = df2_filt[df2_filt['PENYAKIT'] == d]
-                h = len(disease_df[disease_df['Tarikh Isytihar Wabak'] == yesterday])
-                k = len(disease_df)
-                def check_active(row):
-                    tamat = row['Tarikh Sebenar Tamat Wabak'] if pd.notna(row['Tarikh Sebenar Tamat Wabak']) else row['Tarikh Wabak Dijangka Tamat']
-                    return True if (pd.isna(tamat) or tamat >= today) else False
-                active_count = disease_df.apply(check_active, axis=1).sum()
-                wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'AKTIF': active_count, 'KUMULATIF': k})
-            
-            wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
+                df2_filt = df2[df2['Tarikh Isytihar Wabak'] >= date(2026, 1, 4)].copy()
+                def group_inf(n): return "ILI/ Influenza" if any(x in str(n).upper() for x in ["INFLUENZA", "ILI"]) else n
+                df2_filt['PENYAKIT'] = df2_filt['PENYAKIT'].apply(group_inf)
+                
+                wb_sum = []
+                for d in df2_filt['PENYAKIT'].unique():
+                    if pd.isna(d): continue
+                    disease_df = df2_filt[df2_filt['PENYAKIT'] == d]
+                    h = len(disease_df[disease_df['Tarikh Isytihar Wabak'] == yesterday])
+                    k = len(disease_df)
+                    def check_active(row):
+                        tamat = row['Tarikh Sebenar Tamat Wabak'] if pd.notna(row['Tarikh Sebenar Tamat Wabak']) else row['Tarikh Wabak Dijangka Tamat']
+                        return True if (pd.isna(tamat) or tamat >= today) else False
+                    active_count = disease_df.apply(check_active, axis=1).sum()
+                    wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'AKTIF': active_count, 'KUMULATIF': k})
+                
+                wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
-            raw_gs = pd.read_csv(GSHEET_URL, header=None)
-            mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
-            v_data = raw_gs.iloc[mask_v.idxmax() : mask_v.idxmax() + 11, 13:20]
-            v_data = v_data.dropna(how='all')
-            v_data = v_data[~v_data.iloc[:, 0].astype(str).str.lower().str.contains('nan')]
+                raw_gs = pd.read_csv(GSHEET_URL, header=None)
+                mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
+                v_data = raw_gs.iloc[mask_v.idxmax() : mask_v.idxmax() + 11, 13:20]
+                v_data = v_data.dropna(how='all')
+                v_data = v_data[~v_data.iloc[:, 0].astype(str).str.lower().str.contains('nan')]
 
-            # --- PEMPROSESAN DATA GOOGLE SHEET BKK ---
-            df_bkk_raw_data = pd.read_csv(URL_BKK_LINELISTING, header=None)
-            clean_date_series = df_bkk_raw_data.iloc[:, 2].astype(str).str.strip()
-            df_bkk_raw_data['datetime_lapor'] = pd.to_datetime(clean_date_series, dayfirst=True, errors='coerce').dt.date
-            
-            insiden_semalam = df_bkk_raw_data[df_bkk_raw_data['datetime_lapor'] == yesterday]
-            
-            bkk_details = [{
-                'kejadian': r[5], 
-                'alamat': r[8], 
-                'daerah': r[4],
-                'bil_kes': r[9],      
-                'bil_kematian': r[10]  
-            } for _, r in insiden_semalam.iterrows()]
-            
-            df_bkk_jadual_full = pd.read_csv(URL_BKK_JADUAL, header=None)
-            
-            bkk_raw = df_bkk_jadual_full.iloc[1:, 33:46].dropna(how='all').reset_index(drop=True)
-            bkk_raw.columns = bkk_raw.iloc[0]
-            
-            new_cols = []
-            for col in bkk_raw.columns:
-                col_str = str(col).strip()
-                if re.search(r'(moving|median|4 tahun)', col_str, re.IGNORECASE):
-                    new_cols.append('Purata Bergerak 4 Tahun (2022,2023,2024,2025)')
-                else:
-                    new_cols.append(col_str)
-            bkk_raw.columns = new_cols
+                # --- PEMPROSESAN DATA GOOGLE SHEET BKK ---
+                df_bkk_raw_data = pd.read_csv(URL_BKK_LINELISTING, header=None)
+                clean_date_series = df_bkk_raw_data.iloc[:, 2].astype(str).str.strip()
+                df_bkk_raw_data['datetime_lapor'] = pd.to_datetime(clean_date_series, dayfirst=True, errors='coerce').dt.date
+                
+                insiden_semalam = df_bkk_raw_data[df_bkk_raw_data['datetime_lapor'] == yesterday]
+                
+                bkk_details = [{
+                    'kejadian': r[5], 
+                    'alamat': r[8], 
+                    'daerah': r[4],
+                    'bil_kes': r[9],      
+                    'bil_kematian': r[10]  
+                } for _, r in insiden_semalam.iterrows()]
+                
+                df_bkk_jadual_full = pd.read_csv(URL_BKK_JADUAL, header=None)
+                
+                bkk_raw = df_bkk_jadual_full.iloc[1:, 33:46].dropna(how='all').reset_index(drop=True)
+                bkk_raw.columns = bkk_raw.iloc[0]
+                
+                new_cols = []
+                for col in bkk_raw.columns:
+                    col_str = str(col).strip()
+                    if re.search(r'(moving|median|4 tahun)', col_str, re.IGNORECASE):
+                        new_cols.append('Purata Bergerak 4 Tahun (2022,2023,2024,2025)')
+                    else:
+                        new_cols.append(col_str)
+                bkk_raw.columns = new_cols
 
-            bkk_table_final = bkk_raw[1:].reset_index(drop=True).rename(columns={
-                'GOMBAK':'GBK','HULU LANGAT':'HL','HULU SELANGOR':'HS','KLANG':'KLG','KUALA LANGAT':'KL','KUALA SELANGOR':'KS','PETALING':'PTG','SABAK BERNAM':'SB','SEPANG':'SPG',
-                'PK P.KLANG': 'PK PK'
-            })
+                bkk_table_final = bkk_raw[1:].reset_index(drop=True).rename(columns={
+                    'GOMBAK':'GBK','HULU LANGAT':'HL','HULU SELANGOR':'HS','KLANG':'KLG','KUALA LANGAT':'KL','KUALA SELANGOR':'KS','PETALING':'PTG','SABAK BERNAM':'SB','SEPANG':'SPG',
+                    'PK P.KLANG': 'PK PK'
+                })
 
-            doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, (len(bkk_details)==0), bkk_details, df_yesterday_list)
-            
-            file_date = today.strftime("%d.%m.%y")
-            file_name_custom = f"Laporan CPRC Selangor ({file_date}).docx"
+                doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, (len(bkk_details)==0), bkk_details, df_yesterday_list)
+                
+                file_date = today.strftime("%d.%m.%y")
+                file_name_custom = f"Laporan CPRC Selangor ({file_date}).docx"
 
-            st.success(f"✅ Laporan berjaya dijana untuk tarikh {file_date}!")
-            st.download_button(
-                label="⬇️ Muat Turun Laporan", 
-                data=doc_out, 
-                file_name=file_name_custom,
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            )
+                st.success(f"✅ Laporan berjaya dijana untuk tarikh {file_date}!")
+                st.download_button(
+                    label="⬇️ Muat Turun Laporan", 
+                    data=doc_out, 
+                    file_name=file_name_custom,
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                )
 
-        except Exception as e:
-            st.error(f"Ralat: {e}")
+            except Exception as e:
+                st.error(f"Ralat semasa memproses data: {e}")
