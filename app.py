@@ -34,7 +34,6 @@ GSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=c
 
 # --- URL GOOGLE SHEET WABAK (BARU) ---
 SHEET_ID_WABAK = "1igGx5z2aIvIvPQ31D86KX1kRNtWWFS1iUGOgbOw-J-A"
-# Menggunakan format eksport CSV untuk Sheet1 (gid=0 biasanya lalai untuk helaian pertama)
 URL_LIVE_WABAK = f"https://docs.google.com/spreadsheets/d/{SHEET_ID_WABAK}/export?format=csv&gid=0"
 
 # --- URL GOOGLE SHEET BKK (RAW LINELISTING & JADUAL) ---
@@ -757,9 +756,10 @@ if f1:
                 # --- PROSES MEMBACA GOOGLE SHEET WABAK BARU (LIVE CSV) ---
                 df2 = pd.read_csv(URL_LIVE_WABAK)
                 
-                df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak']).dt.date
-                df2['Tarikh Sebenar Tamat Wabak'] = pd.to_datetime(df2['Tarikh Sebenar Tamat Wabak '], errors='coerce').dt.date
-                df2['Tarikh Wabak Dijangka Tamat'] = pd.to_datetime(df2['Tarikh Wabak Dijangka Tamat'], errors='coerce').dt.date
+                # Memastikan tarikh dibaca berasaskan format Hari/Bulan/Tahun (dayfirst=True)
+                df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak'], dayfirst=True, errors='coerce').dt.date
+                df2['Tarikh Sebenar Tamat Wabak'] = pd.to_datetime(df2['Tarikh Sebenar Tamat Wabak '], dayfirst=True, errors='coerce').dt.date
+                df2['Tarikh Wabak Dijangka Tamat'] = pd.to_datetime(df2['Tarikh Wabak Dijangka Tamat'], dayfirst=True, errors='coerce').dt.date
 
                 addr_col = 'Tempat Berlaku Wabak\n(Alamat diisi lengkap dengan :- No rumah, nama jalan, nama tempat, daerah dan Negeri)'
                 cat_col = 'Kategori Tempat\n(Kategori premis berdasarkan tempat berlaku wabak)'
@@ -767,7 +767,7 @@ if f1:
                 # -------------------------------------------------------------------------
                 # PROSES PENAPISAN DUPLICATE REKOD (EXCLUDE ALAMAT SAMA PADA TARIKH/PENYAKIT SAMA)
                 # -------------------------------------------------------------------------
-                df2 = doc_out = df2.drop_duplicates(subset=['PENYAKIT', 'Tarikh Isytihar Wabak', addr_col], keep='first')
+                df2 = df2.drop_duplicates(subset=['PENYAKIT', 'Tarikh Isytihar Wabak', addr_col], keep='first')
                 # -------------------------------------------------------------------------
 
                 df_yesterday = df2[df2['Tarikh Isytihar Wabak'] == yesterday].copy()
