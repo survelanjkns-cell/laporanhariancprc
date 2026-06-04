@@ -727,18 +727,31 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 # --- STREAMLIT UI ---
 st.set_page_config(page_title="BWKK Report Generator", layout="centered")
 
-# 👇 CSS Code block to cleanly remove both top-right and bottom-right icons
+# 👇 DEEP CSS OVERRIDE TO COMPLETELY SCRUB CORNER WIDGETS AND BRANDING
 st.markdown("""
     <style>
-    /* Hides the upper right toolbar / menu options */
+    /* 1. Hides the upper right toolbar / options button */
     #MainMenu, header, .stAppHeader, [data-testid="stHeader"] {
-        visibility: hidden;
-        display: none;
+        visibility: hidden !important;
+        display: none !important;
     }
-    /* Hides the lower right footer / "Made with Streamlit" badge */
-    footer, .stAppFooter, [data-testid="stFooter"] {
-        visibility: hidden;
-        display: none;
+    
+    /* 2. Hides standard bottom footer, deploy dropdown buttons and host indicators */
+    footer, 
+    .stAppFooter, 
+    [data-testid="stFooter"], 
+    .stAppDeployDropdown,
+    div[data-testid="stConnectionStatus"] + div {
+        visibility: hidden !important;
+        display: none !important;
+    }
+    
+    /* 3. Catches and removes dynamic absolute floating elements on top of the DOM layout */
+    iframe[title="Managed by Streamlit"], 
+    .stActionButton,
+    div[class*="stDeployButton"] {
+        visibility: hidden !important;
+        display: none !important;
     }
     </style>
 """, unsafe_allow_html=True)
