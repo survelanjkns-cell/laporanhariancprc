@@ -32,7 +32,7 @@ SHEET_ID = "1bjyNcntm-I6nRaIVkVdJqJRAzn5r2tYFfjUAN0emv9w"
 GID = "0"
 GSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
 
-# --- URL GOOGLE SHEET WABAK (BARU) ---
+# --- URL GOOGLE SHEET WABAK (BARU - LIVE AUTOMATIK) ---
 SHEET_ID_WABAK = "1igGx5z2aIvIvPQ31D86KX1kRNtWWFS1iUGOgbOw-J-A"
 URL_LIVE_WABAK = f"https://docs.google.com/spreadsheets/d/{SHEET_ID_WABAK}/export?format=csv&gid=0"
 
@@ -169,7 +169,7 @@ def format_bkk_number(val, is_person=False):
     return num_word.get(num, str(num))
 
 # --- DOCX GENERATOR ---
-def generate_docx(matrix_df, col_sums, vector_df, bkk_table_df, is_bkk_empty, bkk_details, df_yesterday_list, total_wabak_harian):
+def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty, bkk_details, df_yesterday_list):
     doc = Document()
     now_msia = get_msia_time()
     today = now_msia.date()
@@ -266,7 +266,7 @@ def generate_docx(matrix_df, col_sums, vector_df, bkk_table_df, is_bkk_empty, bk
     t1.style = 'Table Grid'
     t1.width = content_width 
     
-    pkd_map = {'PKD GOMBAK': 'GBK', 'PKD HULU LANGAT': 'HL', 'PKD HULU SELANGOR': 'HS', 'PKD KLANG': 'KLG', 'PKD KUALA LANGAT': 'KL', 'PKD KUALA SELANGOR': 'KS', 'PKD PETALING': 'PTG', 'PKD SABAK BERNAM': 'SB', 'PKD SEPANG': 'SPG'}
+    pkd_map = {'PKD GOMBAK': 'GBK', 'PKD HULU LANGAT': 'HL', 'PKD HULU SELANGOR': 'HS', 'PKD KLANG': 'KLG', 'PKD KUALA LANGAT': 'KL', 'PKD KUALA SELANGOR': 'KS', 'PKD PETALING': 'PTG', 'SABAK BERNAM': 'SB', 'PKD SEPANG': 'SPG'}
     
     h_cells = t1.rows[0].cells
     for i in range(len(h_cells)):
@@ -338,15 +338,52 @@ def generate_docx(matrix_df, col_sums, vector_df, bkk_table_df, is_bkk_empty, bk
     p2_head.paragraph_format.space_before = Pt(12)
     apply_font(p2_head.add_run("2.0 Ringkasan Laporan Notifikasi Wabak"), 11, bold=True)
     
-    harian_total_str = format_bkk_number(total_wabak_harian, is_person=False)
+    harian_total = int(wabak_df['HARIAN'].sum())
+    harian_total_str = format_bkk_number(harian_total, is_person=False)
     
     h21 = doc.add_paragraph()
     h21.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
-    h21_text = f"Jadual di bawah menunjukkan senarai wabak harian yang dilaporkan di negeri Selangor. Sejumlah {harian_total_str} input notifikasi wabak telah direkodkan pada {get_malay_date(yesterday)}."
+    h21_text = f"Jadual di bawah menunjukkan jumlah wabak harian, aktif dan kumulatif di negeri Selangor. Sejumlah {harian_total_str} input notifikasi wabak telah direkodkan pada {get_malay_date(yesterday)}."
     apply_font(h21.add_run(h21_text), 11, bold=False)
 
+    add_table_title(doc, "Jadual 2.1", "Senarai Notifikasi Wabak")
+    t2 = doc.add_table(rows=len(wabak_df) + 2, cols=4)
+    t2.style = 'Table Grid'
+    t2.alignment = WD_TABLE_ALIGNMENT.CENTER
+    t2.autofit = False  
+    
+    col_widths_t2 = [content_width * 0.48, content_width * 0.1733, content_width * 0.1733, content_width * 0.1733]
+
+    for i, h in enumerate(["Penyakit", "Harian", "Aktif", "Kumulatif"]):
+        cell = t2.cell(0, i)
+        cell.width = col_widths_t2[i]
+        apply_font(cell.paragraphs[0].add_run(h), 8, bold=True)
+        set_cell_background(cell, "BFDFFF")
+        cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    for i, (penyakit, row_data) in enumerate(wabak_df.iterrows()):
+        cells = t2.rows[i+1].cells
+        for idx_w in range(4):
+            cells[idx_w].width = col_widths_t2[idx_w]
+            
+        apply_font(cells[0].paragraphs[0].add_run(str(penyakit)), 8, bold=True)
+        set_cell_background(cells[0], "D9E9FF")
+        for idx, col_key in enumerate(['HARIAN', 'AKTIF', 'KUMULATIF'], start=1):
+            run = cells[idx].paragraphs[0].add_run(str(int(row_data[col_key])))
+            apply_font(run, 8, bold=True)
+            cells[idx].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    f2_cells = t2.rows[-1].cells
+    footer_vals = ["Jumlah", str(int(wabak_df['HARIAN'].sum())), str(int(wabak_df['AKTIF'].sum())), str(int(wabak_df['KUMULATIF'].sum()))]
+    for i, txt in enumerate(footer_vals):
+        f2_cells[i].width = col_widths_t2[i]
+        apply_font(f2_cells[i].paragraphs[0].add_run(txt), 8, bold=True)
+        set_cell_background(f2_cells[i], "FFFF00")
+        f2_cells[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    doc.add_paragraph()
     tarikh_semalam_str = get_malay_date(yesterday)
-    add_table_title(doc, "Jadual 2.1", f"Senarai Wabak Yang Dilaporkan pada {tarikh_semalam_str}")
+    add_table_title(doc, "Jadual 2.2", f"Senarai Wabak Yang Dilaporkan pada {tarikh_semalam_str}")
     
     t21 = doc.add_table(rows=1, cols=5)
     t21.style = 'Table Grid'
@@ -700,7 +737,7 @@ st.info(f"**Guideline:** Sila muat turun file notifikasi pada **{tarikh_guidelin
 f1 = st.file_uploader("Pilih fail Notifikasi Harian", type=["xlsx", "xls"], label_visibility="collapsed")
 
 st.markdown("---")
-st.info("ℹ️ **Nota Automasi:** Fail Linelisting Wabak kini dibaca secara automatik terus dari Google Sheets. Anda tidak perlu memuat naiknya lagi.")
+st.info("ℹ *Nota Automasi:* Fail Linelisting Wabak kini dibaca secara automatik terus daripada Google Sheets live. Anda tidak perlu lagi memuat naiknya manual.")
 
 if f1:
     if st.button("🚀 Jana Laporan Lengkap"):
@@ -716,14 +753,16 @@ if f1:
                 matrix = matrix.sort_values(by='Grand Total', ascending=False)
                 col_totals = matrix[TEMPLATE_PKDS + ['Grand Total']].sum(axis=0)
 
-                # --- PROSES MEMBACA GOOGLE SHEET WABAK BARU (LIVE CSV) ---
+                # --- PROSES PEMBACAAN LIVE GOOGLE SHEET WABAK (SINKRONISASI KOLUM) ---
                 df2 = pd.read_csv(URL_LIVE_WABAK)
                 
-                # SINKRONISASI NAMA KOLUM: Buang space di hadapan dan belakang nama kolum
+                # Membersihkan sebarang whitespace pada nama-nama kolum Google Sheet
                 df2.columns = df2.columns.str.strip()
                 
-                # Memastikan tarikh dibaca berasaskan format Hari/Bulan/Tahun (dayfirst=True)
+                # Format tarikh diselaraskan kepada konfigurasi Hari/Bulan/Tahun secara selamat
                 df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak'], dayfirst=True, errors='coerce').dt.date
+                df2['Tarikh Sebenar Tamat Wabak'] = pd.to_datetime(df2['Tarikh Sebenar Tamat Wabak'], dayfirst=True, errors='coerce').dt.date
+                df2['Tarikh Wabak Dijangka Tamat'] = pd.to_datetime(df2['Tarikh Wabak Dijangka Tamat'], dayfirst=True, errors='coerce').dt.date
 
                 addr_col = 'Tempat Berlaku Wabak\n(Alamat diisi lengkap dengan :- No rumah, nama jalan, nama tempat, daerah dan Negeri)'
                 cat_col = 'Kategori Tempat\n(Kategori premis berdasarkan tempat berlaku wabak)'
@@ -736,7 +775,24 @@ if f1:
 
                 df_yesterday = df2[df2['Tarikh Isytihar Wabak'] == yesterday].copy()
                 df_yesterday_list = df_yesterday[['PENYAKIT', 'DAERAH (HURUF BESAR)', addr_col, cat_col, 'Bilangan Kes', 'Bilangan Terdedah']].values.tolist()
-                total_wabak_harian = len(df_yesterday_list)
+
+                df2_filt = df2[df2['Tarikh Isytihar Wabak'] >= date(2026, 1, 4)].copy()
+                def group_inf(n): return "ILI/ Influenza" if any(x in str(n).upper() for x in ["INFLUENZA", "ILI"]) else n
+                df2_filt['PENYAKIT'] = df2_filt['PENYAKIT'].apply(group_inf)
+                
+                wb_sum = []
+                for d in df2_filt['PENYAKIT'].unique():
+                    if pd.isna(d): continue
+                    disease_df = df2_filt[df2_filt['PENYAKIT'] == d]
+                    h = len(disease_df[disease_df['Tarikh Isytihar Wabak'] == yesterday])
+                    k = len(disease_df)
+                    def check_active(row):
+                        tamat = row['Tarikh Sebenar Tamat Wabak'] if pd.notna(row['Tarikh Sebenar Tamat Wabak']) else row['Tarikh Wabak Dijangka Tamat']
+                        return True if (pd.isna(tamat) or tamat >= today) else False
+                    active_count = disease_df.apply(check_active, axis=1).sum()
+                    wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'AKTIF': active_count, 'KUMULATIF': k})
+                
+                wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
                 raw_gs = pd.read_csv(GSHEET_URL, header=None)
                 mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
@@ -778,14 +834,14 @@ if f1:
                     'PK P.KLANG': 'PK PK'
                 })
 
-                doc_out = generate_docx(matrix, col_totals, v_data, bkk_table_final, (len(bkk_details)==0), bkk_details, df_yesterday_list, total_wabak_harian)
+                doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, (len(bkk_details)==0), bkk_details, df_yesterday_list)
                 
                 file_date = today.strftime("%d.%m.%y")
                 file_name_custom = f"Laporan CPRC Selangor ({file_date}).docx"
 
                 st.success(f"✅ Laporan berjaya dijana untuk tarikh {file_date}!")
                 st.download_button(
-                    label="⬇️ Muat Turun Laporan", 
+                    label="⬇ Muat Turun Laporan", 
                     data=doc_out, 
                     file_name=file_name_custom,
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
