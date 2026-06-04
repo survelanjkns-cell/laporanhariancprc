@@ -723,8 +723,26 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     target.seek(0)
     return target
 
+
 # --- STREAMLIT UI ---
 st.set_page_config(page_title="BWKK Report Generator", layout="centered")
+
+# 👇 CSS Code block to cleanly remove both top-right and bottom-right icons
+st.markdown("""
+    <style>
+    /* Hides the upper right toolbar / menu options */
+    #MainMenu, header, .stAppHeader, [data-testid="stHeader"] {
+        visibility: hidden;
+        display: none;
+    }
+    /* Hides the lower right footer / "Made with Streamlit" badge */
+    footer, .stAppFooter, [data-testid="stFooter"] {
+        visibility: hidden;
+        display: none;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 st.title("📋 BWKK Report Generator")
 
 now_msia = get_msia_time()
