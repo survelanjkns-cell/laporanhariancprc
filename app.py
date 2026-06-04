@@ -756,9 +756,12 @@ if f1:
                 # --- PROSES MEMBACA GOOGLE SHEET WABAK BARU (LIVE CSV) ---
                 df2 = pd.read_csv(URL_LIVE_WABAK)
                 
+                # SINKRONISASI NAMA KOLUM: Buang space di hadapan dan belakang nama kolum
+                df2.columns = df2.columns.str.strip()
+                
                 # Memastikan tarikh dibaca berasaskan format Hari/Bulan/Tahun (dayfirst=True)
                 df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak'], dayfirst=True, errors='coerce').dt.date
-                df2['Tarikh Sebenar Tamat Wabak'] = pd.to_datetime(df2['Tarikh Sebenar Tamat Wabak '], dayfirst=True, errors='coerce').dt.date
+                df2['Tarikh Sebenar Tamat Wabak'] = pd.to_datetime(df2['Tarikh Sebenar Tamat Wabak'], dayfirst=True, errors='coerce').dt.date
                 df2['Tarikh Wabak Dijangka Tamat'] = pd.to_datetime(df2['Tarikh Wabak Dijangka Tamat'], dayfirst=True, errors='coerce').dt.date
 
                 addr_col = 'Tempat Berlaku Wabak\n(Alamat diisi lengkap dengan :- No rumah, nama jalan, nama tempat, daerah dan Negeri)'
@@ -783,9 +786,12 @@ if f1:
                     disease_df = df2_filt[df2_filt['PENYAKIT'] == d]
                     h = len(disease_df[disease_df['Tarikh Isytihar Wabak'] == yesterday])
                     k = len(disease_df)
+                    
+                    # Diperbaiki: fungsi rujukan dipastikan sepadan dengan nama kolum yang telah di-strip
                     def check_active(row):
                         tamat = row['Tarikh Sebenar Tamat Wabak'] if pd.notna(row['Tarikh Sebenar Tamat Wabak']) else row['Tarikh Wabak Dijangka Tamat']
                         return True if (pd.isna(tamat) or tamat >= today) else False
+                        
                     active_count = disease_df.apply(check_active, axis=1).sum()
                     wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'AKTIF': active_count, 'KUMULATIF': k})
                 
