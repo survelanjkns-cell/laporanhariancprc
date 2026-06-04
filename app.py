@@ -737,7 +737,7 @@ st.info(f"**Guideline:** Sila muat turun file notifikasi pada **{tarikh_guidelin
 f1 = st.file_uploader("Pilih fail Notifikasi Harian", type=["xlsx", "xls"], label_visibility="collapsed")
 
 st.markdown("---")
-st.info("ℹ *Nota Automasi:* Fail Linelisting Wabak kini dibaca secara automatik terus daripada Google Sheets live. Anda tidak perlu lagi memuat naiknya manual.")
+
 
 if f1:
     if st.button("🚀 Jana Laporan Lengkap"):
