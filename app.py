@@ -761,7 +761,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("📋 BWKK Report Generator")
+st.title("📋 Jana Laporan Harian CPRC Selangor")
 
 now_msia = get_msia_time()
 today = now_msia.date()
