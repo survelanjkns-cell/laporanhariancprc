@@ -725,9 +725,14 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
 
 # --- STREAMLIT UI ---
-st.set_page_config(page_title="BWKK Report Generator", layout="centered")
+# Updated to set page tab layout configuration using your uploaded Selangor Health Dept logo
+st.set_page_config(
+    page_title="BWKK Report Generator", 
+    page_icon="Logo Jab Kesihatan Negeri Selangor.png", 
+    layout="centered"
+)
 
-# 👇 DEEP CSS OVERRIDE TO COMPLETELY SCRUB CORNER WIDGETS AND BRANDING
+# Deep CSS overrides to fully isolate and clear out default header/footer structural icons
 st.markdown("""
     <style>
     /* 1. Hides the upper right toolbar / options button */
