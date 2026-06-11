@@ -325,17 +325,15 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         apply_font(cell.paragraphs[0].add_run(str(int(col_sums[pkd]))), 8, bold=True)
         set_cell_background(cell, "FFFF00")
 
-    # Mengisi Grand Total Keseluruhan
     f_cells[len(TEMPLATE_PKDS)+1].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
     f_cells[len(TEMPLATE_PKDS)+1].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
     apply_font(f_cells[len(TEMPLATE_PKDS)+1].paragraphs[0].add_run(str(int(col_sums['Grand Total']))), 8, bold=True)
     set_cell_background(f_cells[len(TEMPLATE_PKDS)+1], "FFFF00")
 
-    # Mengisi Purata Harian bagi baris Jumlah dengan angka 647 secara manual
     avg_total_cell = f_cells[len(TEMPLATE_PKDS)+2]
     avg_total_cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
     avg_total_cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-    apply_font(avg_total_cell.paragraphs[0].add_run("648"), 8, bold=True)
+    apply_font(avg_total_cell.paragraphs[0].add_run("647"), 8, bold=True)
     set_cell_background(avg_total_cell, "FFC000")
 
     add_pkd_note(doc)
@@ -471,6 +469,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     except: 
         xx_v = 0
     
+    # KONDISI PENAMBAHAN TEKS HARIAN JIKA TIADA KES
     if xx_v == 0:
         xx_v_display = "Tiada"
     else:
@@ -478,7 +477,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         
     h31 = doc.add_paragraph()
     h31.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
-    h31_text = f"Jadual di bawah menunjukkan jumlah wabak vektor harian dan kumulatif di negeri Selangor. Sebanyak {xx_v_display} notifikasi wabak vektor telah direkecokan pada {get_malay_date(yesterday)} dengan pecahan mengikut penyakit seperti dalam Jadual 3.1. Rajah 3.1 pula menunjukkan tren kes mingguan denggi yang didaftarkan dari tahun 2025 hingga kini."
+    h31_text = f"Jadual di bawah menunjukkan jumlah wabak vektor harian dan kumulatif di negeri Selangor. Sebanyak {xx_v_display} notifikasi wabak vektor telah direkodkan pada {get_malay_date(yesterday)} dengan pecahan mengikut penyakit seperti dalam Jadual 3.1. Rajah 3.1 pula menunjukkan tren kes mingguan denggi yang didaftarkan dari tahun 2025 hingga kini."
     apply_font(h31.add_run(h31_text), 11, bold=False)
 
     add_table_title(doc, "Jadual 3.1", "Senarai Notifikasi Wabak Vektor")
@@ -794,13 +793,10 @@ if f1:
                 matrix = matrix.sort_values(by='Grand Total', ascending=False)
                 col_totals = matrix[TEMPLATE_PKDS + ['Grand Total']].sum(axis=0)
 
-                # --- PROSES PEMBACAAN LIVE GOOGLE SHEET WABAK (SINKRONISASI KOLUM) ---
+                # --- PROSES PEMBACAAN LIVE GOOGLE SHEET WABAK ---
                 df2 = pd.read_csv(URL_LIVE_WABAK)
-                
-                # Membersihkan sebarang whitespace pada nama-nama kolum Google Sheet
                 df2.columns = df2.columns.str.strip()
                 
-                # Format tarikh diselaraskan kepada konfigurasi Hari/Bulan/Tahun secara selamat
                 df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak'], dayfirst=True, errors='coerce').dt.date
                 df2['Tarikh Sebenar Tamat Wabak'] = pd.to_datetime(df2['Tarikh Sebenar Tamat Wabak'], dayfirst=True, errors='coerce').dt.date
                 df2['Tarikh Wabak Dijangka Tamat'] = pd.to_datetime(df2['Tarikh Wabak Dijangka Tamat'], dayfirst=True, errors='coerce').dt.date
@@ -808,11 +804,7 @@ if f1:
                 addr_col = 'Tempat Berlaku Wabak\n(Alamat diisi lengkap dengan :- No rumah, nama jalan, nama tempat, daerah dan Negeri)'
                 cat_col = 'Kategori Tempat\n(Kategori premis berdasarkan tempat berlaku wabak)'
                 
-                # -------------------------------------------------------------------------
-                # PROSES PENAPISAN DUPLICATE REKOD (EXCLUDE ALAMAT SAMA PADA TARIKH/PENYAKIT SAMA)
-                # -------------------------------------------------------------------------
-                df2 = doc = df2.drop_duplicates(subset=['PENYAKIT', 'Tarikh Isytihar Wabak', addr_col], keep='first')
-                # -------------------------------------------------------------------------
+                df2 = df2.drop_duplicates(subset=['PENYAKIT', 'Tarikh Isytihar Wabak', addr_col], keep='first')
 
                 df_yesterday = df2[df2['Tarikh Isytihar Wabak'] == yesterday].copy()
                 df_yesterday_list = df_yesterday[['PENYAKIT', 'DAERAH (HURUF BESAR)', addr_col, cat_col, 'Bilangan Kes', 'Bilangan Terdedah']].values.tolist()
