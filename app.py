@@ -469,15 +469,16 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     except: 
         xx_v = 0
     
-    # KONDISI PENAMBAHAN TEKS HARIAN JIKA TIADA KES
+    # --- LOGIK BARU UNTUK MENGELAKKAN "Sebanyak Tiada" ---
     if xx_v == 0:
-        xx_v_display = "Tiada"
+        teks_vektor_awal = "Tiada notifikasi"
     else:
         xx_v_display = format_bkk_number(xx_v, is_person=False)
+        teks_vektor_awal = f"Sebanyak {xx_v_display} notifikasi"
         
     h31 = doc.add_paragraph()
     h31.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
-    h31_text = f"Jadual di bawah menunjukkan jumlah wabak vektor harian dan kumulatif di negeri Selangor. Sebanyak {xx_v_display} notifikasi wabak vektor telah direkodkan pada {get_malay_date(yesterday)} dengan pecahan mengikut penyakit seperti dalam Jadual 3.1. Rajah 3.1 pula menunjukkan tren kes mingguan denggi yang didaftarkan dari tahun 2025 hingga kini."
+    h31_text = f"Jadual di bawah menunjukkan jumlah wabak vektor harian dan kumulatif di negeri Selangor. {teks_vektor_awal} wabak vektor telah direkodkan pada {get_malay_date(yesterday)} dengan pecahan mengikut penyakit seperti dalam Jadual 3.1. Rajah 3.1 pula menunjukkan tren kes mingguan denggi yang didaftarkan dari tahun 2025 hingga kini."
     apply_font(h31.add_run(h31_text), 11, bold=False)
 
     add_table_title(doc, "Jadual 3.1", "Senarai Notifikasi Wabak Vektor")
