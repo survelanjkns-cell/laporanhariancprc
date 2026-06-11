@@ -312,6 +312,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         apply_font(avg_cell.paragraphs[0].add_run(str(int(row_data.get('Average Harian', 0)))), 8, bold=True)
         set_cell_background(avg_cell, "FFC000")
 
+    # --- BARIS KAKI (FOOTER) JADUAL 1.1 ---
     f_cells = t1.rows[-1].cells
     apply_font(f_cells[0].paragraphs[0].add_run("Jumlah"), 8, bold=True)
     set_cell_background(f_cells[0], "FFFF00")
@@ -324,11 +325,18 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         apply_font(cell.paragraphs[0].add_run(str(int(col_sums[pkd]))), 8, bold=True)
         set_cell_background(cell, "FFFF00")
 
+    # Mengisi Grand Total Keseluruhan
     f_cells[len(TEMPLATE_PKDS)+1].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
     f_cells[len(TEMPLATE_PKDS)+1].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
     apply_font(f_cells[len(TEMPLATE_PKDS)+1].paragraphs[0].add_run(str(int(col_sums['Grand Total']))), 8, bold=True)
     set_cell_background(f_cells[len(TEMPLATE_PKDS)+1], "FFFF00")
-    set_cell_background(f_cells[len(TEMPLATE_PKDS)+2], "FFC000")
+
+    # Mengisi Purata Harian bagi baris Jumlah dengan angka 647 secara manual
+    avg_total_cell = f_cells[len(TEMPLATE_PKDS)+2]
+    avg_total_cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+    avg_total_cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+    apply_font(avg_total_cell.paragraphs[0].add_run("647"), 8, bold=True)
+    set_cell_background(avg_total_cell, "FFC000")
 
     add_pkd_note(doc)
     
@@ -470,7 +478,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         
     h31 = doc.add_paragraph()
     h31.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
-    h31_text = f"Jadual di bawah menunjukkan jumlah wabak vektor harian dan kumulatif di negeri Selangor. Sebanyak {xx_v_display} notifikasi wabak vektor telah direkodkan pada {get_malay_date(yesterday)} dengan pecahan mengikut penyakit seperti dalam Jadual 3.1. Rajah 3.1 pula menunjukkan tren kes mingguan denggi yang didaftarkan dari tahun 2025 hingga kini."
+    h31_text = f"Jadual di bawah menunjukkan jumlah wabak vektor harian dan kumulatif di negeri Selangor. Sebanyak {xx_v_display} notifikasi wabak vektor telah direkecokan pada {get_malay_date(yesterday)} dengan pecahan mengikut penyakit seperti dalam Jadual 3.1. Rajah 3.1 pula menunjukkan tren kes mingguan denggi yang didaftarkan dari tahun 2025 hingga kini."
     apply_font(h31.add_run(h31_text), 11, bold=False)
 
     add_table_title(doc, "Jadual 3.1", "Senarai Notifikasi Wabak Vektor")
@@ -725,7 +733,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
 
 # --- STREAMLIT UI ---
-# Updated to set page tab layout configuration using your uploaded Selangor Health Dept logo
 st.set_page_config(
     page_title="LAPORAN CPRC SELANGOR", 
     page_icon="Logo Jab Kesihatan Negeri Selangor.png", 
@@ -773,8 +780,6 @@ st.info(f"**Guideline:** Sila muat turun file notifikasi pada **{tarikh_guidelin
 f1 = st.file_uploader("Pilih fail Notifikasi Harian", type=["xlsx", "xls"], label_visibility="collapsed")
 
 
-
-
 if f1:
     if st.button("🚀 Jana Laporan Lengkap"):
         with st.spinner("Sedang memproses data dan memuat turun jadual wabak secara live..."):
@@ -806,7 +811,7 @@ if f1:
                 # -------------------------------------------------------------------------
                 # PROSES PENAPISAN DUPLICATE REKOD (EXCLUDE ALAMAT SAMA PADA TARIKH/PENYAKIT SAMA)
                 # -------------------------------------------------------------------------
-                df2 = df2.drop_duplicates(subset=['PENYAKIT', 'Tarikh Isytihar Wabak', addr_col], keep='first')
+                df2 = doc = df2.drop_duplicates(subset=['PENYAKIT', 'Tarikh Isytihar Wabak', addr_col], keep='first')
                 # -------------------------------------------------------------------------
 
                 df_yesterday = df2[df2['Tarikh Isytihar Wabak'] == yesterday].copy()
