@@ -25,8 +25,7 @@ AVG_HARIAN_FIGURES = {
     "Keracunan Makanan": 22, "Measles": 12, "Viral Hepatitis": 9,
     "Avian Influenza": 8, "HIV/AIDS": 7, "Leptospirosis": 6,
     "Dysentry": 5, "Syphilis": 5, "Typhoid/Paratyphoid": 5,
-    "Gonorrhoea": 2, "Pertussis": 2, "Malaria": 1, "Mers-Cov": 1,
-    "Jumlah": 1
+    "Gonorrhoea": 2, "Pertussis": 2, "Malaria": 1, "Mers-Cov": 1
 }
 
 SHEET_ID = "1bjyNcntm-I6nRaIVkVdJqJRAzn5r2tYFfjUAN0emv9w"
