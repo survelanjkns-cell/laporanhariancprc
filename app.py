@@ -581,9 +581,9 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         count = len(bkk_details)
         count_str = format_bkk_number(count, is_person=False)
         
-        h41_text = f"Terdapat {count_str} kejadian BKK yang dilaporkan pada {get_malay_date(yesterday)}."
+        h41_text = f"Terdapat {count_str} kejadian BKK yang dilaporkan pada {get_malay_date(yesterday)} iaitu kejadian"
         
-        ordinal_words = {1: " Kejadian pertama ialah ", 2: " Kejadian kedua ialah ", 3: " Kejadian ketiga ialah ", 4: " Kejadian keempat ialah ", 5: " Kejadian kelima ialah "}
+        ordinal_words = {1: " pertama ialah ", 2: " kedua ialah ", 3: " ketiga ialah ", 4: " keempat ialah ", 5: " kelima ialah "}
         
         narrative_parts = []
         for idx, item in enumerate(bkk_details, start=1):
