@@ -460,7 +460,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     # --- 3.0 Ringkasan Laporan Wabak Vektor ---
     p3_head = doc.add_paragraph()
-    p3_head.paragraph_format.page_break_before = True 
+    
     apply_font(p3_head.add_run("3.0 Ringkasan Laporan Wabak Vektor"), 11, bold=True)
     
     try: 
