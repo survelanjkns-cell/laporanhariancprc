@@ -243,7 +243,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     p_nota.paragraph_format.space_after = Pt(6)
     p_nota.paragraph_format.line_spacing = 1.15  
 
-    ayat_baris1 = f"Data harian adalah berdasarkan input yang direkodkan pada {get_malay_date(yesterday)}\n"
+    ayat_baris1 = f"Data harian adalah based on input yang direkodkan pada {get_malay_date(yesterday)}\n"
     ayat_baris2 = f"Dimuat turun dan disemak pada {get_malay_date(today)}, jam 8.00 pagi"
     
     run_nota = p_nota.add_run(ayat_baris1 + ayat_baris2)
@@ -460,7 +460,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     # --- 3.0 Ringkasan Laporan Wabak Vektor ---
     p3_head = doc.add_paragraph()
-    p3_head = doc.add_paragraph()
     apply_font(p3_head.add_run("3.0 Ringkasan Laporan Wabak Vektor"), 11, bold=True)
     
     try: 
@@ -469,7 +468,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     except: 
         xx_v = 0
     
-    # --- LOGIK BARU UNTUK MENGELAKKAN "Sebanyak Tiada" ---
     if xx_v == 0:
         teks_vektor_awal = "Tiada notifikasi"
     else:
@@ -805,6 +803,7 @@ if f1:
                 addr_col = 'Tempat Berlaku Wabak\n(Alamat diisi lengkap dengan :- No rumah, nama jalan, nama tempat, daerah dan Negeri)'
                 cat_col = 'Kategori Tempat\n(Kategori premis berdasarkan tempat berlaku wabak)'
                 
+                # --- DIPERBAIKI: Mengelakkan kerosakan global namespace ---
                 df2 = df2.drop_duplicates(subset=['PENYAKIT', 'Tarikh Isytihar Wabak', addr_col], keep='first')
 
                 df_yesterday = df2[df2['Tarikh Isytihar Wabak'] == yesterday].copy()
