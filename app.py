@@ -458,6 +458,10 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
                 p.alignment = WD_ALIGN_PARAGRAPH.LEFT if c == 3 else WD_ALIGN_PARAGRAPH.CENTER
                 if p.runs: apply_font(p.runs[0], 8, bold=False)
 
+    # --- TAMBAH JARAK (2 KALI ENTER) SEBELUM 3.0 ---
+    doc.add_paragraph()
+    doc.add_paragraph()
+
     # --- 3.0 Ringkasan Laporan Wabak Vektor ---
     p3_head = doc.add_paragraph()
     apply_font(p3_head.add_run("3.0 Ringkasan Laporan Wabak Vektor"), 11, bold=True)
@@ -803,7 +807,6 @@ if f1:
                 addr_col = 'Tempat Berlaku Wabak\n(Alamat diisi lengkap dengan :- No rumah, nama jalan, nama tempat, daerah dan Negeri)'
                 cat_col = 'Kategori Tempat\n(Kategori premis berdasarkan tempat berlaku wabak)'
                 
-                # --- DIPERBAIKI: Mengelakkan kerosakan global namespace ---
                 df2 = df2.drop_duplicates(subset=['PENYAKIT', 'Tarikh Isytihar Wabak', addr_col], keep='first')
 
                 df_yesterday = df2[df2['Tarikh Isytihar Wabak'] == yesterday].copy()
