@@ -23,7 +23,7 @@ TEMPLATE_PKDS = [
 AVG_HARIAN_FIGURES = {
     "Denggi": 426, "COVID-19": 54, "HFMD": 52, "Tuberculosis": 28,
     "Keracunan Makanan": 22, "Measles": 12, "Viral Hepatitis": 9,
-    "Avian Influenza": 8, "HIV/AIDS": 7, "Leptospirosis": 6,
+    "Avian Influenza": 0, "HIV/AIDS": 7, "Leptospirosis": 6,
     "Dysentry": 5, "Syphilis": 5, "Typhoid/Paratyphoid": 5,
     "Gonorrhoea": 2, "Pertussis": 2, "Malaria": 1, "Mers-Cov": 1
 }
