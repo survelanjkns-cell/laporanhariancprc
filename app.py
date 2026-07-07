@@ -37,7 +37,7 @@ SHEET_ID_WABAK = "1igGx5z2aIvIvPQ31D86KX1kRNtWWFS1iUGOgbOw-J-A"
 URL_LIVE_WABAK = f"https://docs.google.com/spreadsheets/d/{SHEET_ID_WABAK}/export?format=csv&gid=0"
 
 # --- URL GOOGLE SHEET BKK (RAW LINELISTING & JADUAL) ---
-BKK_SPREAD = "1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c"
+BKK_SPREADSHEET_ID = "1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c"
 URL_BKK_LINELISTING = f"https://docs.google.com/spreadsheets/d/{BKK_SPREADSHEET_ID}/export?format=csv&gid=1352807145"
 URL_BKK_JADUAL = f"https://docs.google.com/spreadsheets/d/{BKK_SPREADSHEET_ID}/export?format=csv&gid=1342717767"
 
@@ -243,7 +243,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     p_nota.paragraph_format.space_after = Pt(6)
     p_nota.paragraph_format.line_spacing = 1.15  
 
-    ayat_baris1 = f"Data harian adalah berdasarkan input yang direkodkan pada {get_malay_date(yesterday)}\n"
+    ayat_baris1 = f"Data harian adalah based on input yang direkodkan pada {get_malay_date(yesterday)}\n"
     ayat_baris2 = f"Dimuat turun dan disemak pada {get_malay_date(today)}, jam 8.00 pagi"
     
     run_nota = p_nota.add_run(ayat_baris1 + ayat_baris2)
