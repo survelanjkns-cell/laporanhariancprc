@@ -37,7 +37,7 @@ SHEET_ID_WABAK = "1igGx5z2aIvIvPQ31D86KX1kRNtWWFS1iUGOgbOw-J-A"
 URL_LIVE_WABAK = f"https://docs.google.com/spreadsheets/d/{SHEET_ID_WABAK}/export?format=csv&gid=0"
 
 # --- URL GOOGLE SHEET BKK (RAW LINELISTING & JADUAL) ---
-BKK_SPREADSHEET_ID = "1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c"
+BKK_SPREAD = "1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c"
 URL_BKK_LINELISTING = f"https://docs.google.com/spreadsheets/d/{BKK_SPREADSHEET_ID}/export?format=csv&gid=1352807145"
 URL_BKK_JADUAL = f"https://docs.google.com/spreadsheets/d/{BKK_SPREADSHEET_ID}/export?format=csv&gid=1342717767"
 
