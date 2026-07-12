@@ -807,6 +807,7 @@ if f1:
                 addr_col = 'Tempat Berlaku Wabak\n(Alamat diisi lengkap dengan :- No rumah, nama jalan, nama tempat, daerah dan Negeri)'
                 cat_col = 'Kategori Tempat\n(Kategori premis berdasarkan tempat berlaku wabak)'
                 
+                # --- DIPERBAIKI: Mengelakkan tindak ganti global variable ---
                 df2 = df2.drop_duplicates(subset=['PENYAKIT', 'Tarikh Isytihar Wabak', addr_col], keep='first')
 
                 df_yesterday = df2[df2['Tarikh Isytihar Wabak'] == yesterday].copy()
