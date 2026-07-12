@@ -546,22 +546,42 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             apply_font(run, 9, bold=True)
             row_cells[j].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
 
+    # --- PROSES MEMBINA GRAF DENGAN BORDER HITAM & TAJUK DI BAWAH ---
     try:
         response = requests.get(CHART_IMAGE_URL)
         if response.status_code == 200:
-            doc.add_paragraph()
+            doc.add_paragraph() # Jarak sikit selepas table sebelum letak graf
+            
+            # Membina jadual 1 sel (lebar 6.2 inci) untuk bertindak sebagai Border Hitam graf
+            border_table = doc.add_table(rows=1, cols=1)
+            border_table.style = 'Table Grid' # Menggunakan grid default (border hitam)
+            border_table.alignment = WD_TABLE_ALIGNMENT.CENTER
+            border_table.autofit = False
+            
+            cell_graf = border_table.cell(0, 0)
+            cell_graf.width = Inches(6.2)
+            cell_graf.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+            
+            # Masukkan imej graf ke dalam sel tersebut
+            img_stream = io.BytesIO(response.content)
+            p_img = cell_graf.paragraphs[0]
+            p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p_img.paragraph_format.space_before = Pt(6) # Margin dalaman bingkai (top)
+            p_img.paragraph_format.space_after = Pt(6)  # Margin dalaman bingkai (bottom)
+            run_img = p_img.add_run()
+            run_img.add_picture(img_stream, width=Inches(6.0)) # Saiz imej kecil sikit dari sel supaya nampak border kemas
+            
+            # Tambah tajuk "Rajah 3.1" betul-betul di BAWAH jadul border graf tadi
             p_rajah_head = doc.add_paragraph()
-            p_rajah_head.alignment = WD_ALIGN_PARAGRAPH.LEFT
+            p_rajah_head.alignment = WD_ALIGN_PARAGRAPH.CENTER # Letak di tengah-tengah bawah graf
+            p_rajah_head.paragraph_format.space_before = Pt(8) # Jarak antara bingkai graf dengan tulisan tajuk
+            p_rajah_head.paragraph_format.space_after = Pt(12)
+            
             run_rajah_label = p_rajah_head.add_run("Rajah 3.1 : ")
             apply_font(run_rajah_label, 11, bold=True)
             run_rajah_title = p_rajah_head.add_run("Tren Kes Mingguan Denggi Didaftar Bagi Tahun 2025 - 2026 Negeri Selangor")
             apply_font(run_rajah_title, 11, bold=False)
-
-            img_stream = io.BytesIO(response.content)
-            p_img = doc.add_paragraph()
-            p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            run_img = p_img.add_run()
-            run_img.add_picture(img_stream, width=Inches(6.2))
+            
         else:
             st.warning("Gagal memuat turun imej graf.")
     except Exception as e:
@@ -807,7 +827,6 @@ if f1:
                 addr_col = 'Tempat Berlaku Wabak\n(Alamat diisi lengkap dengan :- No rumah, nama jalan, nama tempat, daerah dan Negeri)'
                 cat_col = 'Kategori Tempat\n(Kategori premis berdasarkan tempat berlaku wabak)'
                 
-                # --- DIPERBAIKI: Mengelakkan tindak ganti global variable ---
                 df2 = df2.drop_duplicates(subset=['PENYAKIT', 'Tarikh Isytihar Wabak', addr_col], keep='first')
 
                 df_yesterday = df2[df2['Tarikh Isytihar Wabak'] == yesterday].copy()
