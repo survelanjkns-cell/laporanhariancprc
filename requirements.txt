@@ -6,3 +6,4 @@ kaleido
 pytz
 openpyxl
 xlrd
+requests
