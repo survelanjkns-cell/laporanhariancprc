@@ -550,11 +550,10 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     try:
         response = requests.get(CHART_IMAGE_URL)
         if response.status_code == 200:
-            doc.add_paragraph() # Jarak sikit selepas table sebelum letak graf
+            doc.add_paragraph()
             
-            # Membina jadual 1 sel (lebar 6.2 inci) untuk bertindak sebagai Border Hitam graf
             border_table = doc.add_table(rows=1, cols=1)
-            border_table.style = 'Table Grid' # Menggunakan grid default (border hitam)
+            border_table.style = 'Table Grid'
             border_table.alignment = WD_TABLE_ALIGNMENT.CENTER
             border_table.autofit = False
             
@@ -562,19 +561,17 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             cell_graf.width = Inches(6.2)
             cell_graf.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
             
-            # Masukkan imej graf ke dalam sel tersebut
             img_stream = io.BytesIO(response.content)
             p_img = cell_graf.paragraphs[0]
             p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            p_img.paragraph_format.space_before = Pt(6) # Margin dalaman bingkai (top)
-            p_img.paragraph_format.space_after = Pt(6)  # Margin dalaman bingkai (bottom)
+            p_img.paragraph_format.space_before = Pt(6)
+            p_img.paragraph_format.space_after = Pt(6)
             run_img = p_img.add_run()
-            run_img.add_picture(img_stream, width=Inches(6.0)) # Saiz imej kecil sikit dari sel supaya nampak border kemas
+            run_img.add_picture(img_stream, width=Inches(6.0))
             
-            # Tambah tajuk "Rajah 3.1" betul-betul di BAWAH jadul border graf tadi
             p_rajah_head = doc.add_paragraph()
-            p_rajah_head.alignment = WD_ALIGN_PARAGRAPH.CENTER # Letak di tengah-tengah bawah graf
-            p_rajah_head.paragraph_format.space_before = Pt(8) # Jarak antara bingkai graf dengan tulisan tajuk
+            p_rajah_head.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p_rajah_head.paragraph_format.space_before = Pt(8)
             p_rajah_head.paragraph_format.space_after = Pt(12)
             
             run_rajah_label = p_rajah_head.add_run("Rajah 3.1 : ")
@@ -820,16 +817,32 @@ if f1:
                 df2 = pd.read_csv(URL_LIVE_WABAK)
                 df2.columns = df2.columns.str.strip()
                 
+                # Format tarikh diselaraskan kepada konfigurasi Hari/Bulan/Tahun secara selamat
                 df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak'], dayfirst=True, errors='coerce').dt.date
                 df2['Tarikh Sebenar Tamat Wabak'] = pd.to_datetime(df2['Tarikh Sebenar Tamat Wabak'], dayfirst=True, errors='coerce').dt.date
                 df2['Tarikh Wabak Dijangka Tamat'] = pd.to_datetime(df2['Tarikh Wabak Dijangka Tamat'], dayfirst=True, errors='coerce').dt.date
+                
+                # --- MEMBACA LAJUR HELPER: Tkh Isytihar Initial ---
+                initial_col = None
+                for col in df2.columns:
+                    if re.search(r'tkh\s*isytihar\s*initial|tarikh\s*isytihar\s*inital|tarikh\s*isytihar\s*initial', col, re.IGNORECASE):
+                        initial_col = col
+                        break
+
+                if initial_col:
+                    df2['tkh_isytihar_initial_clean'] = pd.to_datetime(df2[initial_col], dayfirst=True, errors='coerce').dt.date
+                    # Jika lajur helper kosong untuk rekod lama, isi dengan Tarikh Isytihar Wabak biasa secara selamat
+                    df2['tkh_isytihar_initial_clean'] = df2['tkh_isytihar_initial_clean'].fillna(df2['Tarikh Isytihar Wabak'])
+                else:
+                    df2['tkh_isytihar_initial_clean'] = df2['Tarikh Isytihar Wabak']
 
                 addr_col = 'Tempat Berlaku Wabak\n(Alamat diisi lengkap dengan :- No rumah, nama jalan, nama tempat, daerah dan Negeri)'
                 cat_col = 'Kategori Tempat\n(Kategori premis berdasarkan tempat berlaku wabak)'
                 
                 df2 = df2.drop_duplicates(subset=['PENYAKIT', 'Tarikh Isytihar Wabak', addr_col], keep='first')
 
-                df_yesterday = df2[df2['Tarikh Isytihar Wabak'] == yesterday].copy()
+                # --- PENAPISAN HARIAN SEMALAM BERDASARKAN LAJUR HELPER 'Tkh Isytihar Initial' ---
+                df_yesterday = df2[df2['tkh_isytihar_initial_clean'] == yesterday].copy()
                 df_yesterday_list = df_yesterday[['PENYAKIT', 'DAERAH (HURUF BESAR)', addr_col, cat_col, 'Bilangan Kes', 'Bilangan Terdedah']].values.tolist()
 
                 df2_filt = df2[df2['Tarikh Isytihar Wabak'] >= date(2026, 1, 4)].copy()
@@ -840,7 +853,8 @@ if f1:
                 for d in df2_filt['PENYAKIT'].unique():
                     if pd.isna(d): continue
                     disease_df = df2_filt[df2_filt['PENYAKIT'] == d]
-                    h = len(disease_df[disease_df['Tarikh Isytihar Wabak'] == yesterday])
+                    # HARIAN KINI MENGGUNAKAN LAJUR HELPER UNTUK ELAK TERDUPLIKASI BILA TARIKH DIUBAH
+                    h = len(disease_df[disease_df['tkh_isytihar_initial_clean'] == yesterday])
                     k = len(disease_df)
                     def check_active(row):
                         tamat = row['Tarikh Sebenar Tamat Wabak'] if pd.notna(row['Tarikh Sebenar Tamat Wabak']) else row['Tarikh Wabak Dijangka Tamat']
