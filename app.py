@@ -273,17 +273,18 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         h_cells[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         h_cells[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
     
-    apply_font(h_cells[0].paragraphs[0].add_run("Penyakit"), 8, bold=True)
+    # --- TAJUK HEADER JADUAL 1.1 DITUKAR KEPADA SAIZ 10 ---
+    apply_font(h_cells[0].paragraphs[0].add_run("Penyakit"), 10, bold=True)
     set_cell_background(h_cells[0], "BFDFFF")
     
     for i, pkd in enumerate(TEMPLATE_PKDS):
         cell = h_cells[i+1]
-        apply_font(cell.paragraphs[0].add_run(pkd_map.get(pkd, pkd)), 8, bold=True)
+        apply_font(cell.paragraphs[0].add_run(pkd_map.get(pkd, pkd)), 10, bold=True)
         set_cell_background(cell, "BFDFFF")
     
-    apply_font(h_cells[len(TEMPLATE_PKDS)+1].paragraphs[0].add_run("Jumlah"), 8, bold=True)
+    apply_font(h_cells[len(TEMPLATE_PKDS)+1].paragraphs[0].add_run("Jumlah"), 10, bold=True)
     set_cell_background(h_cells[len(TEMPLATE_PKDS)+1], "FFFF00")
-    apply_font(h_cells[len(TEMPLATE_PKDS)+2].paragraphs[0].add_run("Purata Harian"), 8, bold=True)
+    apply_font(h_cells[len(TEMPLATE_PKDS)+2].paragraphs[0].add_run("Purata Harian"), 10, bold=True)
     set_cell_background(h_cells[len(TEMPLATE_PKDS)+2], "FFC000")
 
     for r_idx, (penyakit, row_data) in enumerate(matrix_df.iterrows()):
