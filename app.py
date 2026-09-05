@@ -702,14 +702,14 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     # --- 5.0 Lain-lain ---
     p5_head = doc.add_paragraph()
-    apply_font(p5_head.add_run("5.0 Lain-lain (Input secara manual)"), 11, bold=True)
+    apply_font(p5_head.add_run("5.0 Lain-lain"), 11, bold=True)
     
     p5_space = doc.add_paragraph()
     apply_font(p5_space.add_run(""), 11)
 
     # --- 6.0 Rumusan oleh Ketua Petugas CPRC Selangor ---
     p6_head = doc.add_paragraph()
-    apply_font(p6_head.add_run("6.0 Rumusan oleh Ketua Petugas CPRC Selangor (Input secara manual)"), 11, bold=True)
+    apply_font(p6_head.add_run("6.0 Rumusan oleh Ketua Petugas CPRC Selangor"), 11, bold=True)
     
     p6_space = doc.add_paragraph()
     apply_font(p6_space.add_run(""), 11)
