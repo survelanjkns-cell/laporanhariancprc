@@ -346,11 +346,17 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     apply_font(p2_head.add_run("2.0 Ringkasan Laporan Notifikasi Wabak"), 11, bold=True)
     
     harian_total = int(wabak_df['HARIAN'].sum())
-    harian_total_str = format_bkk_number(harian_total, is_person=False)
     
     h21 = doc.add_paragraph()
     h21.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
-    h21_text = f"Jadual di bawah menunjukkan jumlah wabak harian, aktif dan kumulatif di negeri Selangor. Sejumlah {harian_total_str} input notifikasi wabak telah direkodkan pada {get_malay_date(yesterday)}."
+    
+    # --- KONDISI BARU DIBINA UNTUK AYAT 2.0 ---
+    if harian_total == 0:
+        h21_text = f"Jadual di bawah menunjukkan jumlah wabak harian, aktif dan kumulatif di negeri Selangor. Tiada wabak telah direkodkan pada {get_malay_date(yesterday)}."
+    else:
+        harian_total_str = format_bkk_number(harian_total, is_person=False)
+        h21_text = f"Jadual di bawah menunjukkan jumlah wabak harian, aktif dan kumulatif di negeri Selangor. Sejumlah {harian_total_str} input notifikasi wabak telah direkodkan pada {get_malay_date(yesterday)}."
+        
     apply_font(h21.add_run(h21_text), 11, bold=False)
 
     add_table_title(doc, "Jadual 2.1", "Senarai Notifikasi Wabak")
@@ -388,33 +394,29 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         set_cell_background(f2_cells[i], "FFFF00")
         f2_cells[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    doc.add_paragraph()
-    tarikh_semalam_str = get_malay_date(yesterday)
-    add_table_title(doc, "Jadual 2.2", f"Senarai Wabak Yang Dilaporkan pada {tarikh_semalam_str}")
-    
-    t21 = doc.add_table(rows=1, cols=5)
-    t21.style = 'Table Grid'
-    t21.width = content_width 
-    t21.allow_autofit = False
-    set_repeat_table_header(t21.rows[0])
+    # --- HANYA BINA & PAPARKAN JADUAL 2.2 JIKA WABAK DETECTED (df_yesterday_list TIDAK KOSONG) ---
+    if df_yesterday_list:
+        doc.add_paragraph()
+        tarikh_semalam_str = get_malay_date(yesterday)
+        add_table_title(doc, "Jadual 2.2", f"Senarai Wabak Yang Dilaporkan pada {tarikh_semalam_str}")
+        
+        t21 = doc.add_table(rows=1, cols=5)
+        t21.style = 'Table Grid'
+        t21.width = content_width 
+        t21.allow_autofit = False
+        set_repeat_table_header(t21.rows[0])
 
-    widths_21 = [content_width * 0.05, content_width * 0.2, content_width * 0.2, content_width * 0.4, content_width * 0.15]
-    h21_headers = ["Bil", "Wabak", "Daerah", "Tempat Berlaku", "Kadar Serangan"]
-    for i, txt in enumerate(h21_headers):
-        cell = t21.cell(0, i)
-        cell.width = widths_21[i]
-        set_cell_background(cell, "BFDFFF")
-        cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-        p = cell.paragraphs[0]
-        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        apply_font(p.add_run(txt), 10, bold=True)
+        widths_21 = [content_width * 0.05, content_width * 0.2, content_width * 0.2, content_width * 0.4, content_width * 0.15]
+        h21_headers = ["Bil", "Wabak", "Daerah", "Tempat Berlaku", "Kadar Serangan"]
+        for i, txt in enumerate(h21_headers):
+            cell = t21.cell(0, i)
+            cell.width = widths_21[i]
+            set_cell_background(cell, "BFDFFF")
+            cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+            p = cell.paragraphs[0]
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            apply_font(p.add_run(txt), 10, bold=True)
 
-    if not df_yesterday_list:
-        row = t21.add_row().cells
-        row[0].merge(row[4])
-        row[0].text = "Tiada wabak dilaporkan pada tarikh ini."
-        row[0].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-    else:
         for idx, item in enumerate(df_yesterday_list, start=1):
             row = t21.add_row().cells
             for i in range(5): 
