@@ -273,7 +273,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         h_cells[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         h_cells[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
     
-    # --- TAJUK HEADER JADUAL 1.1 DITUKAR KEPADA SAIZ 10 ---
+    # --- TAJUK HEADER JADUAL 1.1 SAIZ 10 ---
     apply_font(h_cells[0].paragraphs[0].add_run("Penyakit"), 10, bold=True)
     set_cell_background(h_cells[0], "BFDFFF")
     
@@ -350,7 +350,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     h21 = doc.add_paragraph()
     h21.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
     
-    # --- KONDISI BARU DIBINA UNTUK AYAT 2.0 ---
+    # --- AYAT BAHAGIAN 2.0 DITUKAR BERDASARKAN JUMLAH WABAK HARIAN ---
     if harian_total == 0:
         h21_text = f"Jadual di bawah menunjukkan jumlah wabak harian, aktif dan kumulatif di negeri Selangor. Tiada wabak telah direkodkan pada {get_malay_date(yesterday)}."
     else:
@@ -394,7 +394,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         set_cell_background(f2_cells[i], "FFFF00")
         f2_cells[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    # --- HANYA BINA & PAPARKAN JADUAL 2.2 JIKA WABAK DETECTED (df_yesterday_list TIDAK KOSONG) ---
+    # --- JADUAL 2.2 DISMISS BILA TIADA WABAK (df_yesterday_list KOSONG) ---
     if df_yesterday_list:
         doc.add_paragraph()
         tarikh_semalam_str = get_malay_date(yesterday)
@@ -834,7 +834,6 @@ if f1:
 
                 if initial_col:
                     df2['tkh_isytihar_initial_clean'] = pd.to_datetime(df2[initial_col], dayfirst=True, errors='coerce').dt.date
-                    # Jika lajur helper kosong untuk rekod lama, isi dengan Tarikh Isytihar Wabak biasa secara selamat
                     df2['tkh_isytihar_initial_clean'] = df2['tkh_isytihar_initial_clean'].fillna(df2['Tarikh Isytihar Wabak'])
                 else:
                     df2['tkh_isytihar_initial_clean'] = df2['Tarikh Isytihar Wabak']
