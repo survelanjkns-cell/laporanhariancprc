@@ -273,7 +273,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         h_cells[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         h_cells[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
     
-    # --- TAJUK HEADER JADUAL 1.1 SAIZ 10 ---
+    # --- TAJUK HEADER JADUAL 1.1 DITUKAR KEPADA SAIZ 10 ---
     apply_font(h_cells[0].paragraphs[0].add_run("Penyakit"), 10, bold=True)
     set_cell_background(h_cells[0], "BFDFFF")
     
@@ -350,7 +350,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     h21 = doc.add_paragraph()
     h21.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
     
-    # --- NARATIF KONDISI WABAK HARIAN ---
+    # --- KONDISI BARU DIBINA UNTUK AYAT 2.0 ---
     if harian_total == 0:
         h21_text = f"Jadual di bawah menunjukkan jumlah wabak harian, aktif dan kumulatif di negeri Selangor. Tiada wabak telah direkodkan pada {get_malay_date(yesterday)}."
     else:
@@ -394,7 +394,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         set_cell_background(f2_cells[i], "FFFF00")
         f2_cells[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    # --- JADUAL 2.2 DILANGKAU BILA TIADA WABAK ---
+    # --- HANYA BINA & PAPARKAN JADUAL 2.2 JIKA WABAK DETECTED (df_yesterday_list TIDAK KOSONG) ---
     if df_yesterday_list:
         doc.add_paragraph()
         tarikh_semalam_str = get_malay_date(yesterday)
@@ -702,14 +702,14 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     # --- 5.0 Lain-lain ---
     p5_head = doc.add_paragraph()
-    apply_font(p5_head.add_run("5.0 Lain-lain (Input secara manual)"), 11, bold=True)
+    apply_font(p5_head.add_run("5.0 Lain-lain"), 11, bold=True)
     
     p5_space = doc.add_paragraph()
     apply_font(p5_space.add_run(""), 11)
 
     # --- 6.0 Rumusan oleh Ketua Petugas CPRC Selangor ---
     p6_head = doc.add_paragraph()
-    apply_font(p6_head.add_run("6.0 Rumusan oleh Ketua Petugas CPRC Selangor (Input secara manual)"), 11, bold=True)
+    apply_font(p6_head.add_run("6.0 Rumusan oleh Ketua Petugas CPRC Selangor"), 11, bold=True)
     
     p6_space = doc.add_paragraph()
     apply_font(p6_space.add_run(""), 11)
