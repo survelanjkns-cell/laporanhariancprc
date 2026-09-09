@@ -44,6 +44,12 @@ URL_BKK_JADUAL = f"https://docs.google.com/spreadsheets/d/{BKK_SPREADSHEET_ID}/e
 CHART_IMAGE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTDprYai1uaP1L-JP6kuHRZX18AmDHX0ROEzRE37DaCHMo0cNWUvRa8R-65RZAK7XFWI6pb_-X-jF24/pubchart?oid=1681812411&format=image"
 
 # --- HELPERS ---
+def fetch_google_sheet_csv(url, header=0):
+    """Fungsi selamat muat turun Google Sheet CSV tanpa ralat sambungan"""
+    res = requests.get(url, timeout=15)
+    res.raise_for_status()
+    return pd.read_csv(io.StringIO(res.text), header=header)
+
 def set_repeat_table_header(row):
     tr = row._tr
     trPr = tr.get_or_add_trPr()
@@ -77,7 +83,6 @@ def clean_val(val):
     return cleaned if cleaned != "" else "-"
 
 def safe_parse_date(series):
-    """Menukar siri data kepada objek date secara selamat tanpa mencetuskan ralat"""
     return pd.to_datetime(series, dayfirst=True, errors='coerce').dt.date
 
 def get_epi_week(target_date):
@@ -277,7 +282,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         h_cells[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         h_cells[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
     
-    # --- TAJUK HEADER JADUAL 1.1 SAIZ 10 ---
+    # --- HEADER JADUAL 1.1 SAIZ 10 ---
     apply_font(h_cells[0].paragraphs[0].add_run("Penyakit"), 10, bold=True)
     set_cell_background(h_cells[0], "BFDFFF")
     
@@ -317,7 +322,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         apply_font(avg_cell.paragraphs[0].add_run(str(int(row_data.get('Average Harian', 0)))), 8, bold=True)
         set_cell_background(avg_cell, "FFC000")
 
-    # --- BARIS KAKI (FOOTER) JADUAL 1.1 ---
+    # --- BARIS KAKI JADUAL 1.1 ---
     f_cells = t1.rows[-1].cells
     apply_font(f_cells[0].paragraphs[0].add_run("Jumlah"), 8, bold=True)
     set_cell_background(f_cells[0], "FFFF00")
@@ -354,7 +359,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     h21 = doc.add_paragraph()
     h21.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
     
-    # --- AYAT BAHAGIAN 2.0 DITUKAR BERDASARKAN JUMLAH WABAK HARIAN ---
+    # --- NARATIF KONDISI WABAK HARIAN ---
     if harian_total == 0:
         h21_text = f"Jadual di bawah menunjukkan jumlah wabak harian, aktif dan kumulatif di negeri Selangor. Tiada wabak telah direkodkan pada {get_malay_date(yesterday)}."
     else:
@@ -398,7 +403,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         set_cell_background(f2_cells[i], "FFFF00")
         f2_cells[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    # --- JADUAL 2.2 DISMISS BILA TIADA WABAK (df_yesterday_list KOSONG) ---
+    # --- JADUAL 2.2 DILANGKAU BILA TIADA WABAK (df_yesterday_list KOSONG) ---
     if df_yesterday_list:
         doc.add_paragraph()
         tarikh_semalam_str = get_malay_date(yesterday)
@@ -555,7 +560,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     # --- PROSES MEMBINA GRAF DENGAN BORDER HITAM & TAJUK DI BAWAH ---
     try:
-        response = requests.get(CHART_IMAGE_URL)
+        response = requests.get(CHART_IMAGE_URL, timeout=15)
         if response.status_code == 200:
             doc.add_paragraph()
             
@@ -743,13 +748,8 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         p_tarikh.paragraph_format.tab_stops.add_tab_stop(Inches(2.0))
         apply_font(p_tarikh.add_run("Tarikh\t:"), 11, bold=False)
 
-    # 1. Disediakan oleh
     add_sig_block(doc, "Disediakan oleh")
-    
-    # 2. Disemak oleh
     add_sig_block(doc, "Disemak oleh")
-    
-    # 3. Disahkan oleh
     add_sig_block(doc, "Disahkan oleh")
 
     target = io.BytesIO()
@@ -810,7 +810,7 @@ if f1:
                 col_totals = matrix[TEMPLATE_PKDS + ['Grand Total']].sum(axis=0)
 
                 # --- PROSES PEMBACAAN LIVE GOOGLE SHEET WABAK ---
-                df2 = pd.read_csv(URL_LIVE_WABAK)
+                df2 = fetch_google_sheet_csv(URL_LIVE_WABAK)
                 df2.columns = df2.columns.astype(str).str.strip()
                 
                 # Menukar semua jenis tarikh secara selamat
@@ -871,14 +871,14 @@ if f1:
                 
                 wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
-                raw_gs = pd.read_csv(GSHEET_URL, header=None)
+                raw_gs = fetch_google_sheet_csv(GSHEET_URL, header=None)
                 mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
                 v_data = raw_gs.iloc[mask_v.idxmax() : mask_v.idxmax() + 11, 13:20]
                 v_data = v_data.dropna(how='all')
                 v_data = v_data[~v_data.iloc[:, 0].astype(str).str.lower().str.contains('nan')]
 
                 # --- PEMPROSESAN DATA GOOGLE SHEET BKK ---
-                df_bkk_raw_data = pd.read_csv(URL_BKK_LINELISTING, header=None)
+                df_bkk_raw_data = fetch_google_sheet_csv(URL_BKK_LINELISTING, header=None)
                 clean_date_series = df_bkk_raw_data.iloc[:, 2].astype(str).str.strip()
                 df_bkk_raw_data['datetime_lapor'] = safe_parse_date(clean_date_series)
                 
@@ -892,7 +892,7 @@ if f1:
                     'bil_kematian': r[10]  
                 } for _, r in insiden_semalam.iterrows()]
                 
-                df_bkk_jadual_full = pd.read_csv(URL_BKK_JADUAL, header=None)
+                df_bkk_jadual_full = fetch_google_sheet_csv(URL_BKK_JADUAL, header=None)
                 
                 bkk_raw = df_bkk_jadual_full.iloc[1:, 33:46].dropna(how='all').reset_index(drop=True)
                 bkk_raw.columns = bkk_raw.iloc[0]
