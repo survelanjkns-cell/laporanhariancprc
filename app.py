@@ -76,6 +76,10 @@ def clean_val(val):
     cleaned = re.sub(r'\s*\(.*?\)', '', str(val)).strip()
     return cleaned if cleaned != "" else "-"
 
+def safe_parse_date(series):
+    """Menukar siri data kepada objek date secara selamat tanpa mencetuskan ralat"""
+    return pd.to_datetime(series, dayfirst=True, errors='coerce').dt.date
+
 def get_epi_week(target_date):
     start_date = date(2026, 1, 4)
     if target_date < start_date: return "N/A"
@@ -761,29 +765,19 @@ st.set_page_config(
     layout="centered"
 )
 
-# Deep CSS overrides to fully isolate and clear out default header/footer structural icons
+# Deep CSS overrides
 st.markdown("""
     <style>
-    /* 1. Hides the upper right toolbar / options button */
     #MainMenu, header, .stAppHeader, [data-testid="stHeader"] {
         visibility: hidden !important;
         display: none !important;
     }
-    
-    /* 2. Hides standard bottom footer, deploy dropdown buttons and host indicators */
-    footer, 
-    .stAppFooter, 
-    [data-testid="stFooter"], 
-    .stAppDeployDropdown,
+    footer, .stAppFooter, [data-testid="stFooter"], .stAppDeployDropdown,
     div[data-testid="stConnectionStatus"] + div {
         visibility: hidden !important;
         display: none !important;
     }
-    
-    /* 3. Catches and removes dynamic absolute floating elements on top of the DOM layout */
-    iframe[title="Managed by Streamlit"], 
-    .stActionButton,
-    div[class*="stDeployButton"] {
+    iframe[title="Managed by Streamlit"], .stActionButton, div[class*="stDeployButton"] {
         visibility: hidden !important;
         display: none !important;
     }
@@ -801,7 +795,6 @@ st.subheader("📁 Muat Naik Excel Notifikasi Harian")
 st.info(f"**Guideline:** Sila muat turun file notifikasi pada **{tarikh_guideline}** dari sistem eNotifikasi dan muat naik di sini.")
 f1 = st.file_uploader("Pilih fail Notifikasi Harian", type=["xlsx", "xls"], label_visibility="collapsed")
 
-
 if f1:
     if st.button("🚀 Jana Laporan Lengkap"):
         with st.spinner("Sedang memproses data dan memuat turun jadual wabak secara live..."):
@@ -818,36 +811,46 @@ if f1:
 
                 # --- PROSES PEMBACAAN LIVE GOOGLE SHEET WABAK ---
                 df2 = pd.read_csv(URL_LIVE_WABAK)
-                df2.columns = df2.columns.str.strip()
+                df2.columns = df2.columns.astype(str).str.strip()
                 
-                # Format tarikh diselaraskan kepada konfigurasi Hari/Bulan/Tahun secara selamat
-                df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak'], dayfirst=True, errors='coerce').dt.date
-                df2['Tarikh Sebenar Tamat Wabak'] = pd.to_datetime(df2['Tarikh Sebenar Tamat Wabak'], dayfirst=True, errors='coerce').dt.date
-                df2['Tarikh Wabak Dijangka Tamat'] = pd.to_datetime(df2['Tarikh Wabak Dijangka Tamat'], dayfirst=True, errors='coerce').dt.date
+                # Menukar semua jenis tarikh secara selamat
+                df2['Tarikh Isytihar Wabak Clean'] = safe_parse_date(df2['Tarikh Isytihar Wabak'])
+                df2['Tarikh Sebenar Tamat Wabak'] = safe_parse_date(df2['Tarikh Sebenar Tamat Wabak'])
+                df2['Tarikh Wabak Dijangka Tamat'] = safe_parse_date(df2['Tarikh Wabak Dijangka Tamat'])
                 
-                # --- MEMBACA LAJUR HELPER: Tkh Isytihar Initial ---
-                initial_col = None
-                for col in df2.columns:
-                    if re.search(r'tkh\s*isytihar\s*initial|tarikh\s*isytihar\s*inital|tarikh\s*isytihar\s*initial', col, re.IGNORECASE):
-                        initial_col = col
+                # Cari lajur Helper "tkh isytihar initial" / "tarikh isytihar inital"
+                helper_found_col = None
+                for c in df2.columns:
+                    if re.search(r'tkh\s*isytihar\s*initial|tarikh\s*isytihar\s*inital|tarikh\s*isytihar\s*initial', c, re.IGNORECASE):
+                        helper_found_col = c
                         break
 
-                if initial_col:
-                    df2['tkh_isytihar_initial_clean'] = pd.to_datetime(df2[initial_col], dayfirst=True, errors='coerce').dt.date
-                    df2['tkh_isytihar_initial_clean'] = df2['tkh_isytihar_initial_clean'].fillna(df2['Tarikh Isytihar Wabak'])
+                if helper_found_col is not None:
+                    df2['tkh_isytihar_initial_clean'] = safe_parse_date(df2[helper_found_col])
+                    df2['tkh_isytihar_initial_clean'] = df2['tkh_isytihar_initial_clean'].fillna(df2['Tarikh Isytihar Wabak Clean'])
                 else:
-                    df2['tkh_isytihar_initial_clean'] = df2['Tarikh Isytihar Wabak']
+                    df2['tkh_isytihar_initial_clean'] = df2['Tarikh Isytihar Wabak Clean']
 
                 addr_col = 'Tempat Berlaku Wabak\n(Alamat diisi lengkap dengan :- No rumah, nama jalan, nama tempat, daerah dan Negeri)'
                 cat_col = 'Kategori Tempat\n(Kategori premis berdasarkan tempat berlaku wabak)'
                 
-                df2 = df2.drop_duplicates(subset=['PENYAKIT', 'Tarikh Isytihar Wabak', addr_col], keep='first')
+                # Guna fallback selamat untuk alamat jika lajur tiada
+                if addr_col not in df2.columns:
+                    possible_addrs = [c for c in df2.columns if 'alamat' in c.lower() or 'tempat' in c.lower()]
+                    addr_col = possible_addrs[0] if possible_addrs else df2.columns[0]
+                if cat_col not in df2.columns:
+                    possible_cats = [c for c in df2.columns if 'kategori' in c.lower() or 'premis' in c.lower()]
+                    cat_col = possible_cats[0] if possible_cats else df2.columns[0]
 
-                # --- PENAPISAN HARIAN SEMALAM BERDASARKAN LAJUR HELPER 'Tkh Isytihar Initial' ---
+                df2 = df2.drop_duplicates(subset=['PENYAKIT', 'Tarikh Isytihar Wabak Clean', addr_col], keep='first')
+
+                # --- PENAPISAN HARIAN SEMALAM BERDASARKAN LAJUR HELPER ---
                 df_yesterday = df2[df2['tkh_isytihar_initial_clean'] == yesterday].copy()
-                df_yesterday_list = df_yesterday[['PENYAKIT', 'DAERAH (HURUF BESAR)', addr_col, cat_col, 'Bilangan Kes', 'Bilangan Terdedah']].values.tolist()
+                
+                daerah_col_name = 'DAERAH (HURUF BESAR)' if 'DAERAH (HURUF BESAR)' in df2.columns else 'DAERAH'
+                df_yesterday_list = df_yesterday[['PENYAKIT', daerah_col_name, addr_col, cat_col, 'Bilangan Kes', 'Bilangan Terdedah']].values.tolist()
 
-                df2_filt = df2[df2['Tarikh Isytihar Wabak'] >= date(2026, 1, 4)].copy()
+                df2_filt = df2[df2['Tarikh Isytihar Wabak Clean'] >= date(2026, 1, 4)].copy()
                 def group_inf(n): return "ILI/ Influenza" if any(x in str(n).upper() for x in ["INFLUENZA", "ILI"]) else n
                 df2_filt['PENYAKIT'] = df2_filt['PENYAKIT'].apply(group_inf)
                 
@@ -855,12 +858,14 @@ if f1:
                 for d in df2_filt['PENYAKIT'].unique():
                     if pd.isna(d): continue
                     disease_df = df2_filt[df2_filt['PENYAKIT'] == d]
-                    # HARIAN KINI MENGGUNAKAN LAJUR HELPER UNTUK ELAK TERDUPLIKASI BILA TARIKH DIUBAH
+                    
                     h = len(disease_df[disease_df['tkh_isytihar_initial_clean'] == yesterday])
                     k = len(disease_df)
+                    
                     def check_active(row):
                         tamat = row['Tarikh Sebenar Tamat Wabak'] if pd.notna(row['Tarikh Sebenar Tamat Wabak']) else row['Tarikh Wabak Dijangka Tamat']
                         return True if (pd.isna(tamat) or tamat >= today) else False
+                        
                     active_count = disease_df.apply(check_active, axis=1).sum()
                     wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'AKTIF': active_count, 'KUMULATIF': k})
                 
@@ -875,7 +880,7 @@ if f1:
                 # --- PEMPROSESAN DATA GOOGLE SHEET BKK ---
                 df_bkk_raw_data = pd.read_csv(URL_BKK_LINELISTING, header=None)
                 clean_date_series = df_bkk_raw_data.iloc[:, 2].astype(str).str.strip()
-                df_bkk_raw_data['datetime_lapor'] = pd.to_datetime(clean_date_series, dayfirst=True, errors='coerce').dt.date
+                df_bkk_raw_data['datetime_lapor'] = safe_parse_date(clean_date_series)
                 
                 insiden_semalam = df_bkk_raw_data[df_bkk_raw_data['datetime_lapor'] == yesterday]
                 
