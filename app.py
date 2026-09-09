@@ -44,12 +44,6 @@ URL_BKK_JADUAL = f"https://docs.google.com/spreadsheets/d/{BKK_SPREADSHEET_ID}/e
 CHART_IMAGE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTDprYai1uaP1L-JP6kuHRZX18AmDHX0ROEzRE37DaCHMo0cNWUvRa8R-65RZAK7XFWI6pb_-X-jF24/pubchart?oid=1681812411&format=image"
 
 # --- HELPERS ---
-def fetch_google_sheet_csv(url, header=0):
-    """Fungsi selamat muat turun Google Sheet CSV tanpa ralat sambungan"""
-    res = requests.get(url, timeout=15)
-    res.raise_for_status()
-    return pd.read_csv(io.StringIO(res.text), header=header)
-
 def set_repeat_table_header(row):
     tr = row._tr
     trPr = tr.get_or_add_trPr()
@@ -282,7 +276,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         h_cells[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         h_cells[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
     
-    # --- HEADER JADUAL 1.1 SAIZ 10 ---
+    # --- TAJUK HEADER JADUAL 1.1 SAIZ 10 ---
     apply_font(h_cells[0].paragraphs[0].add_run("Penyakit"), 10, bold=True)
     set_cell_background(h_cells[0], "BFDFFF")
     
@@ -403,7 +397,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         set_cell_background(f2_cells[i], "FFFF00")
         f2_cells[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    # --- JADUAL 2.2 DILANGKAU BILA TIADA WABAK (df_yesterday_list KOSONG) ---
+    # --- JADUAL 2.2 DILANGKAU BILA TIADA WABAK ---
     if df_yesterday_list:
         doc.add_paragraph()
         tarikh_semalam_str = get_malay_date(yesterday)
@@ -470,7 +464,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
                 p.alignment = WD_ALIGN_PARAGRAPH.LEFT if c == 3 else WD_ALIGN_PARAGRAPH.CENTER
                 if p.runs: apply_font(p.runs[0], 8, bold=False)
 
-    # --- TAMBAH JARAK (2 KALI ENTER) SEBELUM 3.0 ---
+    # --- TAMBAH JARAK SEBELUM 3.0 ---
     doc.add_paragraph()
     doc.add_paragraph()
 
@@ -558,7 +552,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             apply_font(run, 9, bold=True)
             row_cells[j].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
 
-    # --- PROSES MEMBINA GRAF DENGAN BORDER HITAM & TAJUK DI BAWAH ---
+    # --- GRAF DENGAN BORDER HITAM ---
     try:
         response = requests.get(CHART_IMAGE_URL, timeout=15)
         if response.status_code == 200:
@@ -596,7 +590,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     except Exception as e:
         st.error(f"Ralat semasa memproses Rajah 3.1: {e}")
 
-    # --- 4.0 Ringkasan Laporan Kejadian Bencana, Kecemasan dan Krisis (BKK) ---
+    # --- 4.0 Ringkasan Laporan BKK ---
     doc.add_page_break()
     p4_head = doc.add_paragraph()
     apply_font(p4_head.add_run("4.0 Ringkasan Laporan Kejadian Bencana, Kecemasan dan Krisis (BKK)"), 11, bold=True)
@@ -810,18 +804,16 @@ if f1:
                 col_totals = matrix[TEMPLATE_PKDS + ['Grand Total']].sum(axis=0)
 
                 # --- PROSES PEMBACAAN LIVE GOOGLE SHEET WABAK ---
-                df2 = fetch_google_sheet_csv(URL_LIVE_WABAK)
+                df2 = pd.read_csv(URL_LIVE_WABAK)
                 df2.columns = df2.columns.astype(str).str.strip()
                 
-                # Menukar semua jenis tarikh secara selamat
                 df2['Tarikh Isytihar Wabak Clean'] = safe_parse_date(df2['Tarikh Isytihar Wabak'])
                 df2['Tarikh Sebenar Tamat Wabak'] = safe_parse_date(df2['Tarikh Sebenar Tamat Wabak'])
                 df2['Tarikh Wabak Dijangka Tamat'] = safe_parse_date(df2['Tarikh Wabak Dijangka Tamat'])
                 
-                # Cari lajur Helper "tkh isytihar initial" / "tarikh isytihar inital"
                 helper_found_col = None
                 for c in df2.columns:
-                    if re.search(r'tkh\s*isytihar\s*initial|tarikh\s*isytihar\s*inital|tarikh\s*isytihar\s*initial', c, re.IGNORECASE):
+                    if re.search(r'tkh\s*isytihar\s*initial|tarikh\s*isytihar\s*inital|tarikh\s*isytihar\s*initial', str(c), re.IGNORECASE):
                         helper_found_col = c
                         break
 
@@ -834,20 +826,26 @@ if f1:
                 addr_col = 'Tempat Berlaku Wabak\n(Alamat diisi lengkap dengan :- No rumah, nama jalan, nama tempat, daerah dan Negeri)'
                 cat_col = 'Kategori Tempat\n(Kategori premis berdasarkan tempat berlaku wabak)'
                 
-                # Guna fallback selamat untuk alamat jika lajur tiada
                 if addr_col not in df2.columns:
-                    possible_addrs = [c for c in df2.columns if 'alamat' in c.lower() or 'tempat' in c.lower()]
+                    possible_addrs = [c for c in df2.columns if 'alamat' in str(c).lower() or 'tempat' in str(c).lower()]
                     addr_col = possible_addrs[0] if possible_addrs else df2.columns[0]
                 if cat_col not in df2.columns:
-                    possible_cats = [c for c in df2.columns if 'kategori' in c.lower() or 'premis' in c.lower()]
+                    possible_cats = [c for c in df2.columns if 'kategori' in str(c).lower() or 'premis' in str(c).lower()]
                     cat_col = possible_cats[0] if possible_cats else df2.columns[0]
 
                 df2 = df2.drop_duplicates(subset=['PENYAKIT', 'Tarikh Isytihar Wabak Clean', addr_col], keep='first')
 
-                # --- PENAPISAN HARIAN SEMALAM BERDASARKAN LAJUR HELPER ---
                 df_yesterday = df2[df2['tkh_isytihar_initial_clean'] == yesterday].copy()
                 
                 daerah_col_name = 'DAERAH (HURUF BESAR)' if 'DAERAH (HURUF BESAR)' in df2.columns else 'DAERAH'
+                if daerah_col_name not in df_yesterday.columns:
+                    possible_daerahs = [c for c in df_yesterday.columns if 'daerah' in str(c).lower()]
+                    daerah_col_name = possible_daerahs[0] if possible_daerahs else df_yesterday.columns[0]
+
+                if 'Bilangan Kes' not in df_yesterday.columns or 'Bilangan Terdedah' not in df_yesterday.columns:
+                    df_yesterday['Bilangan Kes'] = 0
+                    df_yesterday['Bilangan Terdedah'] = 0
+
                 df_yesterday_list = df_yesterday[['PENYAKIT', daerah_col_name, addr_col, cat_col, 'Bilangan Kes', 'Bilangan Terdedah']].values.tolist()
 
                 df2_filt = df2[df2['Tarikh Isytihar Wabak Clean'] >= date(2026, 1, 4)].copy()
@@ -871,14 +869,14 @@ if f1:
                 
                 wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
-                raw_gs = fetch_google_sheet_csv(GSHEET_URL, header=None)
+                raw_gs = pd.read_csv(GSHEET_URL, header=None)
                 mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
                 v_data = raw_gs.iloc[mask_v.idxmax() : mask_v.idxmax() + 11, 13:20]
                 v_data = v_data.dropna(how='all')
                 v_data = v_data[~v_data.iloc[:, 0].astype(str).str.lower().str.contains('nan')]
 
                 # --- PEMPROSESAN DATA GOOGLE SHEET BKK ---
-                df_bkk_raw_data = fetch_google_sheet_csv(URL_BKK_LINELISTING, header=None)
+                df_bkk_raw_data = pd.read_csv(URL_BKK_LINELISTING, header=None)
                 clean_date_series = df_bkk_raw_data.iloc[:, 2].astype(str).str.strip()
                 df_bkk_raw_data['datetime_lapor'] = safe_parse_date(clean_date_series)
                 
@@ -892,7 +890,7 @@ if f1:
                     'bil_kematian': r[10]  
                 } for _, r in insiden_semalam.iterrows()]
                 
-                df_bkk_jadual_full = fetch_google_sheet_csv(URL_BKK_JADUAL, header=None)
+                df_bkk_jadual_full = pd.read_csv(URL_BKK_JADUAL, header=None)
                 
                 bkk_raw = df_bkk_jadual_full.iloc[1:, 33:46].dropna(how='all').reset_index(drop=True)
                 bkk_raw.columns = bkk_raw.iloc[0]
