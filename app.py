@@ -32,9 +32,14 @@ SHEET_ID = "1bjyNcntm-I6nRaIVkVdJqJRAzn5r2tYFfjUAN0emv9w"
 GID = "0"
 GSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
 
-# --- URL GOOGLE SHEET WABAK (BARU - LIVE AUTOMATIK) ---
-SHEET_ID_WABAK = "1igGx5z2aIvIvPQ31D86KX1kRNtWWFS1iUGOgbOw-J-A"
-URL_LIVE_WABAK = f"https://docs.google.com/spreadsheets/d/{SHEET_ID_WABAK}/export?format=csv&gid=0"
+# --- URL GOOGLE SHEET WABAK (LIVE & AUTOMATIC SNAPSHOT) ---
+SHEET_ID_WABAK = "1SMu8z0MONnxkduZEaRyVNrEnH7KkvnJ9EjuVxSi3WOY"
+GID_RAW = "0"  # Tab 'raw'
+URL_LIVE_WABAK = f"https://docs.google.com/spreadsheets/d/{SHEET_ID_WABAK}/export?format=csv&gid={GID_RAW}"
+
+# GID Tab 'Audit_Yesterday'
+GID_AUDIT_YESTERDAY = "1442328310" 
+URL_SNAPSHOT_WABAK = f"https://docs.google.com/spreadsheets/d/{SHEET_ID_WABAK}/export?format=csv&gid={GID_AUDIT_YESTERDAY}"
 
 # --- URL GOOGLE SHEET BKK (RAW LINELISTING & JADUAL) ---
 BKK_SPREADSHEET_ID = "1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c"
@@ -115,15 +120,9 @@ def add_pkd_note(doc):
     apply_font(run_main, 8, bold=True)
 
     senarai_daerah = [
-        "GBK = Gombak",
-        "HL = Hulu Langat",
-        "HS = Hulu Selangor",
-        "KLG = Klang",
-        "KL = Kuala Langat",
-        "KS = Kuala Selangor",
-        "PTG = Petaling",
-        "SB = Sabak Bernam",
-        "SPG = Sepang"
+        "GBK = Gombak", "HL = Hulu Langat", "HS = Hulu Selangor",
+        "KLG = Klang", "KL = Kuala Langat", "KS = Kuala Selangor",
+        "PTG = Petaling", "SB = Sabak Bernam", "SPG = Sepang"
     ]
     
     teks_daerah = "\n".join(senarai_daerah)
@@ -167,6 +166,33 @@ def format_bkk_number(val, is_person=False):
     }
     
     return num_word.get(num, str(num))
+
+# --- GENERATOR EXCEL AUDIT 3 SHEET ---
+def generate_excel_audit(df2_filt, wabak_df, df_yesterday, yesterday_str):
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        # Sheet 1: Raw Linelist Wabak
+        cols_to_export = [c for c in df2_filt.columns if not c.endswith('_clean')]
+        df2_filt[cols_to_export].to_excel(writer, sheet_name='Raw_Linelist_Wabak', index=False)
+        
+        # Sheet 2: Pivot Senarai Penyakit (Jadual 2.1 Descending)
+        wabak_df.reset_index().to_excel(writer, sheet_name='Pivot_Senarai_Penyakit', index=False)
+        
+        # Sheet 3: Pivot Wabak Baharu (Harian Daerah x Penyakit)
+        if not df_yesterday.empty:
+            pivot_harian = pd.crosstab(
+                df_yesterday['DAERAH (HURUF BESAR)'],
+                df_yesterday['PENYAKIT'],
+                margins=True,
+                margins_name='Grand Total'
+            )
+        else:
+            pivot_harian = pd.DataFrame({'Mesej': ['Tiada Wabak Baharu']})
+            
+        pivot_harian.to_excel(writer, sheet_name='Pivot_Wabak_Baharu_Harian')
+        
+    output.seek(0)
+    return output
 
 # --- DOCX GENERATOR ---
 def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty, bkk_details, df_yesterday_list):
@@ -273,7 +299,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         h_cells[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         h_cells[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
     
-    # --- TAJUK HEADER JADUAL 1.1 SAIZ 10 ---
     apply_font(h_cells[0].paragraphs[0].add_run("Penyakit"), 10, bold=True)
     set_cell_background(h_cells[0], "BFDFFF")
     
@@ -313,7 +338,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         apply_font(avg_cell.paragraphs[0].add_run(str(int(row_data.get('Average Harian', 0)))), 8, bold=True)
         set_cell_background(avg_cell, "FFC000")
 
-    # --- BARIS KAKI (FOOTER) JADUAL 1.1 ---
+    # --- BARIS KAKI JADUAL 1.1 ---
     f_cells = t1.rows[-1].cells
     apply_font(f_cells[0].paragraphs[0].add_run("Jumlah"), 8, bold=True)
     set_cell_background(f_cells[0], "FFFF00")
@@ -350,7 +375,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     h21 = doc.add_paragraph()
     h21.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
     
-    # --- NARATIF KONDISI WABAK HARIAN ---
     if harian_total == 0:
         h21_text = f"Jadual di bawah menunjukkan jumlah wabak harian, aktif dan kumulatif di negeri Selangor. Tiada wabak telah direkodkan pada {get_malay_date(yesterday)}."
     else:
@@ -394,7 +418,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         set_cell_background(f2_cells[i], "FFFF00")
         f2_cells[i].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    # --- JADUAL 2.2 DILANGKAU BILA TIADA WABAK ---
     if df_yesterday_list:
         doc.add_paragraph()
         tarikh_semalam_str = get_malay_date(yesterday)
@@ -461,7 +484,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
                 p.alignment = WD_ALIGN_PARAGRAPH.LEFT if c == 3 else WD_ALIGN_PARAGRAPH.CENTER
                 if p.runs: apply_font(p.runs[0], 8, bold=False)
 
-    # --- TAMBAH JARAK (2 KALI ENTER) SEBELUM 3.0 ---
     doc.add_paragraph()
     doc.add_paragraph()
 
@@ -549,7 +571,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             apply_font(run, 9, bold=True)
             row_cells[j].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
 
-    # --- PROSES MEMBINA GRAF DENGAN BORDER HITAM & TAJUK DI BAWAH ---
     try:
         response = requests.get(CHART_IMAGE_URL)
         if response.status_code == 200:
@@ -712,11 +733,11 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     apply_font(p6_head.add_run("6.0 Bilik Gerakan Jerebu CPRC"), 11, bold=True)
 
     # --- 7.0 Rumusan oleh Ketua Petugas CPRC Selangor ---
-    p6_head = doc.add_paragraph()
-    apply_font(p6_head.add_run("7.0 Rumusan oleh Ketua Petugas CPRC Selangor"), 11, bold=True)
+    p7_head = doc.add_paragraph()
+    apply_font(p7_head.add_run("7.0 Rumusan oleh Ketua Petugas CPRC Selangor"), 11, bold=True)
     
-    p6_space = doc.add_paragraph()
-    apply_font(p6_space.add_run(""), 11)
+    p7_space = doc.add_paragraph()
+    apply_font(p7_space.add_run(""), 11)
 
     # --- JADUAL TANDATANGAN ---
     doc.add_paragraph() 
@@ -743,13 +764,8 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         p_tarikh.paragraph_format.tab_stops.add_tab_stop(Inches(2.0))
         apply_font(p_tarikh.add_run("Tarikh\t:"), 11, bold=False)
 
-    # 1. Disediakan oleh
     add_sig_block(doc, "Disediakan oleh")
-    
-    # 2. Disemak oleh
     add_sig_block(doc, "Disemak oleh")
-    
-    # 3. Disahkan oleh
     add_sig_block(doc, "Disahkan oleh")
 
     target = io.BytesIO()
@@ -765,29 +781,19 @@ st.set_page_config(
     layout="centered"
 )
 
-# Deep CSS overrides to fully isolate and clear out default header/footer structural icons
+# Deep CSS overrides
 st.markdown("""
     <style>
-    /* 1. Hides the upper right toolbar / options button */
     #MainMenu, header, .stAppHeader, [data-testid="stHeader"] {
         visibility: hidden !important;
         display: none !important;
     }
-    
-    /* 2. Hides standard bottom footer, deploy dropdown buttons and host indicators */
-    footer, 
-    .stAppFooter, 
-    [data-testid="stFooter"], 
-    .stAppDeployDropdown,
+    footer, .stAppFooter, [data-testid="stFooter"], .stAppDeployDropdown,
     div[data-testid="stConnectionStatus"] + div {
         visibility: hidden !important;
         display: none !important;
     }
-    
-    /* 3. Catches and removes dynamic absolute floating elements on top of the DOM layout */
-    iframe[title="Managed by Streamlit"], 
-    .stActionButton,
-    div[class*="stDeployButton"] {
+    iframe[title="Managed by Streamlit"], .stActionButton, div[class*="stDeployButton"] {
         visibility: hidden !important;
         display: none !important;
     }
@@ -820,16 +826,14 @@ if f1:
                 matrix = matrix.sort_values(by='Grand Total', ascending=False)
                 col_totals = matrix[TEMPLATE_PKDS + ['Grand Total']].sum(axis=0)
 
-                # --- PROSES PEMBACAAN LIVE GOOGLE SHEET WABAK ---
+                # --- 1. PROSES PEMBACAAN LIVE GOOGLE SHEET WABAK (HARI INI) ---
                 df2 = pd.read_csv(URL_LIVE_WABAK)
                 df2.columns = df2.columns.str.strip()
                 
-                # Format tarikh diselaraskan kepada konfigurasi Hari/Bulan/Tahun secara selamat
                 df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak'], dayfirst=True, errors='coerce').dt.date
                 df2['Tarikh Sebenar Tamat Wabak'] = pd.to_datetime(df2['Tarikh Sebenar Tamat Wabak'], dayfirst=True, errors='coerce').dt.date
                 df2['Tarikh Wabak Dijangka Tamat'] = pd.to_datetime(df2['Tarikh Wabak Dijangka Tamat'], dayfirst=True, errors='coerce').dt.date
                 
-                # --- MEMBACA LAJUR HELPER: Tkh Isytihar Initial ---
                 initial_col = None
                 for col in df2.columns:
                     if re.search(r'tkh\s*isytihar\s*initial|tarikh\s*isytihar\s*inital|tarikh\s*isytihar\s*initial', col, re.IGNORECASE):
@@ -838,7 +842,6 @@ if f1:
 
                 if initial_col:
                     df2['tkh_isytihar_initial_clean'] = pd.to_datetime(df2[initial_col], dayfirst=True, errors='coerce').dt.date
-                    # Jika lajur helper kosong untuk rekod lama, isi dengan Tarikh Isytihar Wabak biasa secara selamat
                     df2['tkh_isytihar_initial_clean'] = df2['tkh_isytihar_initial_clean'].fillna(df2['Tarikh Isytihar Wabak'])
                 else:
                     df2['tkh_isytihar_initial_clean'] = df2['Tarikh Isytihar Wabak']
@@ -846,21 +849,22 @@ if f1:
                 addr_col = 'Tempat Berlaku Wabak\n(Alamat diisi lengkap dengan :- No rumah, nama jalan, nama tempat, daerah dan Negeri)'
                 cat_col = 'Kategori Tempat\n(Kategori premis berdasarkan tempat berlaku wabak)'
                 
+                df2_raw_audit = df2.copy()
                 df2 = df2.drop_duplicates(subset=['PENYAKIT', 'Tarikh Isytihar Wabak', addr_col], keep='first')
 
-                # --- PENAPISAN HARIAN SEMALAM BERDASARKAN LAJUR HELPER 'Tkh Isytihar Initial' ---
                 df_yesterday = df2[df2['tkh_isytihar_initial_clean'] == yesterday].copy()
                 df_yesterday_list = df_yesterday[['PENYAKIT', 'DAERAH (HURUF BESAR)', addr_col, cat_col, 'Bilangan Kes', 'Bilangan Terdedah']].values.tolist()
 
                 df2_filt = df2[df2['Tarikh Isytihar Wabak'] >= date(2026, 1, 4)].copy()
                 def group_inf(n): return "ILI/ Influenza" if any(x in str(n).upper() for x in ["INFLUENZA", "ILI"]) else n
+                
+                df2_raw_audit['PENYAKIT_GROUP'] = df2_raw_audit['PENYAKIT'].apply(group_inf)
                 df2_filt['PENYAKIT'] = df2_filt['PENYAKIT'].apply(group_inf)
                 
                 wb_sum = []
                 for d in df2_filt['PENYAKIT'].unique():
                     if pd.isna(d): continue
                     disease_df = df2_filt[df2_filt['PENYAKIT'] == d]
-                    # HARIAN KINI MENGGUNAKAN LAJUR HELPER UNTUK ELAK TERDUPLIKASI BILA TARIKH DIUBAH
                     h = len(disease_df[disease_df['tkh_isytihar_initial_clean'] == yesterday])
                     k = len(disease_df)
                     def check_active(row):
@@ -871,13 +875,68 @@ if f1:
                 
                 wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
+                # --- 2. PEMBACAAN AUTOMATIK SNAPSHOT SEMALAM (TAB: Audit_Yesterday) ---
+                df2_prev = pd.DataFrame()
+                has_snapshot = False
+                try:
+                    df2_prev = pd.read_csv(URL_SNAPSHOT_WABAK)
+                    df2_prev.columns = df2_prev.columns.str.strip()
+                    if not df2_prev.empty and len(df2_prev.columns) > 3:
+                        has_snapshot = True
+                        df2_prev['Tarikh Isytihar Wabak'] = pd.to_datetime(df2_prev['Tarikh Isytihar Wabak'], dayfirst=True, errors='coerce').dt.date
+                        
+                        initial_col_prev = None
+                        for col in df2_prev.columns:
+                            if re.search(r'tkh\s*isytihar\s*initial|tarikh\s*isytihar\s*inital|tarikh\s*isytihar\s*initial', col, re.IGNORECASE):
+                                initial_col_prev = col
+                                break
+
+                        if initial_col_prev:
+                            df2_prev['tkh_isytihar_initial_clean'] = pd.to_datetime(df2_prev[initial_col_prev], dayfirst=True, errors='coerce').dt.date
+                            df2_prev['tkh_isytihar_initial_clean'] = df2_prev['tkh_isytihar_initial_clean'].fillna(df2_prev['Tarikh Isytihar Wabak'])
+                        else:
+                            df2_prev['tkh_isytihar_initial_clean'] = df2_prev['Tarikh Isytihar Wabak']
+                            
+                        df2_prev = df2_prev.drop_duplicates(subset=['PENYAKIT', 'Tarikh Isytihar Wabak', addr_col], keep='first')
+                        df2_prev_filt = df2_prev[df2_prev['Tarikh Isytihar Wabak'] >= date(2026, 1, 4)].copy()
+                        df2_prev_filt['PENYAKIT'] = df2_prev_filt['PENYAKIT'].apply(group_inf)
+                except Exception as ex_snap:
+                    has_snapshot = False
+
+                # --- 3. AUDIT BARIS DEMI BARIS AUTOMATIK (LINE-BY-LINE COMPARISON) ---
+                deleted_rows = []
+                added_rows = []
+                
+                if has_snapshot and not df2_prev_filt.empty:
+                    def gen_key(df_target):
+                        if 'Form Response Edit URL' in df_target.columns:
+                            return df_target['Form Response Edit URL'].astype(str).str.strip()
+                        else:
+                            return (df_target['PENYAKIT'].astype(str) + "_" + 
+                                    df_target[addr_col].astype(str) + "_" + 
+                                    df_target['tkh_isytihar_initial_clean'].astype(str))
+
+                    df2_prev_filt['UNIQUE_KEY'] = gen_key(df2_prev_filt)
+                    df2_filt['UNIQUE_KEY'] = gen_key(df2_filt)
+                    
+                    keys_prev = set(df2_prev_filt['UNIQUE_KEY'])
+                    keys_today = set(df2_filt['UNIQUE_KEY'])
+                    
+                    deleted_keys = keys_prev - keys_today
+                    added_keys = keys_today - keys_prev
+                    
+                    if deleted_keys:
+                        deleted_rows = df2_prev_filt[df2_prev_filt['UNIQUE_KEY'].isin(deleted_keys)][['DAERAH (HURUF BESAR)', 'PENYAKIT', addr_col, 'Tarikh Isytihar Wabak']].values.tolist()
+                    if added_keys:
+                        added_rows = df2_filt[df2_filt['UNIQUE_KEY'].isin(added_keys)][['DAERAH (HURUF BESAR)', 'PENYAKIT', addr_col, 'Tarikh Isytihar Wabak']].values.tolist()
+
+                # --- PEMPROSESAN DATA GOOGLE SHEET BKK ---
                 raw_gs = pd.read_csv(GSHEET_URL, header=None)
                 mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
                 v_data = raw_gs.iloc[mask_v.idxmax() : mask_v.idxmax() + 11, 13:20]
                 v_data = v_data.dropna(how='all')
                 v_data = v_data[~v_data.iloc[:, 0].astype(str).str.lower().str.contains('nan')]
 
-                # --- PEMPROSESAN DATA GOOGLE SHEET BKK ---
                 df_bkk_raw_data = pd.read_csv(URL_BKK_LINELISTING, header=None)
                 clean_date_series = df_bkk_raw_data.iloc[:, 2].astype(str).str.strip()
                 df_bkk_raw_data['datetime_lapor'] = pd.to_datetime(clean_date_series, dayfirst=True, errors='coerce').dt.date
@@ -912,17 +971,102 @@ if f1:
                 })
 
                 doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, (len(bkk_details)==0), bkk_details, df_yesterday_list)
+                excel_out = generate_excel_audit(df2_filt, wabak_df, df_yesterday, get_malay_date(yesterday))
                 
                 file_date = today.strftime("%d.%m.%y")
                 file_name_custom = f"Laporan CPRC Selangor ({file_date}).docx"
+                excel_name_custom = f"Audit Data Wabak CPRC ({file_date}).xlsx"
 
-                st.success(f"✅ Laporan berjaya dijana untuk tarikh {file_date}!")
-                st.download_button(
-                    label="⬇ Muat Turun Laporan", 
-                    data=doc_out, 
-                    file_name=file_name_custom,
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                )
+                # --- PAPARAN STREAMLIT UI & VALIDATION BOX (AUTOMATIK) ---
+                st.markdown("---")
+                st.subheader("🔍 Papan Pengesahan Data (Validation Box - Live Auto-Audit)")
+                
+                if deleted_rows:
+                    st.error(f"⚠️ **AMARAN DISCREPANCY: DIKESAN {len(deleted_rows)} BARIS DATA REKOD WABAK SEMALAM HILANG / DIPADAM DARI GOOGLE SHEET!**")
+                    st.write("Senarai rekod yang hilang/dipadam:")
+                    df_del_disp = pd.DataFrame(deleted_rows, columns=['Daerah', 'Penyakit', 'Alamat / Premis', 'Tarikh Isytihar'])
+                    st.dataframe(df_del_disp, use_container_width=True)
+                elif has_snapshot:
+                    st.success("✅ **STATUS VALIDASI AUTOMATIK:** Semua baris data daripada tab `Audit_Yesterday` sepadan 100% dengan data hari ini tanpa sebarang kehilangan baris rekod.")
+                else:
+                    st.info("ℹ️ Tab `Audit_Yesterday` belum dikesan. Sila pastikan Google Apps Script telah disetkan di Google Sheet.")
+
+                if added_rows:
+                    st.info(f"ℹ️ **{len(added_rows)} Rekod Wabak Baharu Dikesan Masuk Hari Ini:**")
+                    df_add_disp = pd.DataFrame(added_rows, columns=['Daerah', 'Penyakit', 'Alamat / Premis', 'Tarikh Isytihar'])
+                    st.dataframe(df_add_disp, use_container_width=True)
+
+                # --- PAPARAN DUA BUTANG MUAT TURUN ---
+                st.markdown("### 📥 Muat Turun Hasil Laporan & Data")
+                col_btn1, col_btn2 = st.columns(2)
+                
+                with col_btn1:
+                    st.download_button(
+                        label="📄 Muat Turun Laporan Word (.docx)", 
+                        data=doc_out, 
+                        file_name=file_name_custom,
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        use_container_width=True
+                    )
+                    
+                with col_btn2:
+                    st.download_button(
+                        label="📊 Muat Turun Data Audit Excel (.xlsx)", 
+                        data=excel_out, 
+                        file_name=excel_name_custom,
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True
+                    )
+
+                # --- MODUL OPSYEN: CROSS-CHECK MANUAL EXCEL LUARAN ---
+                st.markdown("---")
+                st.subheader("📊 Perbandingan Manual Excel Luaran (Opsyenal)")
+                st.write("Jika anda ingin membandingkan data hari ini dengan mana-mana fail Excel Audit luaran secara manual, sila muat naik fail tersebut di bawah:")
+                
+                prev_excel_file = st.file_uploader("Muat naik Fail Excel Audit Luaran (.xlsx)", type=["xlsx"], key="manual_excel_upload")
+                
+                if prev_excel_file:
+                    try:
+                        df_prev_pivot = pd.read_excel(prev_excel_file, sheet_name='Pivot_Senarai_Penyakit').set_index('PENYAKIT')
+                        
+                        st.markdown("#### 🔄 Perbandingan Kumulatif Manual vs Hari Ini")
+                        
+                        comp_data = []
+                        all_diseases = list(set(wabak_df.index).union(set(df_prev_pivot.index)))
+                        
+                        for dis in all_diseases:
+                            k_prev = df_prev_pivot.loc[dis, 'KUMULATIF'] if dis in df_prev_pivot.index else 0
+                            h_today = wabak_df.loc[dis, 'HARIAN'] if dis in wabak_df.index else 0
+                            k_today = wabak_df.loc[dis, 'KUMULATIF'] if dis in wabak_df.index else 0
+                            
+                            expected_k_today = k_prev + h_today
+                            diff_k = k_today - expected_k_today
+                            
+                            if h_today > 0 or diff_k != 0 or k_today != k_prev:
+                                status_str = "✅ SEPADAN" if diff_k == 0 else f"❌ DISCREPANCY ({diff_k:+d})"
+                                comp_data.append({
+                                    'Penyakit': dis,
+                                    'Kumulatif Manual': int(k_prev),
+                                    'Harian Hari Ini': int(h_today),
+                                    'Kumulatif Hari Ini': int(k_today),
+                                    'Kumulatif Jangkaan': int(expected_k_today),
+                                    'Status Validation': status_str
+                                })
+                                
+                        df_comp = pd.DataFrame(comp_data)
+                        if not df_comp.empty:
+                            st.dataframe(df_comp, use_container_width=True)
+                            
+                            has_disc = (df_comp['Status Validation'].str.contains('DISCREPANCY')).any()
+                            if has_disc:
+                                st.error("⚠️ **Dikesan Ketidakpadanan Antara Fail Manual & Hari Ini!**")
+                            else:
+                                st.success("🎉 **Sempurna!** Fail manual sepadan 100% dengan laporan hari ini.")
+                        else:
+                            st.info("Tiada sebarang perbezaan data dikesan.")
+                            
+                    except Exception as ex_comp:
+                        st.warning(f"Gagal membaca fail Excel luaran: {ex_comp}. Pastikan anda memuat naik fail Excel Audit (.xlsx) yang betul.")
 
             except Exception as e:
                 st.error(f"Ralat semasa memproses data: {e}")
