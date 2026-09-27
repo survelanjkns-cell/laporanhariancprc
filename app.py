@@ -37,8 +37,9 @@ SHEET_ID_WABAK = "1SMu8z0MONnxkduZEaRyVNrEnH7KkvnJ9EjuVxSi3WOY"
 GID_RAW = "0"  # Tab 'raw'
 URL_LIVE_WABAK = f"https://docs.google.com/spreadsheets/d/{SHEET_ID_WABAK}/export?format=csv&gid={GID_RAW}"
 
-# GID Tab 'Audit_Yesterday'
-GID_AUDIT_YESTERDAY = "1442328310" 
+# GID Tab 'Audit_Yesterday' (Dengan pembersihan automatik untuk elak HTTP 400 Bad Request)
+RAW_GID_AUDIT = "1442328310" 
+GID_AUDIT_YESTERDAY = str(RAW_GID_AUDIT).replace("#", "").replace("gid=", "").strip()
 URL_SNAPSHOT_WABAK = f"https://docs.google.com/spreadsheets/d/{SHEET_ID_WABAK}/export?format=csv&gid={GID_AUDIT_YESTERDAY}"
 
 # --- URL GOOGLE SHEET BKK (RAW LINELISTING & JADUAL) ---
@@ -989,7 +990,7 @@ if f1:
                 elif has_snapshot:
                     st.success("✅ **STATUS VALIDASI AUTOMATIK:** Semua baris data daripada tab `Audit_Yesterday` sepadan 100% dengan data hari ini tanpa sebarang kehilangan baris rekod.")
                 else:
-                    st.info("ℹ️ Tab `Audit_Yesterday` belum dikesan. Sila pastikan Google Apps Script telah disetkan di Google Sheet.")
+                    st.info("ℹ️ Tab `Audit_Yesterday` belum dikemas kini atau baru diisi hari ini. Sistem akan mengaudit penuh secara automatik bermula esok selepas Apps Script berjalan.")
 
                 if added_rows:
                     st.info(f"ℹ️ **{len(added_rows)} Rekod Wabak Baharu Dikesan Masuk Hari Ini:**")
