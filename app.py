@@ -43,7 +43,7 @@ BKK_SPREADSHEET_ID = "1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c"
 
 CHART_IMAGE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTDprYai1uaP1L-JP6kuHRZX18AmDHX0ROEzRE37DaCHMo0cNWUvRa8R-65RZAK7XFWI6pb_-X-jF24/pubchart?oid=1681812411&format=image"
 
-# --- HELPER DUAL-ENDPOINT CSV READER ---
+# --- HELPER DUAL-ENDPOINT CSV READER (KALIS HTTP 400) ---
 def read_gsheet_csv(sheet_id, gid="0", header='default'):
     sheet_id = str(sheet_id).strip()
     gid = str(gid).replace("#", "").replace("gid=", "").strip()
@@ -951,12 +951,15 @@ if f1:
                     if added_keys:
                         added_rows = df2_filt[df2_filt['UNIQUE_KEY'].isin(added_keys)][['DAERAH (HURUF BESAR)', 'PENYAKIT', addr_col, 'Tarikh Isytihar Wabak']].values.tolist()
 
-                # --- PEMPROSESAN DATA GOOGLE SHEET BKK & VECTOR (PEMBAIKAN RAW JADUAL 4.1) ---
+                # --- PEMPROSESAN DATA GOOGLE SHEET BKK & VECTOR ---
                 raw_gs = read_gsheet_csv(SHEET_ID, GID, header=None)
                 mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
                 v_data = raw_gs.iloc[mask_v.idxmax() : mask_v.idxmax() + 11, 13:20]
                 v_data = v_data.dropna(how='all')
                 v_data = v_data[~v_data.iloc[:, 0].astype(str).str.lower().str.contains('nan')]
+                
+                # --- TAPISAN MEMBUANG BARIS "Dari Tarikh :" DARIPADA JADUAL 3.1 ---
+                v_data = v_data[~v_data.iloc[:, 0].astype(str).str.lower().str.contains('dari tarikh|tarikh')]
 
                 df_bkk_raw_data = read_gsheet_csv(BKK_SPREADSHEET_ID, "1352807145", header=None)
                 clean_date_series = df_bkk_raw_data.iloc[:, 2].astype(str).str.strip()
