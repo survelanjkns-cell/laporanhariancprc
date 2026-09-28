@@ -30,28 +30,44 @@ AVG_HARIAN_FIGURES = {
 
 SHEET_ID = "1bjyNcntm-I6nRaIVkVdJqJRAzn5r2tYFfjUAN0emv9w"
 GID = "0"
-GSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
 
 # --- URL GOOGLE SHEET WABAK (LIVE & AUTOMATIC SNAPSHOT) ---
 SHEET_ID_WABAK = "1SMu8z0MONnxkduZEaRyVNrEnH7KkvnJ9EjuVxSi3WOY"
+GID_RAW = "0"  # Tab 'raw'
 
-# GID Tab 'raw'
-GID_RAW = "0"
-URL_LIVE_WABAK = f"https://docs.google.com/spreadsheets/d/{SHEET_ID_WABAK}/export?format=csv&gid={GID_RAW}"
-
-# ⚠️ GANTIKAN NOMBOR GID DI BAWAH KEPADA GID TAB 'Audit_Yesterday' SEBENAR DARI BROWSER ANDA
+# GID Tab 'Audit_Yesterday' (Dengan pembersihan automatik untuk elak HTTP 400 Bad Request)
 RAW_GID_AUDIT = "1442328310" 
 GID_AUDIT_YESTERDAY = str(RAW_GID_AUDIT).replace("#", "").replace("gid=", "").strip()
-URL_SNAPSHOT_WABAK = f"https://docs.google.com/spreadsheets/d/{SHEET_ID_WABAK}/export?format=csv&gid={GID_AUDIT_YESTERDAY}"
 
 # --- URL GOOGLE SHEET BKK (RAW LINELISTING & JADUAL) ---
 BKK_SPREADSHEET_ID = "1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c"
-URL_BKK_LINELISTING = f"https://docs.google.com/spreadsheets/d/{BKK_SPREADSHEET_ID}/export?format=csv&gid=1352807145"
-URL_BKK_JADUAL = f"https://docs.google.com/spreadsheets/d/{BKK_SPREADSHEET_ID}/export?format=csv&gid=1342717767"
 
 CHART_IMAGE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTDprYai1uaP1L-JP6kuHRZX18AmDHX0ROEzRE37DaCHMo0cNWUvRa8R-65RZAK7XFWI6pb_-X-jF24/pubchart?oid=1681812411&format=image"
 
-# --- HELPERS ---
+# --- HELPER DUAL-ENDPOINT CSV READER (KALIS HTTP 400) ---
+def read_gsheet_csv(sheet_id, gid="0", header='default'):
+    sheet_id = str(sheet_id).strip()
+    gid = str(gid).replace("#", "").replace("gid=", "").strip()
+    
+    # URL 1: Google Visualization API (GViz) - Paling stabil & kalis HTTP 400
+    gviz_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&gid={gid}"
+    # URL 2: Direct Export Endpoint
+    export_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
+    
+    last_err = None
+    for url in [gviz_url, export_url]:
+        try:
+            if header is None:
+                return pd.read_csv(url, header=None)
+            else:
+                return pd.read_csv(url)
+        except Exception as e:
+            last_err = e
+            continue
+            
+    raise Exception(f"Gagal memuat turun data dari Google Sheet (ID: {sheet_id}, GID: {gid}). Sila pastikan tetapan perkongsian Google Sheet ditukar kepada 'Anyone with the link can view'. Ralat: {last_err}")
+
+# --- HELPERS LAIN ---
 def set_repeat_table_header(row):
     tr = row._tr
     trPr = tr.get_or_add_trPr()
@@ -825,7 +841,7 @@ if f1:
                 col_totals = matrix[TEMPLATE_PKDS + ['Grand Total']].sum(axis=0)
 
                 # --- 1. PROSES PEMBACAAN LIVE GOOGLE SHEET WABAK (HARI INI) ---
-                df2 = pd.read_csv(URL_LIVE_WABAK)
+                df2 = read_gsheet_csv(SHEET_ID_WABAK, GID_RAW)
                 df2.columns = df2.columns.str.strip()
                 
                 df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak'], dayfirst=True, errors='coerce').dt.date
@@ -879,7 +895,7 @@ if f1:
                 snapshot_error_msg = ""
                 
                 try:
-                    df2_prev = pd.read_csv(URL_SNAPSHOT_WABAK)
+                    df2_prev = read_gsheet_csv(SHEET_ID_WABAK, GID_AUDIT_YESTERDAY)
                     df2_prev.columns = df2_prev.columns.str.strip()
                     if not df2_prev.empty and len(df2_prev.columns) > 3:
                         has_snapshot = True
@@ -931,14 +947,14 @@ if f1:
                     if added_keys:
                         added_rows = df2_filt[df2_filt['UNIQUE_KEY'].isin(added_keys)][['DAERAH (HURUF BESAR)', 'PENYAKIT', addr_col, 'Tarikh Isytihar Wabak']].values.tolist()
 
-                # --- PEMPROSESAN DATA GOOGLE SHEET BKK ---
-                raw_gs = pd.read_csv(GSHEET_URL, header=None)
+                # --- PEMPROSESAN DATA GOOGLE SHEET BKK & VECTOR ---
+                raw_gs = read_gsheet_csv(SHEET_ID, GID, header=None)
                 mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
                 v_data = raw_gs.iloc[mask_v.idxmax() : mask_v.idxmax() + 11, 13:20]
                 v_data = v_data.dropna(how='all')
                 v_data = v_data[~v_data.iloc[:, 0].astype(str).str.lower().str.contains('nan')]
 
-                df_bkk_raw_data = pd.read_csv(URL_BKK_LINELISTING, header=None)
+                df_bkk_raw_data = read_gsheet_csv(BKK_SPREADSHEET_ID, "1352807145", header=None)
                 clean_date_series = df_bkk_raw_data.iloc[:, 2].astype(str).str.strip()
                 df_bkk_raw_data['datetime_lapor'] = pd.to_datetime(clean_date_series, dayfirst=True, errors='coerce').dt.date
                 
@@ -952,7 +968,7 @@ if f1:
                     'bil_kematian': r[10]  
                 } for _, r in insiden_semalam.iterrows()]
                 
-                df_bkk_jadual_full = pd.read_csv(URL_BKK_JADUAL, header=None)
+                df_bkk_jadual_full = read_gsheet_csv(BKK_SPREADSHEET_ID, "1342717767", header=None)
                 
                 bkk_raw = df_bkk_jadual_full.iloc[1:, 33:46].dropna(how='all').reset_index(drop=True)
                 bkk_raw.columns = bkk_raw.iloc[0]
@@ -990,8 +1006,8 @@ if f1:
                 elif has_snapshot:
                     st.success("✅ **STATUS VALIDASI AUTOMATIK:** Semua baris data daripada tab `Audit_Yesterday` sepadan 100% dengan data hari ini tanpa sebarang kehilangan baris rekod.")
                 else:
-                    st.warning("⚠️ **Peringatan Pautan Snapshot:** Tab `Audit_Yesterday` tidak dapat dibaca dari Google Sheet.")
-                    st.info("💡 **Langkah Semakan:**\n1. Sila pastikan anda telah menekan butang **Run (▶)** untuk fungsi `autoSnapshotYesterday` di Google Apps Script.\n2. Sila pastikan GID tab `Audit_Yesterday` disalin tepat dari URL browser dan dimasukkan ke pembolehubah `RAW_GID_AUDIT` di dalam `app.py`.")
+                    st.warning("⚠️ **Peringatan Pautan Snapshot:** Tab `Audit_Yesterday` tidak dapat dibaca secara automatik.")
+                    st.info("💡 **Langkah Semakan:**\n1. Sila pastikan tetapan perkongsian Google Sheet diubah kepada **'Anyone with the link can view'**.\n2. Sila tekan butang **Run (▶)** di Google Apps Script sekali lagi.")
 
                 if added_rows:
                     st.info(f"ℹ️ **{len(added_rows)} Rekod Wabak Baharu Dikesan Masuk Hari Ini:**")
