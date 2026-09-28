@@ -35,7 +35,6 @@ GID = "0"
 SHEET_ID_WABAK = "1SMu8z0MONnxkduZEaRyVNrEnH7KkvnJ9EjuVxSi3WOY"
 GID_RAW = "0"  # Tab 'raw'
 
-# GID Tab 'Audit_Yesterday'
 RAW_GID_AUDIT = "1442328310" 
 GID_AUDIT_YESTERDAY = str(RAW_GID_AUDIT).replace("#", "").replace("gid=", "").strip()
 
@@ -44,7 +43,7 @@ BKK_SPREADSHEET_ID = "1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c"
 
 CHART_IMAGE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTDprYai1uaP1L-JP6kuHRZX18AmDHX0ROEzRE37DaCHMo0cNWUvRa8R-65RZAK7XFWI6pb_-X-jF24/pubchart?oid=1681812411&format=image"
 
-# --- HELPER DUAL-ENDPOINT CSV READER (KALIS HTTP 400) ---
+# --- HELPER DUAL-ENDPOINT CSV READER ---
 def read_gsheet_csv(sheet_id, gid="0", header='default'):
     sheet_id = str(sheet_id).strip()
     gid = str(gid).replace("#", "").replace("gid=", "").strip()
@@ -828,7 +827,6 @@ if 'report_generated' not in st.session_state:
     st.session_state.report_generated = False
 
 if f1:
-    # Jika fail baharu dimuat naik, reset status pengeluaran laporan
     if st.session_state.get('last_file') != f1.name:
         st.session_state.report_generated = False
         st.session_state.last_file = f1.name
@@ -953,7 +951,7 @@ if f1:
                     if added_keys:
                         added_rows = df2_filt[df2_filt['UNIQUE_KEY'].isin(added_keys)][['DAERAH (HURUF BESAR)', 'PENYAKIT', addr_col, 'Tarikh Isytihar Wabak']].values.tolist()
 
-                # --- PEMPROSESAN DATA GOOGLE SHEET BKK & VECTOR ---
+                # --- PEMPROSESAN DATA GOOGLE SHEET BKK & VECTOR (PEMBAIKAN RAW JADUAL 4.1) ---
                 raw_gs = read_gsheet_csv(SHEET_ID, GID, header=None)
                 mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
                 v_data = raw_gs.iloc[mask_v.idxmax() : mask_v.idxmax() + 11, 13:20]
@@ -976,7 +974,8 @@ if f1:
                 
                 df_bkk_jadual_full = read_gsheet_csv(BKK_SPREADSHEET_ID, "1342717767", header=None)
                 
-                bkk_raw = df_bkk_jadual_full.iloc[1:, 33:46].dropna(how='all').reset_index(drop=True)
+                # PEMBAIKAN INDEKS BKK: iloc[0:] supaya baris tajuk header tidak terpotong menjadi 'Kebakaran'
+                bkk_raw = df_bkk_jadual_full.iloc[0:, 33:46].dropna(how='all').reset_index(drop=True)
                 bkk_raw.columns = bkk_raw.iloc[0]
                 
                 new_cols = []
@@ -998,7 +997,7 @@ if f1:
                 
                 file_date = today.strftime("%d.%m.%y")
                 
-                # --- SIMPAN SEMUA HASIL TERNAKAN KEDALAM SESSION STATE ---
+                # --- SIMPAN DALAM SESSION STATE ---
                 st.session_state.doc_bytes = doc_out.getvalue()
                 st.session_state.excel_bytes = excel_out.getvalue()
                 st.session_state.file_name_custom = f"Laporan CPRC Selangor ({file_date}).docx"
@@ -1012,7 +1011,7 @@ if f1:
             except Exception as e:
                 st.error(f"Ralat semasa memproses data: {e}")
 
-    # --- PAPARAN HASIL LAPORAN BILA REPORT_GENERATED IS TRUE ---
+    # --- PAPARAN HASIL LAPORAN (KEKAL WALAUPUN SELESAI DOWNLOAD) ---
     if st.session_state.get('report_generated', False):
         st.markdown("---")
         st.subheader("🔍 Papan Pengesahan Data (Validation Box - Live Auto-Audit)")
@@ -1038,7 +1037,6 @@ if f1:
             df_add_disp = pd.DataFrame(added_rows, columns=['Daerah', 'Penyakit', 'Alamat / Premis', 'Tarikh Isytihar'])
             st.dataframe(df_add_disp, use_container_width=True)
 
-        # --- PAPARAN DUA BUTANG MUAT TURUN (BISA DIKLIK TANPA MENGHILANGKAN PAPARAN) ---
         st.markdown("### 📥 Muat Turun Hasil Laporan & Data")
         col_btn1, col_btn2 = st.columns(2)
         
