@@ -35,7 +35,7 @@ GID = "0"
 SHEET_ID_WABAK = "1SMu8z0MONnxkduZEaRyVNrEnH7KkvnJ9EjuVxSi3WOY"
 GID_RAW = "0"  # Tab 'raw'
 
-# GID Tab 'Audit_Yesterday' (Dengan pembersihan automatik untuk elak HTTP 400 Bad Request)
+# GID Tab 'Audit_Yesterday'
 RAW_GID_AUDIT = "1442328310" 
 GID_AUDIT_YESTERDAY = str(RAW_GID_AUDIT).replace("#", "").replace("gid=", "").strip()
 
@@ -49,9 +49,7 @@ def read_gsheet_csv(sheet_id, gid="0", header='default'):
     sheet_id = str(sheet_id).strip()
     gid = str(gid).replace("#", "").replace("gid=", "").strip()
     
-    # URL 1: Google Visualization API (GViz) - Paling stabil & kalis HTTP 400
     gviz_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&gid={gid}"
-    # URL 2: Direct Export Endpoint
     export_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
     
     last_err = None
@@ -65,7 +63,7 @@ def read_gsheet_csv(sheet_id, gid="0", header='default'):
             last_err = e
             continue
             
-    raise Exception(f"Gagal memuat turun data dari Google Sheet (ID: {sheet_id}, GID: {gid}). Sila pastikan tetapan perkongsian Google Sheet ditukar kepada 'Anyone with the link can view'. Ralat: {last_err}")
+    raise Exception(f"Gagal memuat turun data dari Google Sheet (ID: {sheet_id}, GID: {gid}). Ralat: {last_err}")
 
 # --- HELPERS LAIN ---
 def set_repeat_table_header(row):
@@ -825,8 +823,16 @@ st.subheader("📁 Muat Naik Excel Notifikasi Harian")
 st.info(f"**Guideline:** Sila muat turun file notifikasi pada **{tarikh_guideline}** dari sistem eNotifikasi dan muat naik di sini.")
 f1 = st.file_uploader("Pilih fail Notifikasi Harian", type=["xlsx", "xls"], label_visibility="collapsed")
 
+# --- INITIALIZE SESSION STATE UNTUK MENGEKALKAN PAPARAN ---
+if 'report_generated' not in st.session_state:
+    st.session_state.report_generated = False
 
 if f1:
+    # Jika fail baharu dimuat naik, reset status pengeluaran laporan
+    if st.session_state.get('last_file') != f1.name:
+        st.session_state.report_generated = False
+        st.session_state.last_file = f1.name
+
     if st.button("🚀 Jana Laporan Lengkap"):
         with st.spinner("Sedang memproses data dan memuat turun jadual wabak secara live..."):
             try:
@@ -991,100 +997,115 @@ if f1:
                 excel_out = generate_excel_audit(df2_filt, wabak_df, df_yesterday, get_malay_date(yesterday))
                 
                 file_date = today.strftime("%d.%m.%y")
-                file_name_custom = f"Laporan CPRC Selangor ({file_date}).docx"
-                excel_name_custom = f"Audit Data Wabak CPRC ({file_date}).xlsx"
-
-                # --- PAPARAN STREAMLIT UI & VALIDATION BOX (AUTOMATIK) ---
-                st.markdown("---")
-                st.subheader("🔍 Papan Pengesahan Data (Validation Box - Live Auto-Audit)")
                 
-                if deleted_rows:
-                    st.error(f"⚠️ **AMARAN DISCREPANCY: DIKESAN {len(deleted_rows)} BARIS DATA REKOD WABAK SEMALAM HILANG / DIPADAM DARI GOOGLE SHEET!**")
-                    st.write("Senarai rekod yang hilang/dipadam:")
-                    df_del_disp = pd.DataFrame(deleted_rows, columns=['Daerah', 'Penyakit', 'Alamat / Premis', 'Tarikh Isytihar'])
-                    st.dataframe(df_del_disp, use_container_width=True)
-                elif has_snapshot:
-                    st.success("✅ **STATUS VALIDASI AUTOMATIK:** Semua baris data daripada tab `Audit_Yesterday` sepadan 100% dengan data hari ini tanpa sebarang kehilangan baris rekod.")
-                else:
-                    st.warning("⚠️ **Peringatan Pautan Snapshot:** Tab `Audit_Yesterday` tidak dapat dibaca secara automatik.")
-                    st.info("💡 **Langkah Semakan:**\n1. Sila pastikan tetapan perkongsian Google Sheet diubah kepada **'Anyone with the link can view'**.\n2. Sila tekan butang **Run (▶)** di Google Apps Script sekali lagi.")
-
-                if added_rows:
-                    st.info(f"ℹ️ **{len(added_rows)} Rekod Wabak Baharu Dikesan Masuk Hari Ini:**")
-                    df_add_disp = pd.DataFrame(added_rows, columns=['Daerah', 'Penyakit', 'Alamat / Premis', 'Tarikh Isytihar'])
-                    st.dataframe(df_add_disp, use_container_width=True)
-
-                # --- PAPARAN DUA BUTANG MUAT TURUN ---
-                st.markdown("### 📥 Muat Turun Hasil Laporan & Data")
-                col_btn1, col_btn2 = st.columns(2)
-                
-                with col_btn1:
-                    st.download_button(
-                        label="📄 Muat Turun Laporan Word (.docx)", 
-                        data=doc_out, 
-                        file_name=file_name_custom,
-                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        use_container_width=True
-                    )
-                    
-                with col_btn2:
-                    st.download_button(
-                        label="📊 Muat Turun Data Audit Excel (.xlsx)", 
-                        data=excel_out, 
-                        file_name=excel_name_custom,
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        use_container_width=True
-                    )
-
-                # --- MODUL OPSYEN: CROSS-CHECK MANUAL EXCEL LUARAN ---
-                st.markdown("---")
-                st.subheader("📊 Perbandingan Manual Excel Luaran (Opsyenal)")
-                st.write("Jika anda ingin membandingkan data hari ini dengan mana-mana fail Excel Audit luaran secara manual, sila muat naik fail tersebut di bawah:")
-                
-                prev_excel_file = st.file_uploader("Muat naik Fail Excel Audit Luaran (.xlsx)", type=["xlsx"], key="manual_excel_upload")
-                
-                if prev_excel_file:
-                    try:
-                        df_prev_pivot = pd.read_excel(prev_excel_file, sheet_name='Pivot_Senarai_Penyakit').set_index('PENYAKIT')
-                        
-                        st.markdown("#### 🔄 Perbandingan Kumulatif Manual vs Hari Ini")
-                        
-                        comp_data = []
-                        all_diseases = list(set(wabak_df.index).union(set(df_prev_pivot.index)))
-                        
-                        for dis in all_diseases:
-                            k_prev = df_prev_pivot.loc[dis, 'KUMULATIF'] if dis in df_prev_pivot.index else 0
-                            h_today = wabak_df.loc[dis, 'HARIAN'] if dis in wabak_df.index else 0
-                            k_today = wabak_df.loc[dis, 'KUMULATIF'] if dis in wabak_df.index else 0
-                            
-                            expected_k_today = k_prev + h_today
-                            diff_k = k_today - expected_k_today
-                            
-                            if h_today > 0 or diff_k != 0 or k_today != k_prev:
-                                status_str = "✅ SEPADAN" if diff_k == 0 else f"❌ DISCREPANCY ({diff_k:+d})"
-                                comp_data.append({
-                                    'Penyakit': dis,
-                                    'Kumulatif Manual': int(k_prev),
-                                    'Harian Hari Ini': int(h_today),
-                                    'Kumulatif Hari Ini': int(k_today),
-                                    'Kumulatif Jangkaan': int(expected_k_today),
-                                    'Status Validation': status_str
-                                })
-                                
-                        df_comp = pd.DataFrame(comp_data)
-                        if not df_comp.empty:
-                            st.dataframe(df_comp, use_container_width=True)
-                            
-                            has_disc = (df_comp['Status Validation'].str.contains('DISCREPANCY')).any()
-                            if has_disc:
-                                st.error("⚠️ **Dikesan Ketidakpadanan Antara Fail Manual & Hari Ini!**")
-                            else:
-                                st.success("🎉 **Sempurna!** Fail manual sepadan 100% dengan laporan hari ini.")
-                        else:
-                            st.info("Tiada sebarang perbezaan data dikesan.")
-                            
-                    except Exception as ex_comp:
-                        st.warning(f"Gagal membaca fail Excel luaran: {ex_comp}. Pastikan anda memuat naik fail Excel Audit (.xlsx) yang betul.")
+                # --- SIMPAN SEMUA HASIL TERNAKAN KEDALAM SESSION STATE ---
+                st.session_state.doc_bytes = doc_out.getvalue()
+                st.session_state.excel_bytes = excel_out.getvalue()
+                st.session_state.file_name_custom = f"Laporan CPRC Selangor ({file_date}).docx"
+                st.session_state.excel_name_custom = f"Audit Data Wabak CPRC ({file_date}).xlsx"
+                st.session_state.deleted_rows = deleted_rows
+                st.session_state.added_rows = added_rows
+                st.session_state.has_snapshot = has_snapshot
+                st.session_state.wabak_df = wabak_df
+                st.session_state.report_generated = True
 
             except Exception as e:
                 st.error(f"Ralat semasa memproses data: {e}")
+
+    # --- PAPARAN HASIL LAPORAN BILA REPORT_GENERATED IS TRUE ---
+    if st.session_state.get('report_generated', False):
+        st.markdown("---")
+        st.subheader("🔍 Papan Pengesahan Data (Validation Box - Live Auto-Audit)")
+        
+        deleted_rows = st.session_state.deleted_rows
+        added_rows = st.session_state.added_rows
+        has_snapshot = st.session_state.has_snapshot
+        wabak_df = st.session_state.wabak_df
+        
+        if deleted_rows:
+            st.error(f"⚠️ **AMARAN DISCREPANCY: DIKESAN {len(deleted_rows)} BARIS DATA REKOD WABAK SEMALAM HILANG / DIPADAM DARI GOOGLE SHEET!**")
+            st.write("Senarai rekod yang hilang/dipadam:")
+            df_del_disp = pd.DataFrame(deleted_rows, columns=['Daerah', 'Penyakit', 'Alamat / Premis', 'Tarikh Isytihar'])
+            st.dataframe(df_del_disp, use_container_width=True)
+        elif has_snapshot:
+            st.success("✅ **STATUS VALIDASI AUTOMATIK:** Semua baris data daripada tab `Audit_Yesterday` sepadan 100% dengan data hari ini tanpa sebarang kehilangan baris rekod.")
+        else:
+            st.warning("⚠️ **Peringatan Pautan Snapshot:** Tab `Audit_Yesterday` tidak dapat dibaca secara automatik.")
+            st.info("💡 **Langkah Semakan:**\n1. Sila pastikan tetapan perkongsian Google Sheet diubah kepada **'Anyone with the link can view'**.\n2. Sila tekan butang **Run (▶)** di Google Apps Script sekali lagi.")
+
+        if added_rows:
+            st.info(f"ℹ️ **{len(added_rows)} Rekod Wabak Baharu Dikesan Masuk Hari Ini:**")
+            df_add_disp = pd.DataFrame(added_rows, columns=['Daerah', 'Penyakit', 'Alamat / Premis', 'Tarikh Isytihar'])
+            st.dataframe(df_add_disp, use_container_width=True)
+
+        # --- PAPARAN DUA BUTANG MUAT TURUN (BISA DIKLIK TANPA MENGHILANGKAN PAPARAN) ---
+        st.markdown("### 📥 Muat Turun Hasil Laporan & Data")
+        col_btn1, col_btn2 = st.columns(2)
+        
+        with col_btn1:
+            st.download_button(
+                label="📄 Muat Turun Laporan Word (.docx)", 
+                data=st.session_state.doc_bytes, 
+                file_name=st.session_state.file_name_custom,
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                use_container_width=True
+            )
+            
+        with col_btn2:
+            st.download_button(
+                label="📊 Muat Turun Data Audit Excel (.xlsx)", 
+                data=st.session_state.excel_bytes, 
+                file_name=st.session_state.excel_name_custom,
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
+
+        # --- MODUL OPSYEN: CROSS-CHECK MANUAL EXCEL LUARAN ---
+        st.markdown("---")
+        st.subheader("📊 Perbandingan Manual Excel Luaran (Opsyenal)")
+        st.write("Jika anda ingin membandingkan data hari ini dengan mana-mana fail Excel Audit luaran secara manual, sila muat naik fail tersebut di bawah:")
+        
+        prev_excel_file = st.file_uploader("Muat naik Fail Excel Audit Luaran (.xlsx)", type=["xlsx"], key="manual_excel_upload")
+        
+        if prev_excel_file:
+            try:
+                df_prev_pivot = pd.read_excel(prev_excel_file, sheet_name='Pivot_Senarai_Penyakit').set_index('PENYAKIT')
+                
+                st.markdown("#### 🔄 Perbandingan Kumulatif Manual vs Hari Ini")
+                
+                comp_data = []
+                all_diseases = list(set(wabak_df.index).union(set(df_prev_pivot.index)))
+                
+                for dis in all_diseases:
+                    k_prev = df_prev_pivot.loc[dis, 'KUMULATIF'] if dis in df_prev_pivot.index else 0
+                    h_today = wabak_df.loc[dis, 'HARIAN'] if dis in wabak_df.index else 0
+                    k_today = wabak_df.loc[dis, 'KUMULATIF'] if dis in wabak_df.index else 0
+                    
+                    expected_k_today = k_prev + h_today
+                    diff_k = k_today - expected_k_today
+                    
+                    if h_today > 0 or diff_k != 0 or k_today != k_prev:
+                        status_str = "✅ SEPADAN" if diff_k == 0 else f"❌ DISCREPANCY ({diff_k:+d})"
+                        comp_data.append({
+                            'Penyakit': dis,
+                            'Kumulatif Manual': int(k_prev),
+                            'Harian Hari Ini': int(h_today),
+                            'Kumulatif Hari Ini': int(k_today),
+                            'Kumulatif Jangkaan': int(expected_k_today),
+                            'Status Validation': status_str
+                        })
+                        
+                df_comp = pd.DataFrame(comp_data)
+                if not df_comp.empty:
+                    st.dataframe(df_comp, use_container_width=True)
+                    
+                    has_disc = (df_comp['Status Validation'].str.contains('DISCREPANCY')).any()
+                    if has_disc:
+                        st.error("⚠️ **Dikesan Ketidakpadanan Antara Fail Manual & Hari Ini!**")
+                    else:
+                        st.success("🎉 **Sempurna!** Fail manual sepadan 100% dengan laporan hari ini.")
+                else:
+                    st.info("Tiada sebarang perbezaan data dikesan.")
+                    
+            except Exception as ex_comp:
+                st.warning(f"Gagal membaca fail Excel luaran: {ex_comp}. Pastikan anda memuat naik fail Excel Audit (.xlsx) yang betul.")
