@@ -34,10 +34,12 @@ GSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=c
 
 # --- URL GOOGLE SHEET WABAK (LIVE & AUTOMATIC SNAPSHOT) ---
 SHEET_ID_WABAK = "1SMu8z0MONnxkduZEaRyVNrEnH7KkvnJ9EjuVxSi3WOY"
-GID_RAW = "0"  # Tab 'raw'
+
+# GID Tab 'raw'
+GID_RAW = "0"
 URL_LIVE_WABAK = f"https://docs.google.com/spreadsheets/d/{SHEET_ID_WABAK}/export?format=csv&gid={GID_RAW}"
 
-# GID Tab 'Audit_Yesterday' (Dengan pembersihan automatik untuk elak HTTP 400 Bad Request)
+# ⚠️ GANTIKAN NOMBOR GID DI BAWAH KEPADA GID TAB 'Audit_Yesterday' SEBENAR DARI BROWSER ANDA
 RAW_GID_AUDIT = "1442328310" 
 GID_AUDIT_YESTERDAY = str(RAW_GID_AUDIT).replace("#", "").replace("gid=", "").strip()
 URL_SNAPSHOT_WABAK = f"https://docs.google.com/spreadsheets/d/{SHEET_ID_WABAK}/export?format=csv&gid={GID_AUDIT_YESTERDAY}"
@@ -172,14 +174,10 @@ def format_bkk_number(val, is_person=False):
 def generate_excel_audit(df2_filt, wabak_df, df_yesterday, yesterday_str):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        # Sheet 1: Raw Linelist Wabak
         cols_to_export = [c for c in df2_filt.columns if not c.endswith('_clean')]
         df2_filt[cols_to_export].to_excel(writer, sheet_name='Raw_Linelist_Wabak', index=False)
-        
-        # Sheet 2: Pivot Senarai Penyakit (Jadual 2.1 Descending)
         wabak_df.reset_index().to_excel(writer, sheet_name='Pivot_Senarai_Penyakit', index=False)
         
-        # Sheet 3: Pivot Wabak Baharu (Harian Daerah x Penyakit)
         if not df_yesterday.empty:
             pivot_harian = pd.crosstab(
                 df_yesterday['DAERAH (HURUF BESAR)'],
@@ -339,7 +337,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         apply_font(avg_cell.paragraphs[0].add_run(str(int(row_data.get('Average Harian', 0)))), 8, bold=True)
         set_cell_background(avg_cell, "FFC000")
 
-    # --- BARIS KAKI JADUAL 1.1 ---
     f_cells = t1.rows[-1].cells
     apply_font(f_cells[0].paragraphs[0].add_run("Jumlah"), 8, bold=True)
     set_cell_background(f_cells[0], "FFFF00")
@@ -876,9 +873,11 @@ if f1:
                 
                 wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
-                # --- 2. PEMBACAAN AUTOMATIK SNAPSHOT SEMALAM (TAB: Audit_Yesterday) ---
+                # --- 2. PEMBACAAN AUTOMATIK SNAPSHOT SEMALAM (TAB: Audit_Yesterday) WITH SAFE FALLBACK ---
                 df2_prev = pd.DataFrame()
                 has_snapshot = False
+                snapshot_error_msg = ""
+                
                 try:
                     df2_prev = pd.read_csv(URL_SNAPSHOT_WABAK)
                     df2_prev.columns = df2_prev.columns.str.strip()
@@ -903,6 +902,7 @@ if f1:
                         df2_prev_filt['PENYAKIT'] = df2_prev_filt['PENYAKIT'].apply(group_inf)
                 except Exception as ex_snap:
                     has_snapshot = False
+                    snapshot_error_msg = str(ex_snap)
 
                 # --- 3. AUDIT BARIS DEMI BARIS AUTOMATIK (LINE-BY-LINE COMPARISON) ---
                 deleted_rows = []
@@ -990,7 +990,8 @@ if f1:
                 elif has_snapshot:
                     st.success("✅ **STATUS VALIDASI AUTOMATIK:** Semua baris data daripada tab `Audit_Yesterday` sepadan 100% dengan data hari ini tanpa sebarang kehilangan baris rekod.")
                 else:
-                    st.info("ℹ️ Tab `Audit_Yesterday` belum dikemas kini atau baru diisi hari ini. Sistem akan mengaudit penuh secara automatik bermula esok selepas Apps Script berjalan.")
+                    st.warning("⚠️ **Peringatan Pautan Snapshot:** Tab `Audit_Yesterday` tidak dapat dibaca dari Google Sheet.")
+                    st.info("💡 **Langkah Semakan:**\n1. Sila pastikan anda telah menekan butang **Run (▶)** untuk fungsi `autoSnapshotYesterday` di Google Apps Script.\n2. Sila pastikan GID tab `Audit_Yesterday` disalin tepat dari URL browser dan dimasukkan ke pembolehubah `RAW_GID_AUDIT` di dalam `app.py`.")
 
                 if added_rows:
                     st.info(f"ℹ️ **{len(added_rows)} Rekod Wabak Baharu Dikesan Masuk Hari Ini:**")
