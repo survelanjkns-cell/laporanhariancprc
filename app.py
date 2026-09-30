@@ -187,8 +187,7 @@ def format_bkk_number(val, is_person=False):
 def generate_excel_audit(df2_filt, wabak_df, df_yesterday, yesterday_str):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        cols_to_export = [c for c in df2_filt.columns if not c.endswith('_clean')]
-        df2_filt[cols_to_export].to_excel(writer, sheet_name='Raw_Linelist_Wabak', index=False)
+        df2_filt.to_excel(writer, sheet_name='Raw_Linelist_Wabak', index=False)
         wabak_df.reset_index().to_excel(writer, sheet_name='Pivot_Senarai_Penyakit', index=False)
         
         if not df_yesterday.empty:
@@ -851,18 +850,6 @@ if f1:
                 df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak'], dayfirst=True, errors='coerce').dt.date
                 df2['Tarikh Sebenar Tamat Wabak'] = pd.to_datetime(df2['Tarikh Sebenar Tamat Wabak'], dayfirst=True, errors='coerce').dt.date
                 df2['Tarikh Wabak Dijangka Tamat'] = pd.to_datetime(df2['Tarikh Wabak Dijangka Tamat'], dayfirst=True, errors='coerce').dt.date
-                
-                initial_col = None
-                for col in df2.columns:
-                    if re.search(r'tkh\s*isytihar\s*initial|tarikh\s*isytihar\s*inital|tarikh\s*isytihar\s*initial', col, re.IGNORECASE):
-                        initial_col = col
-                        break
-
-                if initial_col:
-                    df2['tkh_isytihar_initial_clean'] = pd.to_datetime(df2[initial_col], dayfirst=True, errors='coerce').dt.date
-                    df2['tkh_isytihar_initial_clean'] = df2['tkh_isytihar_initial_clean'].fillna(df2['Tarikh Isytihar Wabak'])
-                else:
-                    df2['tkh_isytihar_initial_clean'] = df2['Tarikh Isytihar Wabak']
 
                 addr_col = 'Tempat Berlaku Wabak\n(Alamat diisi lengkap dengan :- No rumah, nama jalan, nama tempat, daerah dan Negeri)'
                 cat_col = 'Kategori Tempat\n(Kategori premis berdasarkan tempat berlaku wabak)'
@@ -870,7 +857,7 @@ if f1:
                 df2_raw_audit = df2.copy()
                 df2 = df2.drop_duplicates(subset=['PENYAKIT', 'Tarikh Isytihar Wabak', addr_col], keep='first')
 
-                df_yesterday = df2[df2['tkh_isytihar_initial_clean'] == yesterday].copy()
+                df_yesterday = df2[df2['Tarikh Isytihar Wabak'] == yesterday].copy()
                 df_yesterday_list = df_yesterday[['PENYAKIT', 'DAERAH (HURUF BESAR)', addr_col, cat_col, 'Bilangan Kes', 'Bilangan Terdedah']].values.tolist()
 
                 df2_filt = df2[df2['Tarikh Isytihar Wabak'] >= date(2026, 1, 4)].copy()
@@ -883,7 +870,7 @@ if f1:
                 for d in df2_filt['PENYAKIT'].unique():
                     if pd.isna(d): continue
                     disease_df = df2_filt[df2_filt['PENYAKIT'] == d]
-                    h = len(disease_df[disease_df['tkh_isytihar_initial_clean'] == yesterday])
+                    h = len(disease_df[disease_df['Tarikh Isytihar Wabak'] == yesterday])
                     k = len(disease_df)
                     def check_active(row):
                         tamat = row['Tarikh Sebenar Tamat Wabak'] if pd.notna(row['Tarikh Sebenar Tamat Wabak']) else row['Tarikh Wabak Dijangka Tamat']
@@ -904,19 +891,6 @@ if f1:
                     if not df2_prev.empty and len(df2_prev.columns) > 3:
                         has_snapshot = True
                         df2_prev['Tarikh Isytihar Wabak'] = pd.to_datetime(df2_prev['Tarikh Isytihar Wabak'], dayfirst=True, errors='coerce').dt.date
-                        
-                        initial_col_prev = None
-                        for col in df2_prev.columns:
-                            if re.search(r'tkh\s*isytihar\s*initial|tarikh\s*isytihar\s*inital|tarikh\s*isytihar\s*initial', col, re.IGNORECASE):
-                                initial_col_prev = col
-                                break
-
-                        if initial_col_prev:
-                            df2_prev['tkh_isytihar_initial_clean'] = pd.to_datetime(df2_prev[initial_col_prev], dayfirst=True, errors='coerce').dt.date
-                            df2_prev['tkh_isytihar_initial_clean'] = df2_prev['tkh_isytihar_initial_clean'].fillna(df2_prev['Tarikh Isytihar Wabak'])
-                        else:
-                            df2_prev['tkh_isytihar_initial_clean'] = df2_prev['Tarikh Isytihar Wabak']
-                            
                         df2_prev = df2_prev.drop_duplicates(subset=['PENYAKIT', 'Tarikh Isytihar Wabak', addr_col], keep='first')
                         df2_prev_filt = df2_prev[df2_prev['Tarikh Isytihar Wabak'] >= date(2026, 1, 4)].copy()
                         df2_prev_filt['PENYAKIT'] = df2_prev_filt['PENYAKIT'].apply(group_inf)
@@ -935,7 +909,7 @@ if f1:
                         else:
                             return (df_target['PENYAKIT'].astype(str) + "_" + 
                                     df_target[addr_col].astype(str) + "_" + 
-                                    df_target['tkh_isytihar_initial_clean'].astype(str))
+                                    df_target['Tarikh Isytihar Wabak'].astype(str))
 
                     df2_prev_filt['UNIQUE_KEY'] = gen_key(df2_prev_filt)
                     df2_filt['UNIQUE_KEY'] = gen_key(df2_filt)
