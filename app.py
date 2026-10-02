@@ -860,7 +860,7 @@ if f1:
                 df_yesterday = df2[df2['Tarikh Isytihar Wabak'] == yesterday].copy()
                 df_yesterday_list = df_yesterday[['PENYAKIT', 'DAERAH (HURUF BESAR)', addr_col, cat_col, 'Bilangan Kes', 'Bilangan Terdedah']].values.tolist()
 
-                df2_filt = df2[df2['Tarikh Isytihar Wabak'] >= date(2026, 1, 4)].copy()
+                df2_filt = df2[(df2['Tarikh Isytihar Wabak'] >= date(2026, 1, 3)) & (df2['Tarikh Isytihar Wabak'] <= yesterday)].copy()
                 def group_inf(n): return "ILI/ Influenza" if any(x in str(n).upper() for x in ["INFLUENZA", "ILI"]) else n
                 
                 df2_raw_audit['PENYAKIT_GROUP'] = df2_raw_audit['PENYAKIT'].apply(group_inf)
@@ -892,7 +892,7 @@ if f1:
                         has_snapshot = True
                         df2_prev['Tarikh Isytihar Wabak'] = pd.to_datetime(df2_prev['Tarikh Isytihar Wabak'], dayfirst=True, errors='coerce').dt.date
                         df2_prev = df2_prev.drop_duplicates(subset=['PENYAKIT', 'Tarikh Isytihar Wabak', addr_col], keep='first')
-                        df2_prev_filt = df2_prev[df2_prev['Tarikh Isytihar Wabak'] >= date(2026, 1, 4)].copy()
+                        df2_prev_filt = df2_prev[(df2_prev['Tarikh Isytihar Wabak'] >= date(2026, 1, 3)) & (df2_prev['Tarikh Isytihar Wabak'] <= yesterday)].copy()
                         df2_prev_filt['PENYAKIT'] = df2_prev_filt['PENYAKIT'].apply(group_inf)
                 except Exception as ex_snap:
                     has_snapshot = False
