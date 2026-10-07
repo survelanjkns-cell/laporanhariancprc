@@ -106,9 +106,9 @@ def parse_apims_pasted_text(raw_text):
                 break
     return selangor_stations
 
-def format_ipu_narrative(data_stesen, tarikh_hari_ini, tarikh_semalam, epi_week):
+def format_ipu_narrative(data_stesen, tarikh_hari_ini, tarikh_semalam, epi_week_lepas):
     if not data_stesen:
-        return f"Pada {tarikh_hari_ini} jam 9.00 pagi, tiada data stesen pemantauan IPU dikesan. Perincian kes penyakit berkaitan jerebu yang dilaporkan oleh fasiliti sentinel pada {tarikh_semalam} adalah seperti di Jadual 6.1, manakala Rajah 6.1 hingga Rajah 6.3 menunjukkan tren mingguan konjunktivitis, URTI dan asma berbanding bacaan IPU tertinggi sehingga ME{epi_week}."
+        return f"Pada {tarikh_hari_ini} jam 9.00 pagi, tiada data stesen pemantauan IPU dikesan. Perincian kes penyakit berkaitan jerebu yang dilaporkan oleh fasiliti sentinel pada {tarikh_semalam} adalah seperti di Jadual 6.1, manakala Rajah 6.1 hingga Rajah 6.3 menunjukkan tren mingguan konjunktivitis, URTI dan asma berbanding bacaan IPU tertinggi sehingga ME{epi_week_lepas}."
         
     unhealthy = []
     moderate = []
@@ -139,7 +139,7 @@ def format_ipu_narrative(data_stesen, tarikh_hari_ini, tarikh_semalam, epi_week)
     
     jumlah_stesen = len(data_stesen)
     
-    teks = f"Pada {tarikh_hari_ini} jam 9.00 pagi, kesemua {jumlah_stesen} stesen pemantauan di Selangor merekodkan IPU pada {status_str}. Perincian kes penyakit berkaitan jerebu yang dilaporkan oleh fasiliti sentinel pada {tarikh_semalam} adalah seperti di Jadual 6.1, manakala Rajah 6.1 hingga Rajah 6.3 menunjukkan tren mingguan konjunktivitis, URTI dan asma berbanding bacaan IPU tertinggi sehingga ME{epi_week}."
+    teks = f"Pada {tarikh_hari_ini} jam 9.00 pagi, kesemua {jumlah_stesen} stesen pemantauan di Selangor merekodkan IPU pada {status_str}. Perincian kes penyakit berkaitan jerebu yang dilaporkan oleh fasiliti sentinel pada {tarikh_semalam} adalah seperti di Jadual 6.1, manakala Rajah 6.1 hingga Rajah 6.3 menunjukkan tren mingguan konjunktivitis, URTI dan asma berbanding bacaan IPU tertinggi sehingga ME{epi_week_lepas}."
     
     return teks
 
@@ -180,6 +180,16 @@ def get_epi_week(target_date):
     if target_date < start_date: return "N/A"
     days_diff = (target_date - start_date).days
     return f"{(days_diff // 7) + 1}/{target_date.year}"
+
+def get_epi_week_last_week(target_date):
+    start_date = date(2026, 1, 4)
+    if target_date < start_date: return "N/A"
+    days_diff = (target_date - start_date).days
+    current_epi = (days_diff // 7) + 1
+    last_epi = current_epi - 1
+    if last_epi == 0:
+        return f"52/{target_date.year - 1}"
+    return f"{last_epi}/{target_date.year}"
 
 def get_malay_date(target_date):
     days_ms = {"Monday": "Isnin", "Tuesday": "Selasa", "Wednesday": "Rabu", "Thursday": "Khamis", "Friday": "Jumaat", "Saturday": "Sabtu", "Sunday": "Ahad"}
@@ -829,9 +839,9 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     
     tarikh_hari_ini_str = get_malay_date(today)
     tarikh_semalam_str = get_malay_date(yesterday)
-    minggu_epi_str = get_epi_week(today)
+    minggu_epi_lepas_str = get_epi_week_last_week(today)
     
-    naratif_sebelum_61 = format_ipu_narrative(parsed_apims, tarikh_hari_ini_str, tarikh_semalam_str, minggu_epi_str)
+    naratif_sebelum_61 = format_ipu_narrative(parsed_apims, tarikh_hari_ini_str, tarikh_semalam_str, minggu_epi_lepas_str)
     apply_font(p6_intro.add_run(naratif_sebelum_61), 11, bold=False)
     
     add_table_title(doc, "Jadual 6.1", "Bilangan Kes Penyakit Berkaitan Jerebu yang Dilaporkan oleh Fasiliti Sentinel Jerebu di Selangor")
@@ -863,6 +873,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         p0 = cells[0].paragraphs[0]
         apply_font(p0.add_run(fasiliti), 10, bold=True)
         
+        # Pengecualian Khas bagi Hospital Shah Alam (Konjunktivitis dan URTI dihitamkan)
         if fasiliti == "Hospital Shah Alam":
             set_cell_background(cells[1], "808080")
             set_cell_background(cells[2], "808080")
