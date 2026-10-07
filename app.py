@@ -762,7 +762,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     p6_head.paragraph_format.space_before = Pt(12)
     apply_font(p6_head.add_run("6.0 Pemantauan Bilik Gerakan Jerebu CPRC JKNS"), 11, bold=True)
 
-    # --- KOTAK NARRATIVE JEREBU (Akan diedit kemudian) ---
+    # Nota Intro 6.0 dibiarkan kosong untuk diisi teks dari sumber lain jika ada
     p6_intro = doc.add_paragraph()
     p6_intro.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     
@@ -795,7 +795,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         p0 = cells[0].paragraphs[0]
         apply_font(p0.add_run(fasiliti), 10, bold=True)
         
-        # Pengecualian Khas bagi Hospital Shah Alam (Konjunktivitis dan URTI dihitamkan)
         if fasiliti == "Hospital Shah Alam":
             set_cell_background(cells[1], "808080")
             set_cell_background(cells[2], "808080")
@@ -858,8 +857,39 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     apply_font(run_nota_6, 8, bold=True)
     run_nota_6.italic = True
 
+    # --- NARATIF SELEPAS JADUAL 6.1 ---
+    p6_naratif = doc.add_paragraph()
+    p6_naratif.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    
+    parts_nar = []
+    if sum_h_konj > 0:
+        parts_nar.append(f"{sum_h_konj} kes konjunktivitis")
+    if sum_h_urti > 0:
+        parts_nar.append(f"{sum_h_urti} kes URTI")
+    if sum_h_asma > 0:
+        parts_nar.append(f"{sum_h_asma} kes asma")
+        
+    tarikh_semalam_str = get_malay_date(yesterday)
+    
+    if not parts_nar:
+        ayat_dinamik = f"Pada {tarikh_semalam_str}, Tiada kes dilaporkan oleh fasiliti sentinel."
+    else:
+        if len(parts_nar) == 1:
+            str_penyakit = parts_nar[0]
+        elif len(parts_nar) == 2:
+            str_penyakit = f"{parts_nar[0]} dan {parts_nar[1]}"
+        else:
+            str_penyakit = f"{parts_nar[0]}, {parts_nar[1]} dan {parts_nar[2]}"
+            
+        ayat_dinamik = f"Pada {tarikh_semalam_str}, Sebanyak {str_penyakit} dilaporkan oleh fasiliti sentinel."
+        
+    ayat_akhir = " Tiada kemasukkan ke wad atau kematian disyaki berkaitan jerebu dilaporkan. Pemantauan penyakit berkaitan jerebu diteruskan."
+    
+    apply_font(p6_naratif.add_run(ayat_dinamik + ayat_akhir), 11, bold=False)
+
     # --- 7.0 Rumusan oleh Ketua Petugas CPRC Selangor ---
     p7_head = doc.add_paragraph()
+    p7_head.paragraph_format.space_before = Pt(12)
     apply_font(p7_head.add_run("7.0 Rumusan oleh Ketua Petugas CPRC Selangor"), 11, bold=True)
     
     p7_space = doc.add_paragraph()
@@ -937,7 +967,6 @@ st.subheader("📁 Muat Naik Excel Notifikasi Harian")
 st.info(f"**Guideline:** Sila muat turun file notifikasi pada **{tarikh_guideline}** dari sistem eNotifikasi dan muat naik di sini.")
 f1 = st.file_uploader("Pilih fail Notifikasi Harian", type=["xlsx", "xls"], label_visibility="collapsed")
 
-# --- INITIALIZE SESSION STATE UNTUK MENGEKALKAN PAPARAN ---
 if 'report_generated' not in st.session_state:
     st.session_state.report_generated = False
 
@@ -1097,7 +1126,6 @@ if f1:
                                 return pd.to_numeric(df_sub.iloc[:, col_idx], errors='coerce').fillna(0).sum()
                             return 0
                         
-                        # Hospital Shah Alam: Asma berada di Column F (Index 5)
                         if display_name == "Hospital Shah Alam":
                             jerebu_data.append({
                                 "Fasiliti": display_name,
@@ -1107,7 +1135,6 @@ if f1:
                                 "K_Asma": int(safe_sum_jerebu(df_kumu, 5))
                             })
                         else:
-                            # Fasiliti Lain: Konj(Col F=5), URTI(Col J=9), Asma(Col N=13)
                             jerebu_data.append({
                                 "Fasiliti": display_name,
                                 "H_Konj": int(safe_sum_jerebu(df_harian, 5)),  
@@ -1117,7 +1144,7 @@ if f1:
                                 "K_URTI": int(safe_sum_jerebu(df_kumu, 9)),
                                 "K_Asma": int(safe_sum_jerebu(df_kumu, 13))
                             })
-                    except Exception as e_jerebu:
+                    except Exception:
                         jerebu_data.append({
                             "Fasiliti": display_name,
                             "H_Konj": 0, "H_URTI": 0, "H_Asma": 0,
