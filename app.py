@@ -8,6 +8,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_ALIGN_VERTICAL, WD_TABLE_ALIGNMENT
 from docx.oxml import parse_xml
 from docx.oxml.ns import nsdecls
+import urllib.parse
 import io
 import os
 import re
@@ -41,15 +42,31 @@ GID_AUDIT_YESTERDAY = str(RAW_GID_AUDIT).replace("#", "").replace("gid=", "").st
 # --- URL GOOGLE SHEET BKK (RAW LINELISTING & JADUAL) ---
 BKK_SPREADSHEET_ID = "1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c"
 
+# --- URL GOOGLE SHEET JEREBU ---
+SHEET_ID_JEREBU = "1nVvq4MOi2GiLCaKjg4b3pIlAUHkQnD15BAqmBrcPjwY"
+FASILITI_JEREBU = [
+    ("KK Kota Damansara", "KK KOTA DAMANSARA"),
+    ("KK Shah Alam", "KK SHAH ALAM"),
+    ("Hospital Shah Alam", "HOSPITAL SHAH ALAM"),
+    ("KK Pandamaran", "KK PANDAMARAN"),
+    ("KK Telok Datok", "KK TELOK DATOK"),
+    ("KK Kuala Selangor", "KK KUALA SELANGOR")
+]
+
 CHART_IMAGE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTDprYai1uaP1L-JP6kuHRZX18AmDHX0ROEzRE37DaCHMo0cNWUvRa8R-65RZAK7XFWI6pb_-X-jF24/pubchart?oid=1681812411&format=image"
 
-# --- HELPER DUAL-ENDPOINT CSV READER (KALIS HTTP 400) ---
-def read_gsheet_csv(sheet_id, gid="0", header='default'):
+# --- HELPER DUAL-ENDPOINT CSV READER (BOLEH BACA GID ATAU SHEET NAME) ---
+def read_gsheet_csv(sheet_id, gid="0", sheet_name=None, header='default'):
     sheet_id = str(sheet_id).strip()
-    gid = str(gid).replace("#", "").replace("gid=", "").strip()
     
-    gviz_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&gid={gid}"
-    export_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
+    if sheet_name:
+        encoded_name = urllib.parse.quote(sheet_name)
+        gviz_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={encoded_name}"
+        export_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&sheet={encoded_name}"
+    else:
+        gid = str(gid).replace("#", "").replace("gid=", "").strip()
+        gviz_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&gid={gid}"
+        export_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
     
     last_err = None
     for url in [gviz_url, export_url]:
@@ -62,7 +79,7 @@ def read_gsheet_csv(sheet_id, gid="0", header='default'):
             last_err = e
             continue
             
-    raise Exception(f"Gagal memuat turun data dari Google Sheet (ID: {sheet_id}, GID: {gid}). Ralat: {last_err}")
+    raise Exception(f"Gagal memuat turun data dari Google Sheet (ID: {sheet_id}, Sheet: {sheet_name or gid}). Ralat: {last_err}")
 
 # --- HELPERS LAIN ---
 def set_repeat_table_header(row):
@@ -187,8 +204,7 @@ def format_bkk_number(val, is_person=False):
 def generate_excel_audit(df2_filt, wabak_df, df_yesterday, yesterday_str):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        cols_to_export = [c for c in df2_filt.columns if not c.endswith('_clean')]
-        df2_filt[cols_to_export].to_excel(writer, sheet_name='Raw_Linelist_Wabak', index=False)
+        df2_filt.to_excel(writer, sheet_name='Raw_Linelist_Wabak', index=False)
         wabak_df.reset_index().to_excel(writer, sheet_name='Pivot_Senarai_Penyakit', index=False)
         
         if not df_yesterday.empty:
@@ -207,7 +223,7 @@ def generate_excel_audit(df2_filt, wabak_df, df_yesterday, yesterday_str):
     return output
 
 # --- DOCX GENERATOR ---
-def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty, bkk_details, df_yesterday_list):
+def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty, bkk_details, df_yesterday_list, jerebu_data):
     doc = Document()
     now_msia = get_msia_time()
     today = now_msia.date()
@@ -734,14 +750,113 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     # --- 5.0 Pemantauan Rumor Survelan ---
     p5_head = doc.add_paragraph()
+    p5_head.paragraph_format.space_before = Pt(12)
     apply_font(p5_head.add_run("5.0 Pemantauan Rumor Survelan"), 11, bold=True)
     
     p5_space = doc.add_paragraph()
     apply_font(p5_space.add_run(""), 11)
 
-    # --- 6.0 Bilik Gerakan Jerebu CPRC ---
+    # --- 6.0 Pemantauan Bilik Gerakan Jerebu CPRC JKNS ---
+    doc.add_page_break()
     p6_head = doc.add_paragraph()
-    apply_font(p6_head.add_run("6.0 Bilik Gerakan Jerebu CPRC"), 11, bold=True)
+    p6_head.paragraph_format.space_before = Pt(12)
+    apply_font(p6_head.add_run("6.0 Pemantauan Bilik Gerakan Jerebu CPRC JKNS"), 11, bold=True)
+
+    # --- KOTAK NARRATIVE JEREBU (Akan diedit kemudian) ---
+    p6_intro = doc.add_paragraph()
+    p6_intro.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    
+    add_table_title(doc, "Jadual 6.1", "Bilangan Kes Penyakit Berkaitan Jerebu yang Dilaporkan oleh Fasiliti Sentinel Jerebu di Selangor")
+    
+    t6 = doc.add_table(rows=len(jerebu_data) + 3, cols=4)
+    t6.style = 'Table Grid'
+    t6.width = content_width 
+    
+    h6_cells = t6.rows[0].cells
+    headers_6 = ["Fasiliti Sentinel Jerebu", "Konjunktivitis", "URTI", "Asma"]
+    col_widths_6 = [content_width * 0.4, content_width * 0.2, content_width * 0.2, content_width * 0.2]
+    
+    for i, h in enumerate(headers_6):
+        h6_cells[i].width = col_widths_6[i]
+        set_cell_background(h6_cells[i], "8FAADC")
+        h6_cells[i].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+        p = h6_cells[i].paragraphs[0]
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER if i > 0 else WD_ALIGN_PARAGRAPH.LEFT
+        apply_font(p.add_run(h), 10, bold=True)
+
+    sum_h_konj = sum_h_urti = sum_h_asma = 0
+    sum_k_konj = sum_k_urti = sum_k_asma = 0
+    
+    for r_idx, row_data in enumerate(jerebu_data):
+        cells = t6.rows[r_idx + 1].cells
+        fasiliti = row_data["Fasiliti"]
+        
+        cells[0].width = col_widths_6[0]
+        p0 = cells[0].paragraphs[0]
+        apply_font(p0.add_run(fasiliti), 10, bold=True)
+        
+        # Pengecualian Khas bagi Hospital Shah Alam (Konjunktivitis dan URTI dihitamkan)
+        if fasiliti == "Hospital Shah Alam":
+            set_cell_background(cells[1], "808080")
+            set_cell_background(cells[2], "808080")
+            
+            cells[3].width = col_widths_6[3]
+            cells[3].text = str(row_data["H_Asma"])
+            cells[3].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+            apply_font(cells[3].paragraphs[0].runs[0], 10, bold=False)
+            
+            sum_h_asma += row_data["H_Asma"]
+            sum_k_asma += row_data["K_Asma"]
+        else:
+            vals = [row_data["H_Konj"], row_data["H_URTI"], row_data["H_Asma"]]
+            for i, val in enumerate(vals):
+                cells[i+1].width = col_widths_6[i+1]
+                cells[i+1].text = str(val)
+                cells[i+1].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+                apply_font(cells[i+1].paragraphs[0].runs[0], 10, bold=False)
+                
+            sum_h_konj += row_data["H_Konj"]
+            sum_h_urti += row_data["H_URTI"]
+            sum_h_asma += row_data["H_Asma"]
+            
+            sum_k_konj += row_data["K_Konj"]
+            sum_k_urti += row_data["K_URTI"]
+            sum_k_asma += row_data["K_Asma"]
+
+    f_idx_1 = len(jerebu_data) + 1
+    f1_cells = t6.rows[f_idx_1].cells
+    f1_cells[0].text = "JUMLAH"
+    apply_font(f1_cells[0].paragraphs[0].runs[0], 10, bold=True)
+    
+    f1_vals = [sum_h_konj, sum_h_urti, sum_h_asma]
+    for i, val in enumerate(f1_vals):
+        f1_cells[i+1].text = str(val)
+        f1_cells[i+1].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+        apply_font(f1_cells[i+1].paragraphs[0].runs[0], 10, bold=False)
+        
+    for cell in f1_cells:
+        set_cell_background(cell, "FFC000")
+
+    f_idx_2 = len(jerebu_data) + 2
+    f2_cells = t6.rows[f_idx_2].cells
+    f2_cells[0].text = "KUMULATIF (Bermula 9/9/2026)"
+    apply_font(f2_cells[0].paragraphs[0].runs[0], 10, bold=True)
+    
+    f2_vals = [sum_k_konj, sum_k_urti, sum_k_asma]
+    for i, val in enumerate(f2_vals):
+        f2_cells[i+1].text = str(val)
+        f2_cells[i+1].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+        apply_font(f2_cells[i+1].paragraphs[0].runs[0], 10, bold=True)
+        
+    for cell in f2_cells:
+        set_cell_background(cell, "FFFF00")
+
+    p_nota_6 = doc.add_paragraph()
+    p_nota_6.paragraph_format.space_before = Pt(6)
+    p_nota_6.paragraph_format.space_after = Pt(12)
+    run_nota_6 = p_nota_6.add_run("*Nota: Klinik Kesihatan Sentinel tidak beroperasi pada hujung minggu/cuti pelepasan am")
+    apply_font(run_nota_6, 8, bold=True)
+    run_nota_6.italic = True
 
     # --- 7.0 Rumusan oleh Ketua Petugas CPRC Selangor ---
     p7_head = doc.add_paragraph()
@@ -858,7 +973,6 @@ if f1:
                 df2_raw_audit = df2.copy()
                 df2 = df2.drop_duplicates(subset=['PENYAKIT', 'Tarikh Isytihar Wabak', addr_col], keep='first')
 
-                # --- TAPISAN PERIODE JADUAL 2.1: DARI 03 JAN 2026 SEHINGGA HARI SEMALAM ---
                 df_yesterday = df2[df2['Tarikh Isytihar Wabak'] == yesterday].copy()
                 df_yesterday_list = df_yesterday[['PENYAKIT', 'DAERAH (HURUF BESAR)', addr_col, cat_col, 'Bilangan Kes', 'Bilangan Terdedah']].values.tolist()
 
@@ -882,7 +996,7 @@ if f1:
                 
                 wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
-                # --- 2. PEMBACAAN AUTOMATIK SNAPSHOT SEMALAM (TAB: Audit_Yesterday) WITH SAFE FALLBACK ---
+                # --- 2. PEMBACAAN AUTOMATIK SNAPSHOT SEMALAM (TAB: Audit_Yesterday) ---
                 df2_prev = pd.DataFrame()
                 has_snapshot = False
                 
@@ -966,7 +1080,51 @@ if f1:
                     'PK P.KLANG': 'PK PK'
                 })
 
-                doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, (len(bkk_details)==0), bkk_details, df_yesterday_list)
+                # --- PEMPROSESAN DATA JEREBU (INDEKS TEPAT IKUT COLUMN) ---
+                jerebu_data = []
+                kumulatif_start_jerebu = date(2026, 9, 9)
+                
+                for display_name, tab_name in FASILITI_JEREBU:
+                    try:
+                        df_j = read_gsheet_csv(SHEET_ID_JEREBU, sheet_name=tab_name, header=None)
+                        df_j['Tarikh_Clean'] = pd.to_datetime(df_j.iloc[:, 1].astype(str).str.strip(), dayfirst=True, errors='coerce').dt.date
+                        
+                        df_harian = df_j[df_j['Tarikh_Clean'] == yesterday]
+                        df_kumu = df_j[(df_j['Tarikh_Clean'] >= kumulatif_start_jerebu) & (df_j['Tarikh_Clean'] <= yesterday)]
+                        
+                        def safe_sum_jerebu(df_sub, col_idx):
+                            if col_idx < len(df_sub.columns):
+                                return pd.to_numeric(df_sub.iloc[:, col_idx], errors='coerce').fillna(0).sum()
+                            return 0
+                        
+                        # Hospital Shah Alam: Asma berada di Column F (Index 5)
+                        if display_name == "Hospital Shah Alam":
+                            jerebu_data.append({
+                                "Fasiliti": display_name,
+                                "H_Konj": 0, "H_URTI": 0,
+                                "H_Asma": int(safe_sum_jerebu(df_harian, 5)),
+                                "K_Konj": 0, "K_URTI": 0,
+                                "K_Asma": int(safe_sum_jerebu(df_kumu, 5))
+                            })
+                        else:
+                            # Fasiliti Lain: Konj(Col F=5), URTI(Col J=9), Asma(Col N=13)
+                            jerebu_data.append({
+                                "Fasiliti": display_name,
+                                "H_Konj": int(safe_sum_jerebu(df_harian, 5)),  
+                                "H_URTI": int(safe_sum_jerebu(df_harian, 9)),  
+                                "H_Asma": int(safe_sum_jerebu(df_harian, 13)),  
+                                "K_Konj": int(safe_sum_jerebu(df_kumu, 5)),
+                                "K_URTI": int(safe_sum_jerebu(df_kumu, 9)),
+                                "K_Asma": int(safe_sum_jerebu(df_kumu, 13))
+                            })
+                    except Exception as e_jerebu:
+                        jerebu_data.append({
+                            "Fasiliti": display_name,
+                            "H_Konj": 0, "H_URTI": 0, "H_Asma": 0,
+                            "K_Konj": 0, "K_URTI": 0, "K_Asma": 0
+                        })
+
+                doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, (len(bkk_details)==0), bkk_details, df_yesterday_list, jerebu_data)
                 excel_out = generate_excel_audit(df2_filt, wabak_df, df_yesterday, get_malay_date(yesterday))
                 
                 file_date = today.strftime("%d.%m.%y")
