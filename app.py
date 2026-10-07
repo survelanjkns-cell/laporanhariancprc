@@ -187,7 +187,8 @@ def format_bkk_number(val, is_person=False):
 def generate_excel_audit(df2_filt, wabak_df, df_yesterday, yesterday_str):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df2_filt.to_excel(writer, sheet_name='Raw_Linelist_Wabak', index=False)
+        cols_to_export = [c for c in df2_filt.columns if not c.endswith('_clean')]
+        df2_filt[cols_to_export].to_excel(writer, sheet_name='Raw_Linelist_Wabak', index=False)
         wabak_df.reset_index().to_excel(writer, sheet_name='Pivot_Senarai_Penyakit', index=False)
         
         if not df_yesterday.empty:
@@ -857,6 +858,7 @@ if f1:
                 df2_raw_audit = df2.copy()
                 df2 = df2.drop_duplicates(subset=['PENYAKIT', 'Tarikh Isytihar Wabak', addr_col], keep='first')
 
+                # --- TAPISAN PERIODE JADUAL 2.1: DARI 03 JAN 2026 SEHINGGA HARI SEMALAM ---
                 df_yesterday = df2[df2['Tarikh Isytihar Wabak'] == yesterday].copy()
                 df_yesterday_list = df_yesterday[['PENYAKIT', 'DAERAH (HURUF BESAR)', addr_col, cat_col, 'Bilangan Kes', 'Bilangan Terdedah']].values.tolist()
 
@@ -883,7 +885,6 @@ if f1:
                 # --- 2. PEMBACAAN AUTOMATIK SNAPSHOT SEMALAM (TAB: Audit_Yesterday) WITH SAFE FALLBACK ---
                 df2_prev = pd.DataFrame()
                 has_snapshot = False
-                snapshot_error_msg = ""
                 
                 try:
                     df2_prev = read_gsheet_csv(SHEET_ID_WABAK, GID_AUDIT_YESTERDAY)
@@ -894,9 +895,8 @@ if f1:
                         df2_prev = df2_prev.drop_duplicates(subset=['PENYAKIT', 'Tarikh Isytihar Wabak', addr_col], keep='first')
                         df2_prev_filt = df2_prev[(df2_prev['Tarikh Isytihar Wabak'] >= date(2026, 1, 3)) & (df2_prev['Tarikh Isytihar Wabak'] <= yesterday)].copy()
                         df2_prev_filt['PENYAKIT'] = df2_prev_filt['PENYAKIT'].apply(group_inf)
-                except Exception as ex_snap:
+                except Exception:
                     has_snapshot = False
-                    snapshot_error_msg = str(ex_snap)
 
                 # --- 3. AUDIT BARIS DEMI BARIS AUTOMATIK (LINE-BY-LINE COMPARISON) ---
                 deleted_rows = []
@@ -931,8 +931,6 @@ if f1:
                 v_data = raw_gs.iloc[mask_v.idxmax() : mask_v.idxmax() + 11, 13:20]
                 v_data = v_data.dropna(how='all')
                 v_data = v_data[~v_data.iloc[:, 0].astype(str).str.lower().str.contains('nan')]
-                
-                # --- TAPISAN MEMBUANG BARIS "Dari Tarikh :" DARIPADA JADUAL 3.1 ---
                 v_data = v_data[~v_data.iloc[:, 0].astype(str).str.lower().str.contains('dari tarikh|tarikh')]
 
                 df_bkk_raw_data = read_gsheet_csv(BKK_SPREADSHEET_ID, "1352807145", header=None)
@@ -951,7 +949,6 @@ if f1:
                 
                 df_bkk_jadual_full = read_gsheet_csv(BKK_SPREADSHEET_ID, "1342717767", header=None)
                 
-                # PEMBAIKAN INDEKS BKK: iloc[0:] supaya baris tajuk header tidak terpotong menjadi 'Kebakaran'
                 bkk_raw = df_bkk_jadual_full.iloc[0:, 33:46].dropna(how='all').reset_index(drop=True)
                 bkk_raw.columns = bkk_raw.iloc[0]
                 
@@ -974,7 +971,6 @@ if f1:
                 
                 file_date = today.strftime("%d.%m.%y")
                 
-                # --- SIMPAN DALAM SESSION STATE ---
                 st.session_state.doc_bytes = doc_out.getvalue()
                 st.session_state.excel_bytes = excel_out.getvalue()
                 st.session_state.file_name_custom = f"Laporan CPRC Selangor ({file_date}).docx"
@@ -982,13 +978,12 @@ if f1:
                 st.session_state.deleted_rows = deleted_rows
                 st.session_state.added_rows = added_rows
                 st.session_state.has_snapshot = has_snapshot
-                st.session_state.wabak_df = wabak_df
                 st.session_state.report_generated = True
 
             except Exception as e:
                 st.error(f"Ralat semasa memproses data: {e}")
 
-    # --- PAPARAN HASIL LAPORAN (KEKAL WALAUPUN SELESAI DOWNLOAD) ---
+    # --- PAPARAN HASIL LAPORAN ---
     if st.session_state.get('report_generated', False):
         st.markdown("---")
         st.subheader("🔍 Papan Pengesahan Data (Validation Box - Live Auto-Audit)")
@@ -996,7 +991,6 @@ if f1:
         deleted_rows = st.session_state.deleted_rows
         added_rows = st.session_state.added_rows
         has_snapshot = st.session_state.has_snapshot
-        wabak_df = st.session_state.wabak_df
         
         if deleted_rows:
             st.error(f"⚠️ **AMARAN DISCREPANCY: DIKESAN {len(deleted_rows)} BARIS DATA REKOD WABAK SEMALAM HILANG / DIPADAM DARI GOOGLE SHEET!**")
@@ -1034,53 +1028,3 @@ if f1:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True
             )
-
-        # --- MODUL OPSYEN: CROSS-CHECK MANUAL EXCEL LUARAN ---
-        st.markdown("---")
-        st.subheader("📊 Perbandingan Manual Excel Luaran (Opsyenal)")
-        st.write("Jika anda ingin membandingkan data hari ini dengan mana-mana fail Excel Audit luaran secara manual, sila muat naik fail tersebut di bawah:")
-        
-        prev_excel_file = st.file_uploader("Muat naik Fail Excel Audit Luaran (.xlsx)", type=["xlsx"], key="manual_excel_upload")
-        
-        if prev_excel_file:
-            try:
-                df_prev_pivot = pd.read_excel(prev_excel_file, sheet_name='Pivot_Senarai_Penyakit').set_index('PENYAKIT')
-                
-                st.markdown("#### 🔄 Perbandingan Kumulatif Manual vs Hari Ini")
-                
-                comp_data = []
-                all_diseases = list(set(wabak_df.index).union(set(df_prev_pivot.index)))
-                
-                for dis in all_diseases:
-                    k_prev = df_prev_pivot.loc[dis, 'KUMULATIF'] if dis in df_prev_pivot.index else 0
-                    h_today = wabak_df.loc[dis, 'HARIAN'] if dis in wabak_df.index else 0
-                    k_today = wabak_df.loc[dis, 'KUMULATIF'] if dis in wabak_df.index else 0
-                    
-                    expected_k_today = k_prev + h_today
-                    diff_k = k_today - expected_k_today
-                    
-                    if h_today > 0 or diff_k != 0 or k_today != k_prev:
-                        status_str = "✅ SEPADAN" if diff_k == 0 else f"❌ DISCREPANCY ({diff_k:+d})"
-                        comp_data.append({
-                            'Penyakit': dis,
-                            'Kumulatif Manual': int(k_prev),
-                            'Harian Hari Ini': int(h_today),
-                            'Kumulatif Hari Ini': int(k_today),
-                            'Kumulatif Jangkaan': int(expected_k_today),
-                            'Status Validation': status_str
-                        })
-                        
-                df_comp = pd.DataFrame(comp_data)
-                if not df_comp.empty:
-                    st.dataframe(df_comp, use_container_width=True)
-                    
-                    has_disc = (df_comp['Status Validation'].str.contains('DISCREPANCY')).any()
-                    if has_disc:
-                        st.error("⚠️ **Dikesan Ketidakpadanan Antara Fail Manual & Hari Ini!**")
-                    else:
-                        st.success("🎉 **Sempurna!** Fail manual sepadan 100% dengan laporan hari ini.")
-                else:
-                    st.info("Tiada sebarang perbezaan data dikesan.")
-                    
-            except Exception as ex_comp:
-                st.warning(f"Gagal membaca fail Excel luaran: {ex_comp}. Pastikan anda memuat naik fail Excel Audit (.xlsx) yang betul.")
