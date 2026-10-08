@@ -136,12 +136,27 @@ def format_ipu_narrative(data_stesen, tarikh_hari_ini, tarikh_semalam, epi_week_
         parts.append(f"tahap Baik (0-50) iaitu {join_list(good)}")
         
     status_str = ", manakala ".join(parts) if len(parts) > 1 else "".join(parts)
-    
     jumlah_stesen = len(data_stesen)
     
     teks = f"Pada {tarikh_hari_ini} jam 9.00 pagi, kesemua {jumlah_stesen} stesen pemantauan di Selangor merekodkan IPU pada {status_str}. Perincian kes penyakit berkaitan jerebu yang dilaporkan oleh fasiliti sentinel pada {tarikh_semalam} adalah seperti di Jadual 6.1, manakala Rajah 6.1 hingga Rajah 6.3 menunjukkan tren mingguan konjunktivitis, URTI dan asma berbanding bacaan IPU tertinggi sehingga ME{epi_week_lepas}."
     
     return teks
+
+def format_wad_narrative(wad_count):
+    if wad_count == 0:
+        return " Tiada kemasukkan ke wad atau kematian disyaki berkaitan jerebu dilaporkan. Pemantauan penyakit berkaitan jerebu diteruskan."
+    
+    if wad_count == 1:
+        count_str = "satu (1)"
+    else:
+        num_word = {
+            2: "dua (2)", 3: "tiga (3)", 4: "empat (4)", 5: "lima (5)",
+            6: "enam (6)", 7: "tujuh (7)", 8: "lapan (8)", 9: "sembilan (9)"
+        }
+        word = num_word.get(wad_count, str(wad_count))
+        count_str = f"sejumlah {word}"
+        
+    return f" Terdapat {count_str} kemasukan ke wad disyaki berkaitan jerebu dilaporkan. Pemantauan penyakit berkaitan jerebu diteruskan."
 
 def set_repeat_table_header(row):
     tr = row._tr
@@ -296,7 +311,7 @@ def generate_excel_audit(df2_filt, wabak_df, df_yesterday, yesterday_str):
     return output
 
 # --- DOCX GENERATOR ---
-def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty, bkk_details, df_yesterday_list, jerebu_data, parsed_apims):
+def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty, bkk_details, df_yesterday_list, jerebu_data, parsed_apims, hsa_wad_count):
     doc = Document()
     now_msia = get_msia_time()
     today = now_msia.date()
@@ -875,7 +890,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         p0 = cells[0].paragraphs[0]
         apply_font(p0.add_run(fasiliti), 10, bold=True)
         
-        # Pengecualian Khas bagi Hospital Shah Alam (Konjunktivitis dan URTI dihitamkan)
         if fasiliti == "Hospital Shah Alam":
             set_cell_background(cells[1], "808080")
             set_cell_background(cells[2], "808080")
@@ -962,7 +976,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             
         ayat_dinamik = f"Pada {tarikh_semalam_str}, Sebanyak {str_penyakit} dilaporkan oleh fasiliti sentinel."
         
-    ayat_akhir = " Tiada kemasukkan ke wad atau kematian disyaki berkaitan jerebu dilaporkan. Pemantauan penyakit berkaitan jerebu diteruskan."
+    ayat_akhir = format_wad_narrative(hsa_wad_count)
     
     apply_font(p6_naratif.add_run(ayat_dinamik + ayat_akhir), 11, bold=False)
 
@@ -1016,9 +1030,15 @@ st.set_page_config(
     layout="centered"
 )
 
-# Deep CSS overrides
 st.markdown("""
     <style>
+    /* Paksa Latar Belakang & Warna Teks Utama Dark Mode */
+    .stAppViewContainer, .stApp {
+        background-color: #0E1117 !important;
+        color: #FAFAFA !important;
+    }
+    
+    /* Sembunyikan Header, Footer & Streamlit Menu */
     #MainMenu, header, .stAppHeader, [data-testid="stHeader"] {
         visibility: hidden !important;
         display: none !important;
@@ -1031,6 +1051,12 @@ st.markdown("""
     iframe[title="Managed by Streamlit"], .stActionButton, div[class*="stDeployButton"] {
         visibility: hidden !important;
         display: none !important;
+    }
+    
+    /* Warna latar belakang untuk elemen kad, input, dan text area */
+    div[data-baseweb="textarea"] textarea, div[data-baseweb="input"] input {
+        background-color: #1E293B !important;
+        color: #FFFFFF !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -1202,6 +1228,7 @@ if f1:
                 # --- PEMPROSESAN DATA JEREBU ---
                 jerebu_data = []
                 kumulatif_start_jerebu = date(2026, 9, 9)
+                hsa_wad_count = 0
                 
                 for display_name, tab_name in FASILITI_JEREBU:
                     try:
@@ -1217,6 +1244,8 @@ if f1:
                             return 0
                         
                         if display_name == "Hospital Shah Alam":
+                            hsa_wad_count = int(safe_sum_jerebu(df_harian, 9)) # Column J (index 9) for HSA Wad Kemasukan Asma
+                            
                             jerebu_data.append({
                                 "Fasiliti": display_name,
                                 "H_Konj": 0, "H_URTI": 0,
@@ -1241,7 +1270,7 @@ if f1:
                             "K_Konj": 0, "K_URTI": 0, "K_Asma": 0
                         })
 
-                doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, (len(bkk_details)==0), bkk_details, df_yesterday_list, jerebu_data, parsed_apims)
+                doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, (len(bkk_details)==0), bkk_details, df_yesterday_list, jerebu_data, parsed_apims, hsa_wad_count)
                 excel_out = generate_excel_audit(df2_filt, wabak_df, df_yesterday, get_malay_date(yesterday))
                 
                 file_date = today.strftime("%d.%m.%y")
