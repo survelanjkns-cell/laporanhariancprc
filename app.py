@@ -1291,7 +1291,7 @@ if f1:
                 label="📄 Muat Turun Laporan Word (.docx)", 
                 data=st.session_state.doc_bytes, 
                 file_name=st.session_state.file_name_custom,
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", 
                 use_container_width=True
             )
             
