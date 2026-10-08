@@ -25,7 +25,7 @@ AVG_HARIAN_FIGURES = {
     "Denggi": 426, "COVID-19": 54, "HFMD": 52, "Tuberculosis": 28,
     "Keracunan Makanan": 22, "Measles": 12, "Viral Hepatitis": 9,
     "Avian Influenza": 0, "HIV/AIDS": 7, "Leptospirosis": 6,
-    "Dysentry": 5, "Syphilis": 5, "Typhoid/Paratyphoid": 5,
+    "Dysentery": 5, "Syphilis": 5, "Typhoid/Paratyphoid": 5,
     "Gonorrhoea": 2, "Pertussis": 2, "Malaria": 1, "Mers-Cov": 1
 }
 
@@ -162,9 +162,9 @@ def format_penyakit_name(name):
     if name_str in ["DENGUE/DHF", "DENGUE"]:
         return "Denggi"
     if "MONKEYPOX" in name_str:
-        return "Mpox"   
-    if "Dysentry" in name_str:
-        return "Dysentery"   
+        return "Mpox"
+    if "DYSENTRY" in name_str or "DYSENTERY" in name_str:
+        return "Dysentery"
     return name_str.title()
 
 def set_cell_background(cell, hex_color):
@@ -1291,7 +1291,7 @@ if f1:
                 label="📄 Muat Turun Laporan Word (.docx)", 
                 data=st.session_state.doc_bytes, 
                 file_name=st.session_state.file_name_custom,
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", 
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 use_container_width=True
             )
             
