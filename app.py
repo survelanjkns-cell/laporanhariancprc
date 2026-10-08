@@ -1056,25 +1056,46 @@ st.markdown("""
     }
     
     /* PENAMBAHBAIKAN WARNA KOTAK INPUT DAN TEXTAREA */
-    div[data-baseweb="textarea"] textarea, div[data-baseweb="input"] input {
-        background-color: #262730 !important; /* Kelabu Gelap Lembut */
-        color: #FFFFFF !important; /* Tulisan Putih */
-        border: 1px solid #4B4B52 !important; /* Border Lembut */
+    div[data-baseweb="textarea"], 
+    div[data-baseweb="textarea"] > div,
+    div[data-baseweb="textarea"] textarea,
+    div[data-baseweb="input"] input {
+        background-color: #1E293B !important;
+        color: #FFFFFF !important;
+        border-color: #4B5563 !important;
     }
-    
-    /* PENAMBAHBAIKAN WARNA KOTAK MUAT NAIK FAIL (FILE UPLOADER) */
+
+    div[data-baseweb="textarea"] textarea::placeholder {
+        color: #9CA3AF !important;
+    }
+
+    /* LABELS & TEKS SAMPLING */
+    label, p, span, div[data-testid="stMarkdownContainer"] p {
+        color: #F8FAFC !important;
+    }
+
+    /* KOTAK INFORMASI / BLUE BOX (st.info, st.success, st.warning, st.error) */
+    div[data-testid="stNotification"], .stAlert {
+        background-color: #1E293B !important;
+        color: #F8FAFC !important;
+        border: 1px solid #334155 !important;
+    }
+    div[data-testid="stNotification"] p, .stAlert p {
+        color: #F8FAFC !important;
+    }
+
+    /* FILE UPLOADER DARK STYLING */
     div[data-testid="stFileUploader"] > section {
-        background-color: #262730 !important; /* Kelabu Gelap Lembut */
-        border: 1px dashed #4B4B52 !important; /* Garis Putus-putus */
+        background-color: #1E293B !important;
+        border: 1px dashed #64748B !important;
     }
-    
-    div[data-testid="stFileUploader"] span, div[data-testid="stFileUploader"] small {
-        color: #E2E8F0 !important; /* Teks panduan warna cerah */
+    div[data-testid="stFileUploader"] span, 
+    div[data-testid="stFileUploader"] small,
+    div[data-testid="stFileUploader"] p {
+        color: #E2E8F0 !important;
     }
-    
-    /* Menukar warna butang 'Browse files' */
     div[data-testid="stFileUploader"] button {
-        background-color: #4B4B52 !important;
+        background-color: #334155 !important;
         color: #FFFFFF !important;
         border: none !important;
     }
