@@ -890,6 +890,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         p0 = cells[0].paragraphs[0]
         apply_font(p0.add_run(fasiliti), 10, bold=True)
         
+        # Pengecualian Khas bagi Hospital Shah Alam (Konjunktivitis dan URTI dihitamkan)
         if fasiliti == "Hospital Shah Alam":
             set_cell_background(cells[1], "808080")
             set_cell_background(cells[2], "808080")
@@ -1033,59 +1034,39 @@ st.set_page_config(
 # Deep CSS overrides
 st.markdown("""
     <style>
-    /* Paksa Latar Belakang & Warna Teks Utama Dark Mode */
+    /* Paksa Latar Belakang Dark Mode */
     .stAppViewContainer, .stApp {
         background-color: #0E1117 !important;
         color: #FAFAFA !important;
     }
     
-    /* Sembunyikan Header, Footer & Streamlit Menu */
-    #MainMenu, header, .stAppHeader, [data-testid="stHeader"] {
-        visibility: hidden !important;
-        display: none !important;
-    }
-    footer, .stAppFooter, [data-testid="stFooter"], .stAppDeployDropdown,
-    div[data-testid="stConnectionStatus"] + div {
-        visibility: hidden !important;
-        display: none !important;
-    }
-    iframe[title="Managed by Streamlit"], .stActionButton, div[class*="stDeployButton"] {
+    /* Sembunyikan Header & Footer Streamlit */
+    #MainMenu, header, .stAppHeader, [data-testid="stHeader"],
+    footer, .stAppFooter, [data-testid="stFooter"], .stAppDeployDropdown {
         visibility: hidden !important;
         display: none !important;
     }
     
-    /* PENAMBAHBAIKAN WARNA KOTAK INPUT DAN TEXTAREA */
-    div[data-baseweb="textarea"], 
+    /* TETAPAN KHUSUS TEXTAREA & INPUT BOX (DARK GREY BACKGROUND + WHITE TEXT) */
+    .stTextArea textarea,
+    div[data-baseweb="textarea"],
     div[data-baseweb="textarea"] > div,
-    div[data-baseweb="textarea"] textarea,
-    div[data-baseweb="input"] input {
-        background-color: #262730 !important;
+    div[data-baseweb="base-input"],
+    div[data-baseweb="input"] {
+        background-color: #1E293B !important;
         color: #FFFFFF !important;
         border-color: #4B5563 !important;
     }
 
+    .stTextArea textarea::placeholder,
     div[data-baseweb="textarea"] textarea::placeholder {
         color: #9CA3AF !important;
+        opacity: 1 !important;
     }
 
-    /* LABELS & TEKS SAMPLING */
-    label, p, span, div[data-testid="stMarkdownContainer"] p {
-        color: #F8FAFC !important;
-    }
-
-    /* KOTAK INFORMASI / BLUE BOX (st.info, st.success, st.warning, st.error) */
-    div[data-testid="stNotification"], .stAlert {
-        background-color: #1E293B !important;
-        color: #F8FAFC !important;
-        border: 1px solid #334155 !important;
-    }
-    div[data-testid="stNotification"] p, .stAlert p {
-        color: #F8FAFC !important;
-    }
-
-    /* FILE UPLOADER DARK STYLING */
+    /* TETAPAN KHUSUS KOTAK UPLOAD FILE */
     div[data-testid="stFileUploader"] > section {
-        background-color: #262730 !important;
+        background-color: #1E293B !important;
         border: 1px dashed #64748B !important;
     }
     div[data-testid="stFileUploader"] span, 
@@ -1093,8 +1074,21 @@ st.markdown("""
     div[data-testid="stFileUploader"] p {
         color: #E2E8F0 !important;
     }
-    
-    /* PENAMBAHBAIKAN WARNA BUTANG (JANA LAPORAN & DOWNLOAD) */
+
+    /* TETAPAN KHUSUS KOTAK MAKLUMAT (st.info, st.success, st.error, st.warning) */
+    div[data-testid="stAlert"],
+    div[data-testid="stNotification"],
+    .stAlert {
+        background-color: #1E293B !important;
+        border: 1px solid #334155 !important;
+    }
+    div[data-testid="stAlert"] p,
+    div[data-testid="stNotification"] p,
+    .stAlert p {
+        color: #F8FAFC !important;
+    }
+
+    /* TETAPAN BUTANG (JANA & DOWNLOAD) */
     div.stButton > button, 
     div.stDownloadButton > button,
     button[kind="primary"],
@@ -1109,7 +1103,7 @@ st.markdown("""
     div.stDownloadButton > button:hover {
         background-color: #4B5563 !important;
         color: #FFFFFF !important;
-        border-color: #6B7280 !important;
+        border-color: #9CA3AF !important;
     }
     </style>
 """, unsafe_allow_html=True)
