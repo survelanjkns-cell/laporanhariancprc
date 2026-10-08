@@ -890,7 +890,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         p0 = cells[0].paragraphs[0]
         apply_font(p0.add_run(fasiliti), 10, bold=True)
         
-        # Pengecualian Khas bagi Hospital Shah Alam (Konjunktivitis dan URTI dihitamkan)
         if fasiliti == "Hospital Shah Alam":
             set_cell_background(cells[1], "808080")
             set_cell_background(cells[2], "808080")
@@ -1060,7 +1059,7 @@ st.markdown("""
     div[data-baseweb="textarea"] > div,
     div[data-baseweb="textarea"] textarea,
     div[data-baseweb="input"] input {
-        background-color: #1E293B !important;
+        background-color: #262730 !important;
         color: #FFFFFF !important;
         border-color: #4B5563 !important;
     }
@@ -1086,7 +1085,7 @@ st.markdown("""
 
     /* FILE UPLOADER DARK STYLING */
     div[data-testid="stFileUploader"] > section {
-        background-color: #1E293B !important;
+        background-color: #262730 !important;
         border: 1px dashed #64748B !important;
     }
     div[data-testid="stFileUploader"] span, 
@@ -1094,10 +1093,23 @@ st.markdown("""
     div[data-testid="stFileUploader"] p {
         color: #E2E8F0 !important;
     }
-    div[data-testid="stFileUploader"] button {
-        background-color: #334155 !important;
+    
+    /* PENAMBAHBAIKAN WARNA BUTANG (JANA LAPORAN & DOWNLOAD) */
+    div.stButton > button, 
+    div.stDownloadButton > button,
+    button[kind="primary"],
+    button[kind="secondary"] {
+        background-color: #374151 !important;
         color: #FFFFFF !important;
-        border: none !important;
+        border: 1px solid #4B5563 !important;
+        font-weight: bold !important;
+    }
+
+    div.stButton > button:hover, 
+    div.stDownloadButton > button:hover {
+        background-color: #4B5563 !important;
+        color: #FFFFFF !important;
+        border-color: #6B7280 !important;
     }
     </style>
 """, unsafe_allow_html=True)
