@@ -1060,6 +1060,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     # --- NARATIF SELEPAS JADUAL 6.1 ---
     p6_naratif = doc.add_paragraph()
     p6_naratif.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    p6_naratif.paragraph_format.space_after = Pt(12)
     
     parts_nar = []
     if sum_h_konj > 0:
@@ -1093,7 +1094,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         # 1. Rajah 6.1 (Konjunktivitis)
         img_61, start_me_61, end_me_61 = generate_jerebu_chart_image(df_graf_konj, last_epi_num)
         if img_61:
-            doc.add_paragraph()
             p_img1 = doc.add_paragraph()
             p_img1.alignment = WD_ALIGN_PARAGRAPH.CENTER
             p_img1.add_run().add_picture(img_61, width=Inches(6.0))
