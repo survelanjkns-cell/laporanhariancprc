@@ -1016,6 +1016,13 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             df_plot = df_graf_konj[(df_graf_konj['me_num'] > 0) & (df_graf_konj['me_num'] <= last_epi_num)].copy()
             
             if not df_plot.empty:
+                # KONFIGURASI FONT GLOBAL MATPLOTLIB (ARIAL, SAIZ 8, BOLD)
+                plt.rcParams['font.family'] = 'Arial'
+                plt.rcParams['font.size'] = 8
+                plt.rcParams['font.weight'] = 'bold'
+                plt.rcParams['axes.labelweight'] = 'bold'
+                plt.rcParams['axes.titleweight'] = 'bold'
+
                 fig, ax1 = plt.subplots(figsize=(9, 4.5))
                 colors = ['#7030A0', '#C00000', '#92D050', '#8064A2', '#4BACC6', '#F79646']
                 
@@ -1026,9 +1033,13 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
                     y_data = pd.to_numeric(df_plot[clinic], errors='coerce').fillna(0)
                     ax1.plot(x, y_data, label=clinic, color=colors[idx % len(colors)], linewidth=2.5)
                     
-                ax1.set_ylabel("BILANGAN KES", fontweight='bold', fontsize=9)
+                ax1.set_ylabel("BILANGAN KES", fontname='Arial', fontweight='bold', fontsize=8)
                 ax1.set_xticks(x)
-                ax1.set_xticklabels(x_labels, rotation=90, fontsize=8)
+                ax1.set_xticklabels(x_labels, rotation=90, fontname='Arial', fontsize=8, fontweight='bold')
+                ax1.tick_params(axis='y', labelsize=8)
+                for t in ax1.get_yticklabels():
+                    t.set_fontname('Arial')
+                    t.set_fontweight('bold')
                 
                 ax2 = ax1.twinx()
                 ipu_data = pd.to_numeric(df_plot[ipu_col], errors='coerce').fillna(0)
@@ -1036,8 +1047,13 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
                 
                 for i, val in enumerate(ipu_data):
                     if val > 0:
-                        ax2.annotate(str(int(val)), (x[i], val), textcoords="offset points", xytext=(0,6), ha='center', fontsize=7, fontweight='bold', color='#555555')
+                        ax2.annotate(str(int(val)), (x[i], val), textcoords="offset points", xytext=(0,6), ha='center', fontname='Arial', fontsize=8, fontweight='bold', color='#555555')
                 
+                ax2.tick_params(axis='y', labelsize=8)
+                for t in ax2.get_yticklabels():
+                    t.set_fontname('Arial')
+                    t.set_fontweight('bold')
+
                 ax1.grid(True, axis='y', linestyle='--', alpha=0.5)
                 
                 max_kes = pd.to_numeric(df_plot[clinics].stack(), errors='coerce').max()
@@ -1048,9 +1064,9 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
                 
                 lines_1, labels_1 = ax1.get_legend_handles_labels()
                 lines_2, labels_2 = ax2.get_legend_handles_labels()
-                fig.legend(lines_1 + lines_2, labels_1 + labels_2, loc='lower center', bbox_to_anchor=(0.5, -0.15), ncol=3, frameon=False, fontsize=8)
+                fig.legend(lines_1 + lines_2, labels_1 + labels_2, loc='lower center', bbox_to_anchor=(0.5, -0.15), ncol=3, frameon=False, fontsize=8, prop={'family': 'Arial', 'size': 8, 'weight': 'bold'})
                 
-                fig.text(0.5, 0.05, "MINGGU EPID", ha='center', fontweight='bold', fontsize=9)
+                fig.text(0.5, 0.05, "MINGGU EPID", ha='center', fontname='Arial', fontweight='bold', fontsize=8)
                 
                 plt.tight_layout()
                 plt.subplots_adjust(bottom=0.25)
