@@ -80,7 +80,6 @@ def read_gsheet_csv(sheet_id, gid="0", sheet_name=None, header='default', range_
         export_url += f"&range={range_val}"
     
     last_err = None
-    # For range support, Export URL is preferred over gviz
     for url in [export_url, gviz_url]:
         try:
             if header is None:
@@ -997,7 +996,8 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     if HAS_MATPLOTLIB and df_graf_konj is not None and not df_graf_konj.empty:
         try:
             df_graf_konj = df_graf_konj.dropna(axis=1, how='all')
-            df_graf_konj.columns = [str(c).strip() for c in df_graf_konj.columns]
+            # Bersihkan tajuk lajur daripada pembatas ruang & newline (\n)
+            df_graf_konj.columns = [re.sub(r'\s+', ' ', str(c)).strip() for c in df_graf_konj.columns]
             
             me_col = df_graf_konj.columns[0]
             ipu_col = df_graf_konj.columns[-1]
@@ -1017,7 +1017,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             
             if not df_plot.empty:
                 fig, ax1 = plt.subplots(figsize=(9, 4.5))
-                colors = ['#8064A2', '#C00000', '#92D050', '#7030A0', '#4BACC6', '#F79646']
+                colors = ['#7030A0', '#C00000', '#92D050', '#8064A2', '#4BACC6', '#F79646']
                 
                 x_labels = df_plot[me_col].astype(str).tolist()
                 x = np.arange(len(x_labels))
@@ -1176,7 +1176,20 @@ st.markdown("""
     div[data-testid="stFileUploader"] p {
         color: #E2E8F0 !important;
     }
-    
+
+    /* TETAPAN KHUSUS KOTAK MAKLUMAT (st.info, st.success, st.error, st.warning) */
+    div[data-testid="stAlert"],
+    div[data-testid="stNotification"],
+    .stAlert {
+        background-color: #1E293B !important;
+        border: 1px solid #334155 !important;
+    }
+    div[data-testid="stAlert"] p,
+    div[data-testid="stNotification"] p,
+    .stAlert p {
+        color: #F8FAFC !important;
+    }
+
     /* TETAPAN BUTANG (JANA & DOWNLOAD) */
     div.stButton > button, 
     div.stDownloadButton > button,
@@ -1409,13 +1422,14 @@ if f1:
                             "K_Konj": 0, "K_URTI": 0, "K_Asma": 0
                         })
                         
-                # --- DAPATKAN DATA GRAF JEREBU (JADUAL 6.1 GRAF) ---
+                # --- DAPATKAN DATA GRAF JEREBU (BARIS 4 SEBAGAI NAMA TAJUK LAJUR) ---
                 df_graf_konj = None
                 if HAS_MATPLOTLIB:
                     try:
                         graf_sheet_id = "1lAOM256C1e7SI8y8EDF0ayc8di-d4yIB5qWjx7IECkI"
                         graf_sheet_name = "GRAF CONJUNCTIVITIS"
-                        df_graf_konj = read_gsheet_csv(graf_sheet_id, sheet_name=graf_sheet_name, range_val="B5:H")
+                        # Membaca bermula baris 4 (range B4:H)
+                        df_graf_konj = read_gsheet_csv(graf_sheet_id, sheet_name=graf_sheet_name, range_val="B4:H")
                     except Exception as e:
                         st.warning(f"Gagal memuat turun data untuk graf jerebu: {e}")
 
