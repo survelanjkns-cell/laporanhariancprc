@@ -63,7 +63,7 @@ FASILITI_JEREBU = [
 
 CHART_IMAGE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTDprYai1uaP1L-JP6kuHRZX18AmDHX0ROEzRE37DaCHMo0cNWUvRa8R-65RZAK7XFWI6pb_-X-jF24/pubchart?oid=1681812411&format=image"
 
-# --- HELPER DUAL-ENDPOINT CSV READER ---
+# --- HELPER DUAL-ENDPOINT CSV READER (DENGAN UTAMA GVIZ APABILA TAB NAMA DIGUNAKAN) ---
 def read_gsheet_csv(sheet_id, gid="0", sheet_name=None, header='default', range_val=None):
     sheet_id = str(sheet_id).strip()
     
@@ -71,16 +71,21 @@ def read_gsheet_csv(sheet_id, gid="0", sheet_name=None, header='default', range_
         encoded_name = urllib.parse.quote(sheet_name)
         gviz_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={encoded_name}"
         export_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&sheet={encoded_name}"
+        if range_val:
+            gviz_url += f"&range={range_val}"
+            export_url += f"&range={range_val}"
+        url_list = [gviz_url, export_url]
     else:
         gid = str(gid).replace("#", "").replace("gid=", "").strip()
         gviz_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&gid={gid}"
         export_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
-        
-    if range_val:
-        export_url += f"&range={range_val}"
+        if range_val:
+            gviz_url += f"&range={range_val}"
+            export_url += f"&range={range_val}"
+        url_list = [export_url, gviz_url]
     
     last_err = None
-    for url in [export_url, gviz_url]:
+    for url in url_list:
         try:
             if header is None:
                 return pd.read_csv(url, header=None)
@@ -158,7 +163,15 @@ def generate_jerebu_chart_image(df_graf, last_epi_num):
         ax1.grid(True, axis='y', linestyle='--', alpha=0.5)
         
         max_kes = pd.to_numeric(df_plot[clinics].stack(), errors='coerce').max()
-        ax1.set_ylim(0, max(35, max_kes + (max_kes * 0.1) + 5))
+        if max_kes <= 40:
+            y1_top = max(35, max_kes + 5)
+        elif max_kes <= 150:
+            y1_top = max_kes + 20
+        elif max_kes <= 400:
+            y1_top = max_kes + 40
+        else:
+            y1_top = max_kes + (max_kes * 0.1)
+        ax1.set_ylim(0, y1_top)
         
         max_ipu = ipu_data.max()
         ax2.set_ylim(0, max(250, max_ipu + 50))
