@@ -14,7 +14,7 @@ import os
 import re
 import requests
 
-# Import matplotlib untuk Graf 6.1
+# Import matplotlib & numpy untuk Graf 6.1, 6.2, dan 6.3
 try:
     import matplotlib.pyplot as plt
     import numpy as np
@@ -91,6 +91,99 @@ def read_gsheet_csv(sheet_id, gid="0", sheet_name=None, header='default', range_
             continue
             
     raise Exception(f"Gagal memuat turun data dari Google Sheet (ID: {sheet_id}, Sheet: {sheet_name or gid}). Ralat: {last_err}")
+
+# --- HELPER GENERATOR GRAF JEREBU ---
+def generate_jerebu_chart_image(df_graf, last_epi_num):
+    if df_graf is None or df_graf.empty:
+        return None, None, None
+        
+    try:
+        df_graf = df_graf.dropna(axis=1, how='all')
+        df_graf.columns = [re.sub(r'\s+', ' ', str(c)).strip() for c in df_graf.columns]
+        
+        me_col = df_graf.columns[0]
+        ipu_col = df_graf.columns[-1]
+        clinics = df_graf.columns[1:-1]
+        
+        def extract_me_num(val):
+            try:
+                return int(re.search(r'\d+', str(val)).group())
+            except:
+                return -1
+                
+        df_graf['me_num'] = df_graf[me_col].apply(extract_me_num)
+        df_plot = df_graf[(df_graf['me_num'] > 0) & (df_graf['me_num'] <= last_epi_num)].copy()
+        
+        if df_plot.empty:
+            return None, None, None
+            
+        plt.rcParams['font.family'] = 'Arial'
+        plt.rcParams['font.size'] = 8
+        plt.rcParams['font.weight'] = 'bold'
+        plt.rcParams['axes.labelweight'] = 'bold'
+        plt.rcParams['axes.titleweight'] = 'bold'
+
+        fig, ax1 = plt.subplots(figsize=(9, 4.5))
+        colors = ['#7030A0', '#C00000', '#92D050', '#8064A2', '#4BACC6', '#F79646']
+        
+        x_labels = df_plot[me_col].astype(str).tolist()
+        x = np.arange(len(x_labels))
+        
+        for idx, clinic in enumerate(clinics):
+            y_data = pd.to_numeric(df_plot[clinic], errors='coerce').fillna(0)
+            ax1.plot(x, y_data, label=clinic, color=colors[idx % len(colors)], linewidth=2.5)
+            
+        ax1.set_ylabel("BILANGAN KES", fontname='Arial', fontweight='bold', fontsize=8)
+        ax1.set_xticks(x)
+        ax1.set_xticklabels(x_labels, rotation=90, fontname='Arial', fontsize=8, fontweight='bold')
+        ax1.tick_params(axis='y', labelsize=8)
+        for t in ax1.get_yticklabels():
+            t.set_fontname('Arial')
+            t.set_fontweight('bold')
+        
+        ax2 = ax1.twinx()
+        ipu_data = pd.to_numeric(df_plot[ipu_col], errors='coerce').fillna(0)
+        ax2.set_ylabel("IPU", fontname='Arial', fontweight='bold', fontsize=8)
+        ax2.plot(x, ipu_data, label="IPU TERTINGGI", color='red', linestyle='--', linewidth=2.5)
+        
+        for i, val in enumerate(ipu_data):
+            if val > 0:
+                ax2.annotate(str(int(val)), (x[i], val), textcoords="offset points", xytext=(0,6), ha='center', fontname='Arial', fontsize=8, fontweight='bold', color='#555555')
+        
+        ax2.tick_params(axis='y', labelsize=8)
+        for t in ax2.get_yticklabels():
+            t.set_fontname('Arial')
+            t.set_fontweight('bold')
+
+        ax1.grid(True, axis='y', linestyle='--', alpha=0.5)
+        
+        max_kes = pd.to_numeric(df_plot[clinics].stack(), errors='coerce').max()
+        ax1.set_ylim(0, max(35, max_kes + (max_kes * 0.1) + 5))
+        
+        max_ipu = ipu_data.max()
+        ax2.set_ylim(0, max(250, max_ipu + 50))
+        
+        lines_1, labels_1 = ax1.get_legend_handles_labels()
+        lines_2, labels_2 = ax2.get_legend_handles_labels()
+        fig.legend(lines_1 + lines_2, labels_1 + labels_2, loc='lower center', bbox_to_anchor=(0.5, -0.18), ncol=3, frameon=False, fontsize=8, prop={'family': 'Arial', 'size': 8, 'weight': 'bold'})
+        
+        fig.text(0.5, 0.03, "MINGGU EPID", ha='center', fontname='Arial', fontweight='bold', fontsize=8)
+        
+        plt.tight_layout()
+        plt.subplots_adjust(bottom=0.25)
+        
+        img_stream = io.BytesIO()
+        plt.savefig(img_stream, format='png', dpi=300, bbox_inches='tight')
+        img_stream.seek(0)
+        plt.close(fig)
+        
+        start_me = df_plot['me_num'].iloc[0]
+        end_me = df_plot['me_num'].iloc[-1]
+        
+        return img_stream, start_me, end_me
+    except Exception as e:
+        print("Ralat jana graf:", e)
+        return None, None, None
 
 # --- HELPERS FUNGSI & APIMS ---
 def parse_apims_pasted_text(raw_text):
@@ -322,7 +415,7 @@ def generate_excel_audit(df2_filt, wabak_df, df_yesterday, yesterday_str):
     return output
 
 # --- DOCX GENERATOR ---
-def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty, bkk_details, df_yesterday_list, jerebu_data, parsed_apims, hsa_wad_count, df_graf_konj):
+def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty, bkk_details, df_yesterday_list, jerebu_data, parsed_apims, hsa_wad_count, df_graf_konj, df_graf_urti, df_graf_asma):
     doc = Document()
     now_msia = get_msia_time()
     today = now_msia.date()
@@ -992,112 +1085,58 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     
     apply_font(p6_naratif.add_run(ayat_dinamik + ayat_akhir), 11, bold=False)
 
-    # --- TAMBAHAN GRAF KONJUNKTIVITIS (Rajah 6.1) ---
-    if HAS_MATPLOTLIB and df_graf_konj is not None and not df_graf_konj.empty:
-        try:
-            df_graf_konj = df_graf_konj.dropna(axis=1, how='all')
-            # Bersihkan tajuk lajur daripada pembatas ruang & newline (\n)
-            df_graf_konj.columns = [re.sub(r'\s+', ' ', str(c)).strip() for c in df_graf_konj.columns]
+    # --- JANA DAN TAMBAH GRAF-GRAF JEREBU (RAJAH 6.1, 6.2, 6.3) ---
+    if HAS_MATPLOTLIB:
+        last_epi_num = int(get_epi_week_last_week(today).split('/')[0])
+        year_str = today.year
+        
+        # 1. Rajah 6.1 (Konjunktivitis)
+        img_61, start_me_61, end_me_61 = generate_jerebu_chart_image(df_graf_konj, last_epi_num)
+        if img_61:
+            doc.add_paragraph()
+            p_img1 = doc.add_paragraph()
+            p_img1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p_img1.add_run().add_picture(img_61, width=Inches(6.0))
             
-            me_col = df_graf_konj.columns[0]
-            ipu_col = df_graf_konj.columns[-1]
-            clinics = df_graf_konj.columns[1:-1]
-            
-            def extract_me_num(val):
-                try:
-                    return int(re.search(r'\d+', str(val)).group())
-                except:
-                    return -1
-                    
-            df_graf_konj['me_num'] = df_graf_konj[me_col].apply(extract_me_num)
-            
-            last_epi_num = int(get_epi_week_last_week(today).split('/')[0])
-            
-            df_plot = df_graf_konj[(df_graf_konj['me_num'] > 0) & (df_graf_konj['me_num'] <= last_epi_num)].copy()
-            
-            if not df_plot.empty:
-                # KONFIGURASI FONT GLOBAL MATPLOTLIB (ARIAL, SAIZ 8, BOLD)
-                plt.rcParams['font.family'] = 'Arial'
-                plt.rcParams['font.size'] = 8
-                plt.rcParams['font.weight'] = 'bold'
-                plt.rcParams['axes.labelweight'] = 'bold'
-                plt.rcParams['axes.titleweight'] = 'bold'
+            p_cap1 = doc.add_paragraph()
+            p_cap1.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+            p_cap1.paragraph_format.space_before = Pt(6)
+            run_cap1_label = p_cap1.add_run("Rajah 6.1: ")
+            apply_font(run_cap1_label, 11, bold=True)
+            run_cap1_text = p_cap1.add_run(f"Tren Mingguan Kes Konjunktivitis dan Bacaan IPU Tertinggi di Fasiliti Sentinel Jerebu Selangor, ME{start_me_61}–ME{end_me_61}/{year_str}")
+            apply_font(run_cap1_text, 11, bold=False)
 
-                fig, ax1 = plt.subplots(figsize=(9, 4.5))
-                colors = ['#7030A0', '#C00000', '#92D050', '#8064A2', '#4BACC6', '#F79646']
-                
-                x_labels = df_plot[me_col].astype(str).tolist()
-                x = np.arange(len(x_labels))
-                
-                for idx, clinic in enumerate(clinics):
-                    y_data = pd.to_numeric(df_plot[clinic], errors='coerce').fillna(0)
-                    ax1.plot(x, y_data, label=clinic, color=colors[idx % len(colors)], linewidth=2.5)
-                    
-                ax1.set_ylabel("BILANGAN KES", fontname='Arial', fontweight='bold', fontsize=8)
-                ax1.set_xticks(x)
-                ax1.set_xticklabels(x_labels, rotation=90, fontname='Arial', fontsize=8, fontweight='bold')
-                ax1.tick_params(axis='y', labelsize=8)
-                for t in ax1.get_yticklabels():
-                    t.set_fontname('Arial')
-                    t.set_fontweight('bold')
-                
-                ax2 = ax1.twinx()
-                ipu_data = pd.to_numeric(df_plot[ipu_col], errors='coerce').fillna(0)
-                ax2.plot(x, ipu_data, label="IPU TERTINGGI", color='red', linestyle='--', linewidth=2.5)
-                
-                for i, val in enumerate(ipu_data):
-                    if val > 0:
-                        ax2.annotate(str(int(val)), (x[i], val), textcoords="offset points", xytext=(0,6), ha='center', fontname='Arial', fontsize=8, fontweight='bold', color='#555555')
-                
-                ax2.tick_params(axis='y', labelsize=8)
-                for t in ax2.get_yticklabels():
-                    t.set_fontname('Arial')
-                    t.set_fontweight('bold')
+        # 2. Rajah 6.2 (URTI)
+        img_62, start_me_62, end_me_62 = generate_jerebu_chart_image(df_graf_urti, last_epi_num)
+        if img_62:
+            doc.add_paragraph()
+            p_img2 = doc.add_paragraph()
+            p_img2.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p_img2.add_run().add_picture(img_62, width=Inches(6.0))
+            
+            p_cap2 = doc.add_paragraph()
+            p_cap2.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+            p_cap2.paragraph_format.space_before = Pt(6)
+            run_cap2_label = p_cap2.add_run("Rajah 6.2: ")
+            apply_font(run_cap2_label, 11, bold=True)
+            run_cap2_text = p_cap2.add_run(f"Tren Mingguan Kes URTI dan Bacaan IPU Tertinggi di Fasiliti Sentinel Jerebu Selangor, ME{start_me_62}–ME{end_me_62}/{year_str}")
+            apply_font(run_cap2_text, 11, bold=False)
 
-                ax1.grid(True, axis='y', linestyle='--', alpha=0.5)
-                
-                max_kes = pd.to_numeric(df_plot[clinics].stack(), errors='coerce').max()
-                ax1.set_ylim(0, max(35, max_kes + 5))
-                
-                max_ipu = ipu_data.max()
-                ax2.set_ylim(0, max(250, max_ipu + 50))
-                
-                lines_1, labels_1 = ax1.get_legend_handles_labels()
-                lines_2, labels_2 = ax2.get_legend_handles_labels()
-                fig.legend(lines_1 + lines_2, labels_1 + labels_2, loc='lower center', bbox_to_anchor=(0.5, -0.15), ncol=3, frameon=False, fontsize=8, prop={'family': 'Arial', 'size': 8, 'weight': 'bold'})
-                
-                fig.text(0.5, 0.05, "MINGGU EPID", ha='center', fontname='Arial', fontweight='bold', fontsize=8)
-                
-                plt.tight_layout()
-                plt.subplots_adjust(bottom=0.25)
-                
-                img_stream = io.BytesIO()
-                plt.savefig(img_stream, format='png', dpi=300, bbox_inches='tight')
-                img_stream.seek(0)
-                plt.close(fig)
-                
-                doc.add_paragraph() 
-                
-                p_graf = doc.add_paragraph()
-                p_graf.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                p_graf.add_run().add_picture(img_stream, width=Inches(6.0))
-                
-                start_me = df_plot['me_num'].iloc[0]
-                end_me = df_plot['me_num'].iloc[-1]
-                year_str = today.year
-                
-                p_caption = doc.add_paragraph()
-                p_caption.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                p_caption.paragraph_format.space_before = Pt(6)
-                
-                run_cap_label = p_caption.add_run("Rajah 6.1: ")
-                apply_font(run_cap_label, 11, bold=True)
-                run_cap_text = p_caption.add_run(f"Tren Mingguan Kes Konjunktivitis dan Bacaan IPU Tertinggi di Fasiliti Sentinel Jerebu Selangor, ME{start_me}–ME{end_me}/{year_str}")
-                apply_font(run_cap_text, 11, bold=False)
-                
-        except Exception as e:
-            print("Ralat graf:", e)
-
+        # 3. Rajah 6.3 (Asma)
+        img_63, start_me_63, end_me_63 = generate_jerebu_chart_image(df_graf_asma, last_epi_num)
+        if img_63:
+            doc.add_paragraph()
+            p_img3 = doc.add_paragraph()
+            p_img3.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p_img3.add_run().add_picture(img_63, width=Inches(6.0))
+            
+            p_cap3 = doc.add_paragraph()
+            p_cap3.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+            p_cap3.paragraph_format.space_before = Pt(6)
+            run_cap3_label = p_cap3.add_run("Rajah 6.3: ")
+            apply_font(run_cap3_label, 11, bold=True)
+            run_cap3_text = p_cap3.add_run(f"Tren Mingguan Kes Asma dan Bacaan IPU Tertinggi di Fasiliti Sentinel Jerebu Selangor, ME{start_me_63}–ME{end_me_63}/{year_str}")
+            apply_font(run_cap3_text, 11, bold=False)
 
     # --- 7.0 Rumusan oleh Ketua Petugas CPRC Selangor ---
     p7_head = doc.add_paragraph()
@@ -1244,7 +1283,7 @@ st.info("Sila copy teks jadual dari laman web APIMS dan paste ke dalam kotak di 
 raw_apims_input = st.text_area("Tampal data APIMS di sini:", height=150, placeholder="Contoh: Shah Alam 180** JOHAN SETIA 189** Petaling Jaya 175**")
 
 if not HAS_MATPLOTLIB:
-    st.sidebar.warning("Modul 'matplotlib' tidak dijumpai. Sila run `pip install matplotlib numpy` pada terminal untuk membolehkan skrip menjana graf Jerebu (Rajah 6.1).")
+    st.sidebar.warning("Modul 'matplotlib' tidak dijumpai. Sila masukkan 'matplotlib' dan 'numpy' dalam requirements.txt.")
 
 if 'report_generated' not in st.session_state:
     st.session_state.report_generated = False
@@ -1255,7 +1294,7 @@ if f1:
         st.session_state.last_file = f1.name
 
     if st.button("🚀 Jana Laporan Lengkap"):
-        with st.spinner("Sedang memproses data dan memuat turun jadual wabak secara live..."):
+        with st.spinner("Sedang memproses data dan memuat turun jadual/graf secara live..."):
             try:
                 # 1. PARSE APIMS
                 parsed_apims = {}
@@ -1438,18 +1477,33 @@ if f1:
                             "K_Konj": 0, "K_URTI": 0, "K_Asma": 0
                         })
                         
-                # --- DAPATKAN DATA GRAF JEREBU (BARIS 4 SEBAGAI NAMA TAJUK LAJUR) ---
+                # --- DAPATKAN DATA GRAF JEREBU (RAJAH 6.1, 6.2, 6.3) ---
                 df_graf_konj = None
+                df_graf_urti = None
+                df_graf_asma = None
+                
                 if HAS_MATPLOTLIB:
+                    graf_sheet_id = "1lAOM256C1e7SI8y8EDF0ayc8di-d4yIB5qWjx7IECkI"
+                    
                     try:
-                        graf_sheet_id = "1lAOM256C1e7SI8y8EDF0ayc8di-d4yIB5qWjx7IECkI"
-                        graf_sheet_name = "GRAF CONJUNCTIVITIS"
-                        # Membaca bermula baris 4 (range B4:H)
-                        df_graf_konj = read_gsheet_csv(graf_sheet_id, sheet_name=graf_sheet_name, range_val="B4:H")
+                        df_graf_konj = read_gsheet_csv(graf_sheet_id, sheet_name="GRAF CONJUNCTIVITIS", range_val="B4:H")
                     except Exception as e:
-                        st.warning(f"Gagal memuat turun data untuk graf jerebu: {e}")
+                        st.warning(f"Gagal memuat turun data untuk Graf Konjunktivitis: {e}")
+                        
+                    try:
+                        df_graf_urti = read_gsheet_csv(graf_sheet_id, sheet_name="GRAF URTI", range_val="B4:H")
+                    except Exception as e:
+                        st.warning(f"Gagal memuat turun data untuk Graf URTI: {e}")
+                        
+                    try:
+                        try:
+                            df_graf_asma = read_gsheet_csv(graf_sheet_id, sheet_name="GRAF ASTHMA", range_val="B4:I")
+                        except:
+                            df_graf_asma = read_gsheet_csv(graf_sheet_id, sheet_name="GRAF ASMA", range_val="B4:I")
+                    except Exception as e:
+                        st.warning(f"Gagal memuat turun data untuk Graf Asma: {e}")
 
-                doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, (len(bkk_details)==0), bkk_details, df_yesterday_list, jerebu_data, parsed_apims, hsa_wad_count, df_graf_konj)
+                doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, (len(bkk_details)==0), bkk_details, df_yesterday_list, jerebu_data, parsed_apims, hsa_wad_count, df_graf_konj, df_graf_urti, df_graf_asma)
                 excel_out = generate_excel_audit(df2_filt, wabak_df, df_yesterday, get_malay_date(yesterday))
                 
                 file_date = today.strftime("%d.%m.%y")
