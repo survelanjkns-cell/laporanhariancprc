@@ -40,12 +40,8 @@ AVG_HARIAN_FIGURES = {
 SHEET_ID = "1bjyNcntm-I6nRaIVkVdJqJRAzn5r2tYFfjUAN0emv9w"
 GID = "0"
 
-# --- URL GOOGLE SHEET WABAK (LIVE & AUTOMATIC SNAPSHOT) ---
+# --- URL GOOGLE SHEET WABAK ---
 SHEET_ID_WABAK = "1SMu8z0MONnxkduZEaRyVNrEnH7KkvnJ9EjuVxSi3WOY"
-GID_RAW = "0"  
-
-RAW_GID_AUDIT = "1442328310" 
-GID_AUDIT_YESTERDAY = str(RAW_GID_AUDIT).replace("#", "").replace("gid=", "").strip()
 
 # --- URL GOOGLE SHEET BKK ---
 BKK_SPREADSHEET_ID = "1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c"
@@ -63,7 +59,7 @@ FASILITI_JEREBU = [
 
 CHART_IMAGE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTDprYai1uaP1L-JP6kuHRZX18AmDHX0ROEzRE37DaCHMo0cNWUvRa8R-65RZAK7XFWI6pb_-X-jF24/pubchart?oid=1681812411&format=image"
 
-# --- HELPER DUAL-ENDPOINT CSV READER (DENGAN UTAMA GVIZ APABILA TAB NAMA DIGUNAKAN) ---
+# --- HELPER DUAL-ENDPOINT CSV READER ---
 def read_gsheet_csv(sheet_id, gid="0", sheet_name=None, header='default', range_val=None):
     sheet_id = str(sheet_id).strip()
     
@@ -803,42 +799,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             apply_font(run, 9, bold=True)
             row_cells[j].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
 
-    try:
-        response = requests.get(CHART_IMAGE_URL)
-        if response.status_code == 200:
-            doc.add_paragraph()
-            
-            border_table = doc.add_table(rows=1, cols=1)
-            border_table.style = 'Table Grid'
-            border_table.alignment = WD_TABLE_ALIGNMENT.CENTER
-            border_table.autofit = False
-            
-            cell_graf = border_table.cell(0, 0)
-            cell_graf.width = Inches(6.2)
-            cell_graf.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-            
-            img_stream = io.BytesIO(response.content)
-            p_img = cell_graf.paragraphs[0]
-            p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            p_img.paragraph_format.space_before = Pt(6)
-            p_img.paragraph_format.space_after = Pt(6)
-            run_img = p_img.add_run()
-            run_img.add_picture(img_stream, width=Inches(6.0))
-            
-            p_rajah_head = doc.add_paragraph()
-            p_rajah_head.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            p_rajah_head.paragraph_format.space_before = Pt(8)
-            p_rajah_head.paragraph_format.space_after = Pt(12)
-            
-            run_rajah_label = p_rajah_head.add_run("Rajah 3.1 : ")
-            apply_font(run_rajah_label, 11, bold=True)
-            run_rajah_title = p_rajah_head.add_run("Tren Kes Mingguan Denggi Didaftar Bagi Tahun 2025 - 2026 Negeri Selangor")
-            apply_font(run_rajah_title, 11, bold=False)
-            
-        else:
-            st.warning("Gagal memuat turun imej graf.")
-    except Exception as e:
-        st.error(f"Ralat semasa memproses Rajah 3.1: {e}")
+    doc.add_paragraph()
 
     # --- 4.0 Ringkasan Laporan Kejadian Bencana, Kecemasan dan Krisis (BKK) ---
     doc.add_page_break()
@@ -1121,7 +1082,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         # 2. Rajah 6.2 (URTI)
         img_62, start_me_62, end_me_62 = generate_jerebu_chart_image(df_graf_urti, last_epi_num)
         if img_62:
-            doc.add_paragraph()
             p_img2 = doc.add_paragraph()
             p_img2.alignment = WD_ALIGN_PARAGRAPH.CENTER
             p_img2.add_run().add_picture(img_62, width=Inches(6.0))
@@ -1137,7 +1097,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         # 3. Rajah 6.3 (Asma)
         img_63, start_me_63, end_me_63 = generate_jerebu_chart_image(df_graf_asma, last_epi_num)
         if img_63:
-            doc.add_paragraph()
             p_img3 = doc.add_paragraph()
             p_img3.alignment = WD_ALIGN_PARAGRAPH.CENTER
             p_img3.add_run().add_picture(img_63, width=Inches(6.0))
@@ -1324,33 +1283,32 @@ if f1:
                 col_totals = matrix[TEMPLATE_PKDS + ['Grand Total']].sum(axis=0)
 
                 # --- 1. PROSES PEMBACAAN LIVE GOOGLE SHEET WABAK (HARI INI) ---
-                df2 = read_gsheet_csv(SHEET_ID_WABAK, GID_RAW)
+                df2 = read_gsheet_csv(SHEET_ID_WABAK, sheet_name="lock")
                 df2.columns = df2.columns.str.strip()
                 
-                df2['Tarikh Isytihar Wabak'] = pd.to_datetime(df2['Tarikh Isytihar Wabak'], dayfirst=True, errors='coerce').dt.date
+                col_A = df2.columns[0] # Kolum A (Timestamp)
+                df2['Timestamp_Date'] = pd.to_datetime(df2[col_A], dayfirst=True, errors='coerce').dt.date
                 df2['Tarikh Sebenar Tamat Wabak'] = pd.to_datetime(df2['Tarikh Sebenar Tamat Wabak'], dayfirst=True, errors='coerce').dt.date
                 df2['Tarikh Wabak Dijangka Tamat'] = pd.to_datetime(df2['Tarikh Wabak Dijangka Tamat'], dayfirst=True, errors='coerce').dt.date
 
                 addr_col = 'Tempat Berlaku Wabak\n(Alamat diisi lengkap dengan :- No rumah, nama jalan, nama tempat, daerah dan Negeri)'
                 cat_col = 'Kategori Tempat\n(Kategori premis berdasarkan tempat berlaku wabak)'
                 
-                df2_raw_audit = df2.copy()
-                df2 = df2.drop_duplicates(subset=['PENYAKIT', 'Tarikh Isytihar Wabak', addr_col], keep='first')
+                df2 = df2.dropna(subset=['Timestamp_Date'])
 
-                df_yesterday = df2[df2['Tarikh Isytihar Wabak'] == yesterday].copy()
+                df_yesterday = df2[df2['Timestamp_Date'] == yesterday].copy()
                 df_yesterday_list = df_yesterday[['PENYAKIT', 'DAERAH (HURUF BESAR)', addr_col, cat_col, 'Bilangan Kes', 'Bilangan Terdedah']].values.tolist()
 
-                df2_filt = df2[(df2['Tarikh Isytihar Wabak'] >= date(2026, 1, 3)) & (df2['Tarikh Isytihar Wabak'] <= yesterday)].copy()
+                df2_filt = df2[df2['Timestamp_Date'] <= yesterday].copy()
                 def group_inf(n): return "ILI/ Influenza" if any(x in str(n).upper() for x in ["INFLUENZA", "ILI"]) else n
                 
-                df2_raw_audit['PENYAKIT_GROUP'] = df2_raw_audit['PENYAKIT'].apply(group_inf)
                 df2_filt['PENYAKIT'] = df2_filt['PENYAKIT'].apply(group_inf)
                 
                 wb_sum = []
                 for d in df2_filt['PENYAKIT'].unique():
                     if pd.isna(d): continue
                     disease_df = df2_filt[df2_filt['PENYAKIT'] == d]
-                    h = len(disease_df[disease_df['Tarikh Isytihar Wabak'] == yesterday])
+                    h = len(disease_df[disease_df['Timestamp_Date'] == yesterday])
                     k = len(disease_df)
                     def check_active(row):
                         tamat = row['Tarikh Sebenar Tamat Wabak'] if pd.notna(row['Tarikh Sebenar Tamat Wabak']) else row['Tarikh Wabak Dijangka Tamat']
@@ -1359,49 +1317,6 @@ if f1:
                     wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'AKTIF': active_count, 'KUMULATIF': k})
                 
                 wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
-
-                # --- 2. PEMBACAAN AUTOMATIK SNAPSHOT SEMALAM ---
-                df2_prev = pd.DataFrame()
-                has_snapshot = False
-                
-                try:
-                    df2_prev = read_gsheet_csv(SHEET_ID_WABAK, GID_AUDIT_YESTERDAY)
-                    df2_prev.columns = df2_prev.columns.str.strip()
-                    if not df2_prev.empty and len(df2_prev.columns) > 3:
-                        has_snapshot = True
-                        df2_prev['Tarikh Isytihar Wabak'] = pd.to_datetime(df2_prev['Tarikh Isytihar Wabak'], dayfirst=True, errors='coerce').dt.date
-                        df2_prev = df2_prev.drop_duplicates(subset=['PENYAKIT', 'Tarikh Isytihar Wabak', addr_col], keep='first')
-                        df2_prev_filt = df2_prev[(df2_prev['Tarikh Isytihar Wabak'] >= date(2026, 1, 3)) & (df2_prev['Tarikh Isytihar Wabak'] <= yesterday)].copy()
-                        df2_prev_filt['PENYAKIT'] = df2_prev_filt['PENYAKIT'].apply(group_inf)
-                except Exception:
-                    has_snapshot = False
-
-                # --- 3. AUDIT BARIS DEMI BARIS AUTOMATIK ---
-                deleted_rows = []
-                added_rows = []
-                
-                if has_snapshot and not df2_prev_filt.empty:
-                    def gen_key(df_target):
-                        if 'Form Response Edit URL' in df_target.columns:
-                            return df_target['Form Response Edit URL'].astype(str).str.strip()
-                        else:
-                            return (df_target['PENYAKIT'].astype(str) + "_" + 
-                                    df_target[addr_col].astype(str) + "_" + 
-                                    df_target['Tarikh Isytihar Wabak'].astype(str))
-
-                    df2_prev_filt['UNIQUE_KEY'] = gen_key(df2_prev_filt)
-                    df2_filt['UNIQUE_KEY'] = gen_key(df2_filt)
-                    
-                    keys_prev = set(df2_prev_filt['UNIQUE_KEY'])
-                    keys_today = set(df2_filt['UNIQUE_KEY'])
-                    
-                    deleted_keys = keys_prev - keys_today
-                    added_keys = keys_today - keys_prev
-                    
-                    if deleted_keys:
-                        deleted_rows = df2_prev_filt[df2_prev_filt['UNIQUE_KEY'].isin(deleted_keys)][['DAERAH (HURUF BESAR)', 'PENYAKIT', addr_col, 'Tarikh Isytihar Wabak']].values.tolist()
-                    if added_keys:
-                        added_rows = df2_filt[df2_filt['UNIQUE_KEY'].isin(added_keys)][['DAERAH (HURUF BESAR)', 'PENYAKIT', addr_col, 'Tarikh Isytihar Wabak']].values.tolist()
 
                 # --- PEMPROSESAN DATA GOOGLE SHEET BKK & VECTOR ---
                 raw_gs = read_gsheet_csv(SHEET_ID, GID, header=None)
