@@ -1,4 +1,3 @@
-bahagian 6.0 ayat yang first tukar kepada format ayat macam ni: Pada 9 Oktober 2026 (Jumaat), bacaan Indeks Pencemar Udara (IPU) tertinggi di Selangor direkodkan di Johan Setia (183), diikuti Shah Alam (178), Petaling Jaya (170), Banting (169), Klang (168) dan Kuala Selangor (156).  ni current skrip sy : import streamlit as st
 import pandas as pd
 from datetime import datetime, date, timedelta
 import pytz
