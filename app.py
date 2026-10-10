@@ -1073,7 +1073,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     # --- NARATIF SELEPAS JADUAL 6.1 ---
     p6_naratif = doc.add_paragraph()
     p6_naratif.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    p6_naratif.paragraph_format.space_after = Pt(12)
     
     parts_nar = []
     if sum_h_konj > 0:
@@ -1525,9 +1524,6 @@ if f1:
                 st.session_state.excel_bytes = excel_out.getvalue()
                 st.session_state.file_name_custom = f"Laporan CPRC Selangor ({file_date}).docx"
                 st.session_state.excel_name_custom = f"Audit Data Wabak CPRC ({file_date}).xlsx"
-                st.session_state.deleted_rows = deleted_rows
-                st.session_state.added_rows = added_rows
-                st.session_state.has_snapshot = has_snapshot
                 st.session_state.report_generated = True
 
             except Exception as e:
@@ -1536,28 +1532,6 @@ if f1:
     # --- PAPARAN HASIL LAPORAN ---
     if st.session_state.get('report_generated', False):
         st.markdown("---")
-        st.subheader("🔍 Papan Pengesahan Data (Validation Box - Live Auto-Audit)")
-        
-        deleted_rows = st.session_state.deleted_rows
-        added_rows = st.session_state.added_rows
-        has_snapshot = st.session_state.has_snapshot
-        
-        if deleted_rows:
-            st.error(f"⚠️ **AMARAN DISCREPANCY: DIKESAN {len(deleted_rows)} BARIS DATA REKOD WABAK SEMALAM HILANG / DIPADAM DARI GOOGLE SHEET!**")
-            st.write("Senarai rekod yang hilang/dipadam:")
-            df_del_disp = pd.DataFrame(deleted_rows, columns=['Daerah', 'Penyakit', 'Alamat / Premis', 'Tarikh Isytihar'])
-            st.dataframe(df_del_disp, use_container_width=True)
-        elif has_snapshot:
-            st.success("✅ **STATUS VALIDASI AUTOMATIK:** Semua baris data daripada tab `Audit_Yesterday` sepadan 100% dengan data hari ini tanpa sebarang kehilangan baris rekod.")
-        else:
-            st.warning("⚠️ **Peringatan Pautan Snapshot:** Tab `Audit_Yesterday` tidak dapat dibaca secara automatik.")
-            st.info("💡 **Langkah Semakan:**\n1. Sila pastikan tetapan perkongsian Google Sheet diubah kepada **'Anyone with the link can view'**.\n2. Sila tekan butang **Run (▶)** di Google Apps Script sekali lagi.")
-
-        if added_rows:
-            st.info(f"ℹ️ **{len(added_rows)} Rekod Wabak Baharu Dikesan Masuk Hari Ini:**")
-            df_add_disp = pd.DataFrame(added_rows, columns=['Daerah', 'Penyakit', 'Alamat / Premis', 'Tarikh Isytihar'])
-            st.dataframe(df_add_disp, use_container_width=True)
-
         st.markdown("### 📥 Muat Turun Hasil Laporan & Data")
         col_btn1, col_btn2 = st.columns(2)
         
