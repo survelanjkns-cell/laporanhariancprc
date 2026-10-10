@@ -1303,7 +1303,6 @@ if f1:
                 if not col_alamat: col_alamat = df2.columns[2]
                 if not col_kategori: col_kategori = df2.columns[3]
                 
-                df2_raw_audit = df2.copy()
                 df2 = df2.drop_duplicates(subset=['PENYAKIT', 'Timestamp_Date', col_alamat], keep='first')
                 df2 = df2.dropna(subset=['Timestamp_Date'])
 
@@ -1449,15 +1448,14 @@ if f1:
                         st.warning(f"Gagal memuat turun data untuk Graf Asma: {e}")
 
                 doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, (len(bkk_details)==0), bkk_details, df_yesterday_list, jerebu_data, parsed_apims, hsa_wad_count, df_graf_konj, df_graf_urti, df_graf_asma)
-                excel_out = generate_excel_audit(df2_filt, wabak_df, df_yesterday, get_malay_date(yesterday))
                 
                 file_date = today.strftime("%d.%m.%y")
                 
                 st.session_state.doc_bytes = doc_out.getvalue()
-                st.session_state.excel_bytes = excel_out.getvalue()
                 st.session_state.file_name_custom = f"Laporan CPRC Selangor ({file_date}).docx"
-                st.session_state.excel_name_custom = f"Audit Data Wabak CPRC ({file_date}).xlsx"
                 st.session_state.report_generated = True
+                
+                st.success("🎉 Laporan telah berjaya dijana!")
 
             except Exception as e:
                 st.error(f"Ralat semasa memproses data: {e}")
@@ -1466,22 +1464,12 @@ if f1:
     if st.session_state.get('report_generated', False):
         st.markdown("---")
         st.markdown("### 📥 Muat Turun Hasil Laporan & Data")
-        col_btn1, col_btn2 = st.columns(2)
         
-        with col_btn1:
-            st.download_button(
-                label="📄 Muat Turun Laporan Word (.docx)", 
-                data=st.session_state.doc_bytes, 
-                file_name=st.session_state.file_name_custom,
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                use_container_width=True
-            )
-            
-        with col_btn2:
-            st.download_button(
-                label="📊 Muat Turun Data Audit Excel (.xlsx)", 
-                data=st.session_state.excel_bytes, 
-                file_name=st.session_state.excel_name_custom,
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
-            )
+        # Kini hanya butang Muat Turun Word Sahaja (Tiada lagi butang Excel Audit)
+        st.download_button(
+            label="📄 Muat Turun Laporan Word (.docx)", 
+            data=st.session_state.doc_bytes, 
+            file_name=st.session_state.file_name_custom,
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            use_container_width=True
+        )
