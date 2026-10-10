@@ -207,7 +207,7 @@ def format_ipu_narrative(data_stesen, tarikh_semalam, epi_week_lepas):
     # Susun mengikut bacaan IPU dari tinggi ke rendah
     sorted_stesen = sorted(data_stesen.items(), key=lambda item: item[1], reverse=True)
     
-    # Bina ayat secara spesifik: "[Stesen pertama] adalah [nilai], [stesen lain] ([nilai])..."
+    # Bina ayat secara spesifik
     first_loc, first_val = sorted_stesen[0]
     
     if len(sorted_stesen) > 1:
@@ -1210,13 +1210,9 @@ if f1:
                 parsed_apims = {}
                 try:
                     sheet_ipu_id = "1rZrd7omTQdqdO5G-39KN8AVLDiTk1sluzu9-2pTTdi8"
-                    # Load data IPU tanpa header (supaya selamat dari masalah nama header berubah)
                     df_ipu_raw = read_gsheet_csv(sheet_ipu_id, sheet_name="SISTEM_REKOD_JEREBU_AUTOMATIK.csv", header=None)
                     
-                    # Col B (index 1) = Stesen, Col F (index 5) = IPU, Col H (index 7) = Tarikh
                     df_ipu_raw['Tarikh_Clean'] = pd.to_datetime(df_ipu_raw.iloc[:, 7].astype(str).str.strip(), dayfirst=True, errors='coerce').dt.date
-                    
-                    # Tapis bacaan untuk semalam sahaja
                     df_ipu_semalam = df_ipu_raw[df_ipu_raw['Tarikh_Clean'] == yesterday].copy()
                     df_ipu_semalam['IPU_Val'] = pd.to_numeric(df_ipu_semalam.iloc[:, 5], errors='coerce').fillna(0)
                     
@@ -1229,7 +1225,6 @@ if f1:
                         "BANTING": "Banting",
                     }
                     
-                    # Cari nilai tertinggi untuk setiap stesen
                     for index, row in df_ipu_semalam.iterrows():
                         stesen_raw = str(row.iloc[1]).strip().upper()
                         ipu_val = int(row['IPU_Val'])
@@ -1237,7 +1232,7 @@ if f1:
                         for key_name, std_name in stations_map.items():
                             if key_name in stesen_raw:
                                 if key_name == "KLANG" and "JOHAN SETIA" in stesen_raw:
-                                    continue # Asingkan Johan Setia dari carian Klang biasa
+                                    continue 
                                     
                                 if std_name not in parsed_apims or ipu_val > parsed_apims[std_name]:
                                     parsed_apims[std_name] = ipu_val
@@ -1264,37 +1259,47 @@ if f1:
                     return None
 
                 df2 = read_gsheet_csv(SHEET_ID_WABAK, sheet_name="lock")
-                df2.columns = df2.columns.str.strip()
+                df_raw = read_gsheet_csv(SHEET_ID_WABAK, sheet_name="raw")
                 
+                df2.columns = df2.columns.str.strip()
+                df_raw.columns = df_raw.columns.str.strip()
+                
+                # SETUP BACAAN UNTUK SHEET LOCK
                 col_A = df2.columns[0]
                 col_sebenar = find_col(df2, ['Sebenar', 'Tamat'])
                 col_jangka = find_col(df2, ['Jangka'])
                 col_alamat = find_col(df2, ['Tempat Berlaku', 'Alamat', 'Lokaliti'])
                 col_kategori = find_col(df2, ['Kategori Tempat'])
 
-                # Bersihkan kolum tarikh 
                 df2[col_A] = df2[col_A].astype(str).str.replace(r'\s+', ' ', regex=True).str.strip()
                 try:
                     df2['Timestamp_Date'] = pd.to_datetime(df2[col_A], dayfirst=True, format='mixed', errors='coerce').dt.date
                 except:
                     df2['Timestamp_Date'] = pd.to_datetime(df2[col_A], dayfirst=True, errors='coerce').dt.date
 
-                if col_sebenar:
-                    df2['Tarikh Sebenar Tamat Wabak'] = pd.to_datetime(df2[col_sebenar], dayfirst=True, errors='coerce').dt.date
-                else:
-                    df2['Tarikh Sebenar Tamat Wabak'] = pd.NaT
+                # SETUP BACAAN UNTUK SHEET RAW (UNTUK DATA AKTIF SAHAJA)
+                col_A_raw = df_raw.columns[0]
+                df_raw[col_A_raw] = df_raw[col_A_raw].astype(str).str.replace(r'\s+', ' ', regex=True).str.strip()
+                try:
+                    df_raw['Timestamp_Date'] = pd.to_datetime(df_raw[col_A_raw], dayfirst=True, format='mixed', errors='coerce').dt.date
+                except:
+                    df_raw['Timestamp_Date'] = pd.to_datetime(df_raw[col_A_raw], dayfirst=True, errors='coerce').dt.date
 
-                if col_jangka:
-                    df2['Tarikh Wabak Dijangka Tamat'] = pd.to_datetime(df2[col_jangka], dayfirst=True, errors='coerce').dt.date
+                col_sebenar_raw = find_col(df_raw, ['Sebenar', 'Tamat'])
+                col_jangka_raw = find_col(df_raw, ['Jangka'])
+                
+                if col_sebenar_raw:
+                    df_raw['Tarikh Sebenar Tamat Wabak'] = pd.to_datetime(df_raw[col_sebenar_raw], dayfirst=True, errors='coerce').dt.date
                 else:
-                    df2['Tarikh Wabak Dijangka Tamat'] = pd.NaT
+                    df_raw['Tarikh Sebenar Tamat Wabak'] = pd.NaT
 
-                if not col_alamat: col_alamat = df2.columns[2]
-                if not col_kategori: col_kategori = df2.columns[3]
-                
-                # Fungsi membuang 'duplicate' wabak telah dimatikan seperti sebelum ini
-                
+                if col_jangka_raw:
+                    df_raw['Tarikh Wabak Dijangka Tamat'] = pd.to_datetime(df_raw[col_jangka_raw], dayfirst=True, errors='coerce').dt.date
+                else:
+                    df_raw['Tarikh Wabak Dijangka Tamat'] = pd.NaT
+
                 df2 = df2.dropna(subset=['Timestamp_Date'])
+                df_raw = df_raw.dropna(subset=['Timestamp_Date'])
 
                 df_yesterday = df2[df2['Timestamp_Date'] == yesterday].copy()
                 
@@ -1307,21 +1312,51 @@ if f1:
                     df_yesterday_list = []
 
                 df2_filt = df2[df2['Timestamp_Date'] <= yesterday].copy()
+                df_raw_filt = df_raw[df_raw['Timestamp_Date'] <= yesterday].copy()
+                
                 def group_inf(n): return "ILI/ Influenza" if any(x in str(n).upper() for x in ["INFLUENZA", "ILI"]) else n
                 
                 df2_filt['PENYAKIT'] = df2_filt['PENYAKIT'].apply(group_inf)
                 
+                if 'PENYAKIT' in df_raw_filt.columns:
+                    df_raw_filt['PENYAKIT'] = df_raw_filt['PENYAKIT'].apply(group_inf)
+                else:
+                    col_penyakit_raw = find_col(df_raw_filt, ['PENYAKIT'])
+                    if col_penyakit_raw:
+                        df_raw_filt['PENYAKIT'] = df_raw_filt[col_penyakit_raw].apply(group_inf)
+
                 wb_sum = []
-                for d in df2_filt['PENYAKIT'].unique():
-                    if pd.isna(d): continue
-                    disease_df = df2_filt[df2_filt['PENYAKIT'] == d]
-                    h = len(disease_df[disease_df['Timestamp_Date'] == yesterday])
-                    k = len(disease_df)
+                
+                # Menggabungkan nama penyakit dari kedua-dua fail
+                all_diseases = set(df2_filt['PENYAKIT'].dropna().unique())
+                if 'PENYAKIT' in df_raw_filt.columns:
+                    all_diseases = all_diseases.union(set(df_raw_filt['PENYAKIT'].dropna().unique()))
+                    
+                for d in all_diseases:
+                    if pd.isna(d) or str(d).strip() == "": continue
+                    
+                    # 1. Kiraan HARIAN & KUMULATIF dari sheet 'lock'
+                    disease_df_lock = df2_filt[df2_filt['PENYAKIT'] == d]
+                    h = len(disease_df_lock[disease_df_lock['Timestamp_Date'] == yesterday])
+                    k = len(disease_df_lock)
+                    
+                    # 2. Kiraan AKTIF dari sheet 'raw'
+                    if 'PENYAKIT' in df_raw_filt.columns:
+                        disease_df_raw = df_raw_filt[df_raw_filt['PENYAKIT'] == d]
+                    else:
+                        disease_df_raw = pd.DataFrame()
+                        
                     def check_active(row):
                         tamat = row['Tarikh Sebenar Tamat Wabak'] if pd.notna(row['Tarikh Sebenar Tamat Wabak']) else row['Tarikh Wabak Dijangka Tamat']
                         return True if (pd.isna(tamat) or tamat >= today) else False
-                    active_count = disease_df.apply(check_active, axis=1).sum()
-                    wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'AKTIF': active_count, 'KUMULATIF': k})
+                        
+                    if not disease_df_raw.empty:
+                        active_count = disease_df_raw.apply(check_active, axis=1).sum()
+                    else:
+                        active_count = 0
+                        
+                    if h > 0 or k > 0 or active_count > 0:
+                        wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'AKTIF': active_count, 'KUMULATIF': k})
                 
                 wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
