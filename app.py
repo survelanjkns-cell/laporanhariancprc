@@ -1303,7 +1303,9 @@ if f1:
                 if not col_alamat: col_alamat = df2.columns[2]
                 if not col_kategori: col_kategori = df2.columns[3]
                 
-                df2 = df2.drop_duplicates(subset=['PENYAKIT', 'Timestamp_Date', col_alamat], keep='first')
+                # FUNGSI MEMBUANG DUPLICATE WABAK TELAH DIMATIKAN
+                # df2 = df2.drop_duplicates(subset=['PENYAKIT', 'Timestamp_Date', col_alamat], keep='first')
+                
                 df2 = df2.dropna(subset=['Timestamp_Date'])
 
                 df_yesterday = df2[df2['Timestamp_Date'] == yesterday].copy()
