@@ -202,23 +202,32 @@ def generate_jerebu_chart_image(df_graf, last_epi_num):
 # --- HELPERS FUNGSI & APIMS ---
 def format_ipu_narrative(data_stesen, tarikh_semalam, epi_week_lepas):
     if not data_stesen:
-        return f"Pada {tarikh_semalam}, tiada rekod bacaan IPU yang tertinggi dikesan untuk stesen pemantauan di Selangor. Perincian kes penyakit berkaitan jerebu yang dilaporkan oleh fasiliti sentinel pada tarikh tersebut adalah seperti di Jadual 6.1, manakala Rajah 6.1 hingga Rajah 6.3 menunjukkan tren mingguan konjunktivitis, URTI dan asma berbanding bacaan IPU tertinggi sehingga ME{epi_week_lepas}."
+        return f"Pada {tarikh_semalam}, tiada rekod bacaan IPU yang tertinggi dikesan untuk stesen pemantauan di Selangor. Perincian kes penyakit berkaitan jerebu yang dilaporkan oleh fasiliti sentinel pada tempoh pelaporan yang sama adalah seperti di Jadual 6.1, manakala Rajah 6.1 hingga Rajah 6.3 menunjukkan tren mingguan konjunktivitis, URTI dan asma berbanding bacaan IPU tertinggi sehingga ME{epi_week_lepas}."
         
     # Susun mengikut bacaan IPU dari tinggi ke rendah
     sorted_stesen = sorted(data_stesen.items(), key=lambda item: item[1], reverse=True)
     
-    # Bina ayat secara spesifik
-    first_loc, first_val = sorted_stesen[0]
-    
+    # Bina ayat senarai
     if len(sorted_stesen) > 1:
         other_parts = [f"{loc} ({val})" for loc, val in sorted_stesen[1:]]
         other_str = ", ".join(other_parts[:-1]) + " dan " + other_parts[-1] if len(other_parts) > 1 else other_parts[0]
-        teks_ipu = f"{first_loc} adalah {first_val}, {other_str}"
+        teks_ipu = f"diikuti {other_str}"
     else:
-        teks_ipu = f"{first_loc} adalah {first_val}"
+        teks_ipu = ""
         
-    teks = f"Pada {tarikh_semalam}, bacaan IPU tertinggi untuk {teks_ipu}. Perincian kes penyakit berkaitan jerebu yang dilaporkan oleh fasiliti sentinel pada tarikh tersebut adalah seperti di Jadual 6.1, manakala Rajah 6.1 hingga Rajah 6.3 menunjukkan tren mingguan konjunktivitis, URTI dan asma berbanding bacaan IPU tertinggi sehingga ME{epi_week_lepas}."
+    first_loc, first_val = sorted_stesen[0]
     
+    jumlah_stesen = len(data_stesen)
+    
+    # Tukar nombor ke perkataan untuk jumlah stesen jika kurang dari 10
+    num_word = {1: "satu (1)", 2: "dua (2)", 3: "tiga (3)", 4: "empat (4)", 5: "lima (5)", 6: "enam (6)", 7: "tujuh (7)", 8: "lapan (8)", 9: "sembilan (9)"}
+    stesen_str = num_word.get(jumlah_stesen, str(jumlah_stesen))
+        
+    if teks_ipu:
+        teks = f"Pada {tarikh_semalam} jam 8.00 pagi, kesemua {stesen_str} stesen pemantauan di Selangor merekodkan bacaan Indeks Pencemar Udara (IPU) tertinggi di {first_loc} ({first_val}), {teks_ipu}. Perincian kes penyakit berkaitan jerebu yang dilaporkan oleh fasiliti sentinel pada tempoh pelaporan yang sama adalah seperti di Jadual 6.1, manakala Rajah 6.1 hingga Rajah 6.3 menunjukkan tren mingguan konjunktivitis, URTI dan asma berbanding bacaan IPU tertinggi sehingga ME{epi_week_lepas}."
+    else:
+        teks = f"Pada {tarikh_semalam} jam 8.00 pagi, stesen pemantauan di Selangor merekodkan bacaan Indeks Pencemar Udara (IPU) tertinggi di {first_loc} ({first_val}). Perincian kes penyakit berkaitan jerebu yang dilaporkan oleh fasiliti sentinel pada tempoh pelaporan yang sama adalah seperti di Jadual 6.1, manakala Rajah 6.1 hingga Rajah 6.3 menunjukkan tren mingguan konjunktivitis, URTI dan asma berbanding bacaan IPU tertinggi sehingga ME{epi_week_lepas}."
+        
     return teks
 
 def format_wad_narrative(wad_count):
@@ -977,6 +986,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     # --- NARATIF SELEPAS JADUAL 6.1 ---
     p6_naratif = doc.add_paragraph()
     p6_naratif.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    p6_naratif.paragraph_format.space_after = Pt(12)
     
     parts_nar = []
     if sum_h_konj > 0:
@@ -1192,6 +1202,10 @@ f1 = st.file_uploader("Pilih fail Notifikasi Harian", type=["xlsx", "xls"], labe
 
 st.markdown("---")
 
+st.subheader("📋 Tampal (Paste) Data Bacaan APIMS")
+st.info("Sila copy teks jadual dari laman web APIMS dan paste ke dalam kotak di bawah bagi tujuan penjanaan naratif IPU (Jadual 6.1).")
+raw_apims_input = st.text_area("Tampal data APIMS di sini:", height=150, placeholder="Contoh: Shah Alam 180** JOHAN SETIA 189** Petaling Jaya 175**")
+
 if not HAS_MATPLOTLIB:
     st.sidebar.warning("Modul 'matplotlib' tidak dijumpai. Sila masukkan 'matplotlib' dan 'numpy' dalam requirements.txt.")
 
@@ -1206,39 +1220,10 @@ if f1:
     if st.button("🚀 Jana Laporan Lengkap"):
         with st.spinner("Sedang memproses data dan memuat turun jadual/graf secara live..."):
             try:
-                # --- 1. DAPATKAN DATA IPU AUTOMATIK ---
+                # --- 1. DAPATKAN DATA IPU AUTOMATIK DARI TEXTAREA ---
                 parsed_apims = {}
-                try:
-                    sheet_ipu_id = "1rZrd7omTQdqdO5G-39KN8AVLDiTk1sluzu9-2pTTdi8"
-                    df_ipu_raw = read_gsheet_csv(sheet_ipu_id, sheet_name="SISTEM_REKOD_JEREBU_AUTOMATIK.csv", header=None)
-                    
-                    df_ipu_raw['Tarikh_Clean'] = pd.to_datetime(df_ipu_raw.iloc[:, 7].astype(str).str.strip(), dayfirst=True, errors='coerce').dt.date
-                    df_ipu_semalam = df_ipu_raw[df_ipu_raw['Tarikh_Clean'] == yesterday].copy()
-                    df_ipu_semalam['IPU_Val'] = pd.to_numeric(df_ipu_semalam.iloc[:, 5], errors='coerce').fillna(0)
-                    
-                    stations_map = {
-                        "SHAH ALAM": "Shah Alam",
-                        "JOHAN SETIA": "Klang (Johan Setia)",
-                        "PETALING JAYA": "Petaling Jaya",
-                        "KLANG": "Klang",
-                        "KUALA SELANGOR": "Kuala Selangor",
-                        "BANTING": "Banting",
-                    }
-                    
-                    for index, row in df_ipu_semalam.iterrows():
-                        stesen_raw = str(row.iloc[1]).strip().upper()
-                        ipu_val = int(row['IPU_Val'])
-                        
-                        for key_name, std_name in stations_map.items():
-                            if key_name in stesen_raw:
-                                if key_name == "KLANG" and "JOHAN SETIA" in stesen_raw:
-                                    continue 
-                                    
-                                if std_name not in parsed_apims or ipu_val > parsed_apims[std_name]:
-                                    parsed_apims[std_name] = ipu_val
-                                break
-                except Exception as e:
-                    st.warning(f"Gagal memuat turun rekod IPU Automatik: {e}")
+                if raw_apims_input.strip():
+                    parsed_apims = parse_apims_pasted_text(raw_apims_input)
 
                 # --- 2. PEMPROSESAN EXCEL NOTIFIKASI ---
                 engine_type = "xlrd" if f1.name.endswith(".xls") else "openpyxl"
