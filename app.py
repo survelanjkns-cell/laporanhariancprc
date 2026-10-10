@@ -93,6 +93,13 @@ def read_gsheet_csv(sheet_id, gid="0", sheet_name=None, header='default', range_
             
     raise Exception(f"Gagal memuat turun data dari Google Sheet (ID: {sheet_id}, Sheet: {sheet_name or gid}). Ralat: {last_err}")
 
+# --- HELPER PENCARIAN LAJUR DINAMIK ---
+def find_col(df, keywords):
+    for col in df.columns:
+        if any(re.search(kw, str(col), re.IGNORECASE) for kw in keywords):
+            return col
+    return None
+
 # --- HELPER GENERATOR GRAF JEREBU ---
 def generate_jerebu_chart_image(df_graf, last_epi_num):
     if df_graf is None or df_graf.empty:
@@ -400,28 +407,6 @@ def format_bkk_number(val, is_person=False):
     }
     
     return num_word.get(num, str(num))
-
-# --- GENERATOR EXCEL AUDIT 3 SHEET ---
-def generate_excel_audit(df2_filt, wabak_df, df_yesterday, yesterday_str):
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df2_filt.to_excel(writer, sheet_name='Raw_Linelist_Wabak', index=False)
-        wabak_df.reset_index().to_excel(writer, sheet_name='Pivot_Senarai_Penyakit', index=False)
-        
-        if not df_yesterday.empty:
-            pivot_harian = pd.crosstab(
-                df_yesterday['DAERAH (HURUF BESAR)'],
-                df_yesterday['PENYAKIT'],
-                margins=True,
-                margins_name='Grand Total'
-            )
-        else:
-            pivot_harian = pd.DataFrame({'Mesej': ['Tiada Wabak Baharu']})
-            
-        pivot_harian.to_excel(writer, sheet_name='Pivot_Wabak_Baharu_Harian')
-        
-    output.seek(0)
-    return output
 
 # --- DOCX GENERATOR ---
 def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty, bkk_details, df_yesterday_list, jerebu_data, parsed_apims, hsa_wad_count, df_graf_konj, df_graf_urti, df_graf_asma):
@@ -1283,21 +1268,54 @@ if f1:
                 col_totals = matrix[TEMPLATE_PKDS + ['Grand Total']].sum(axis=0)
 
                 # --- 1. PROSES PEMBACAAN LIVE GOOGLE SHEET WABAK (HARI INI) ---
+                def find_col(df, keywords):
+                    for col in df.columns:
+                        if any(re.search(kw, str(col), re.IGNORECASE) for kw in keywords):
+                            return col
+                    return None
+
                 df2 = read_gsheet_csv(SHEET_ID_WABAK, sheet_name="lock")
                 df2.columns = df2.columns.str.strip()
                 
-                col_A = df2.columns[0] # Kolum A (Timestamp)
-                df2['Timestamp_Date'] = pd.to_datetime(df2[col_A], dayfirst=True, errors='coerce').dt.date
-                df2['Tarikh Sebenar Tamat Wabak'] = pd.to_datetime(df2['Tarikh Sebenar Tamat Wabak'], dayfirst=True, errors='coerce').dt.date
-                df2['Tarikh Wabak Dijangka Tamat'] = pd.to_datetime(df2['Tarikh Wabak Dijangka Tamat'], dayfirst=True, errors='coerce').dt.date
+                col_A = df2.columns[0]
+                col_sebenar = find_col(df2, ['Sebenar', 'Tamat'])
+                col_jangka = find_col(df2, ['Jangka'])
+                col_alamat = find_col(df2, ['Tempat Berlaku', 'Alamat', 'Lokaliti'])
+                col_kategori = find_col(df2, ['Kategori Tempat'])
 
-                addr_col = 'Tempat Berlaku Wabak\n(Alamat diisi lengkap dengan :- No rumah, nama jalan, nama tempat, daerah dan Negeri)'
-                cat_col = 'Kategori Tempat\n(Kategori premis berdasarkan tempat berlaku wabak)'
+                # Bersihkan kolum tarikh 
+                df2[col_A] = df2[col_A].astype(str).str.replace(r'\s+', ' ', regex=True).str.strip()
+                try:
+                    df2['Timestamp_Date'] = pd.to_datetime(df2[col_A], dayfirst=True, format='mixed', errors='coerce').dt.date
+                except:
+                    df2['Timestamp_Date'] = pd.to_datetime(df2[col_A], dayfirst=True, errors='coerce').dt.date
+
+                if col_sebenar:
+                    df2['Tarikh Sebenar Tamat Wabak'] = pd.to_datetime(df2[col_sebenar], dayfirst=True, errors='coerce').dt.date
+                else:
+                    df2['Tarikh Sebenar Tamat Wabak'] = pd.NaT
+
+                if col_jangka:
+                    df2['Tarikh Wabak Dijangka Tamat'] = pd.to_datetime(df2[col_jangka], dayfirst=True, errors='coerce').dt.date
+                else:
+                    df2['Tarikh Wabak Dijangka Tamat'] = pd.NaT
+
+                if not col_alamat: col_alamat = df2.columns[2]
+                if not col_kategori: col_kategori = df2.columns[3]
                 
+                df2_raw_audit = df2.copy()
+                df2 = df2.drop_duplicates(subset=['PENYAKIT', 'Timestamp_Date', col_alamat], keep='first')
                 df2 = df2.dropna(subset=['Timestamp_Date'])
 
                 df_yesterday = df2[df2['Timestamp_Date'] == yesterday].copy()
-                df_yesterday_list = df_yesterday[['PENYAKIT', 'DAERAH (HURUF BESAR)', addr_col, cat_col, 'Bilangan Kes', 'Bilangan Terdedah']].values.tolist()
+                
+                col_kes = find_col(df_yesterday, ['Bilangan Kes', 'Jumlah Kes'])
+                col_dedah = find_col(df_yesterday, ['Bilangan Terdedah', 'Jumlah Terdedah'])
+                
+                if col_kes and col_dedah:
+                    df_yesterday_list = df_yesterday[['PENYAKIT', 'DAERAH (HURUF BESAR)', col_alamat, col_kategori, col_kes, col_dedah]].values.tolist()
+                else:
+                    df_yesterday_list = []
 
                 df2_filt = df2[df2['Timestamp_Date'] <= yesterday].copy()
                 def group_inf(n): return "ILI/ Influenza" if any(x in str(n).upper() for x in ["INFLUENZA", "ILI"]) else n
