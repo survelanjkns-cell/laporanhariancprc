@@ -98,14 +98,6 @@ def find_col(df, keywords):
             return col
     return None
 
-def safe_float(val):
-    try:
-        if pd.isna(val) or str(val).strip() in ["", "-", "nan", "TIADA", "NA"]:
-            return 0.0
-        return float(str(val).strip())
-    except (ValueError, TypeError):
-        return 0.0
-
 # --- HELPER GENERATOR GRAF JEREBU ---
 def generate_jerebu_chart_image(df_graf, last_epi_num):
     if df_graf is None or df_graf.empty:
@@ -138,14 +130,33 @@ def generate_jerebu_chart_image(df_graf, last_epi_num):
         plt.rcParams['axes.titleweight'] = 'bold'
 
         fig, ax1 = plt.subplots(figsize=(9, 4.5))
-        colors = ['#7030A0', '#C00000', '#92D050', '#8064A2', '#4BACC6', '#F79646']
+        
+        # Pemetaan warna khusus bagi setiap fasiliti (KK Kota Damansara ditukar ke Kuning)
+        facility_colors = {
+            'KK TELOK DATOK': '#7030A0',      # Ungu
+            'KK PANDAMARAN': '#C00000',       # Merah
+            'KK SHAH ALAM': '#92D050',        # Hijau
+            'KK KOTA DAMANSARA': '#E6B800',   # Kuning
+            'KK KUALA SELANGOR': '#4BACC6',   # Biru Muda
+            'HOSPITAL SHAH ALAM': '#F79646'   # Jingga
+        }
+        
+        default_colors = ['#7030A0', '#C00000', '#92D050', '#E6B800', '#4BACC6', '#F79646']
         
         x_labels = df_plot[me_col].astype(str).tolist()
         x = np.arange(len(x_labels))
         
         for idx, clinic in enumerate(clinics):
             y_data = pd.to_numeric(df_plot[clinic], errors='coerce').fillna(0)
-            ax1.plot(x, y_data, label=clinic, color=colors[idx % len(colors)], linewidth=2.5)
+            
+            clinic_upper = clinic.upper()
+            line_color = default_colors[idx % len(default_colors)]
+            for fac_key, hex_col in facility_colors.items():
+                if fac_key in clinic_upper or clinic_upper in fac_key:
+                    line_color = hex_col
+                    break
+                    
+            ax1.plot(x, y_data, label=clinic, color=line_color, linewidth=2.5)
             
         ax1.set_ylabel("BILANGAN KES", fontname='Arial', fontweight='bold', fontsize=8)
         ax1.set_xticks(x)
@@ -210,26 +221,31 @@ def generate_jerebu_chart_image(df_graf, last_epi_num):
 # --- HELPERS FUNGSI & APIMS ---
 def format_ipu_narrative(data_stesen, tarikh_semalam, epi_week_lepas):
     if not data_stesen:
-        return f"Pada {tarikh_semalam}, tiada rekod bacaan IPU yang tertinggi dikesan untuk stesen pemantauan di Selangor. Perincian kes penyakit berkaitan jerebu yang dilaporkan oleh fasiliti sentinel pada tarikh tersebut adalah seperti di Jadual 6.1, manakala Rajah 6.1 hingga Rajah 6.3 menunjukkan tren mingguan konjunktivitis, URTI dan asma berbanding bacaan IPU tertinggi sehingga ME{epi_week_lepas}."
+        return f"Pada {tarikh_semalam}, tiada rekod bacaan IPU yang tertinggi dikesan untuk stesen pemantauan di Selangor. Perincian kes penyakit berkaitan jerebu yang dilaporkan oleh fasiliti sentinel pada tempoh pelaporan yang sama adalah seperti di Jadual 6.1, manakala Rajah 6.1 hingga Rajah 6.3 menunjukkan tren mingguan konjunktivitis, URTI dan asma berbanding bacaan IPU tertinggi sehingga ME{epi_week_lepas}."
         
     # Susun mengikut bacaan IPU dari tinggi ke rendah
     sorted_stesen = sorted(data_stesen.items(), key=lambda item: item[1], reverse=True)
     
+    # Bina ayat senarai
+    if len(sorted_stesen) > 1:
+        other_parts = [f"{loc} ({val})" for loc, val in sorted_stesen[1:]]
+        other_str = ", ".join(other_parts[:-1]) + " dan " + other_parts[-1] if len(other_parts) > 1 else other_parts[0]
+        teks_ipu = f"diikuti {other_str}"
+    else:
+        teks_ipu = ""
+        
     first_loc, first_val = sorted_stesen[0]
     
-    if len(sorted_stesen) > 1:
-        other_items = [f"{loc} ({val})" for loc, val in sorted_stesen[1:]]
-        if len(other_items) == 1:
-            other_str = other_items[0]
-        else:
-            other_str = ", ".join(other_items[:-1]) + " dan " + other_items[-1]
-            
-        teks_ipu = f"direkodkan di {first_loc} ({first_val}), diikuti {other_str}"
-    else:
-        teks_ipu = f"direkodkan di {first_loc} ({first_val})"
-        
-    teks = f"Pada {tarikh_semalam}, bacaan Indeks Pencemar Udara (IPU) tertinggi di Selangor {teks_ipu}. Perincian kes penyakit berkaitan jerebu yang dilaporkan oleh fasiliti sentinel pada tarikh tersebut adalah seperti di Jadual 6.1, manakala Rajah 6.1 hingga Rajah 6.3 menunjukkan tren mingguan konjunktivitis, URTI dan asma berbanding bacaan IPU tertinggi sehingga ME{epi_week_lepas}."
+    jumlah_stesen = len(data_stesen)
     
+    num_word = {1: "satu (1)", 2: "dua (2)", 3: "tiga (3)", 4: "empat (4)", 5: "lima (5)", 6: "enam (6)", 7: "tujuh (7)", 8: "lapan (8)", 9: "sembilan (9)"}
+    stesen_str = num_word.get(jumlah_stesen, str(jumlah_stesen))
+        
+    if teks_ipu:
+        teks = f"Pada {tarikh_semalam} jam 8.00 pagi, kesemua {stesen_str} stesen pemantauan di Selangor merekodkan bacaan Indeks Pencemar Udara (IPU) tertinggi di {first_loc} ({first_val}), {teks_ipu}. Perincian kes penyakit berkaitan jerebu yang dilaporkan oleh fasiliti sentinel pada tempoh pelaporan yang sama adalah seperti di Jadual 6.1, manakala Rajah 6.1 hingga Rajah 6.3 menunjukkan tren mingguan konjunktivitis, URTI dan asma berbanding bacaan IPU tertinggi sehingga ME{epi_week_lepas}."
+    else:
+        teks = f"Pada {tarikh_semalam} jam 8.00 pagi, stesen pemantauan di Selangor merekodkan bacaan Indeks Pencemar Udara (IPU) tertinggi di {first_loc} ({first_val}). Perincian kes penyakit berkaitan jerebu yang dilaporkan oleh fasiliti sentinel pada tempoh pelaporan yang sama adalah seperti di Jadual 6.1, manakala Rajah 6.1 hingga Rajah 6.3 menunjukkan tren mingguan konjunktivitis, URTI dan asma berbanding bacaan IPU tertinggi sehingga ME{epi_week_lepas}."
+        
     return teks
 
 def format_wad_narrative(wad_count):
@@ -553,7 +569,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     p2_head.paragraph_format.space_before = Pt(12)
     apply_font(p2_head.add_run("2.0 Ringkasan Laporan Notifikasi Wabak"), 11, bold=True)
     
-    harian_total = int(wabak_df['HARIAN'].sum()) if not wabak_df.empty else 0
+    harian_total = int(wabak_df['HARIAN'].sum())
     
     h21 = doc.add_paragraph()
     h21.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
@@ -594,12 +610,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             cells[idx].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     f2_cells = t2.rows[-1].cells
-    footer_vals = [
-        "Jumlah",
-        str(int(wabak_df['HARIAN'].sum())) if not wabak_df.empty else "0",
-        str(int(wabak_df['AKTIF'].sum())) if not wabak_df.empty else "0",
-        str(int(wabak_df['KUMULATIF'].sum())) if not wabak_df.empty else "0"
-    ]
+    footer_vals = ["Jumlah", str(int(wabak_df['HARIAN'].sum())), str(int(wabak_df['AKTIF'].sum())), str(int(wabak_df['KUMULATIF'].sum()))]
     for i, txt in enumerate(footer_vals):
         f2_cells[i].width = col_widths_t2[i]
         apply_font(f2_cells[i].paragraphs[0].add_run(txt), 8, bold=True)
@@ -648,8 +659,8 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             row[2].text = str(item[1]).title() 
             row[3].text = str(item[2]) 
 
-            n_kes = safe_float(item[4])
-            n_dedah = safe_float(item[5])
+            n_kes = float(item[4]) if pd.notna(item[4]) else 0
+            n_dedah = float(item[5]) if pd.notna(item[5]) else 0
             
             if n_dedah > 0:
                 calc_pct = (n_kes / n_dedah) * 100
@@ -927,6 +938,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         p0 = cells[0].paragraphs[0]
         apply_font(p0.add_run(fasiliti), 10, bold=True)
         
+        # Pengecualian Khas bagi Hospital Shah Alam (Konjunktivitis dan URTI dihitamkan)
         if fasiliti == "Hospital Shah Alam":
             set_cell_background(cells[1], "808080")
             set_cell_background(cells[2], "808080")
@@ -992,6 +1004,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     # --- NARATIF SELEPAS JADUAL 6.1 ---
     p6_naratif = doc.add_paragraph()
     p6_naratif.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    p6_naratif.paragraph_format.space_after = Pt(12)
     
     parts_nar = []
     if sum_h_konj > 0:
@@ -1040,6 +1053,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         # 2. Rajah 6.2 (URTI)
         img_62, start_me_62, end_me_62 = generate_jerebu_chart_image(df_graf_urti, last_epi_num)
         if img_62:
+            doc.add_paragraph()
             p_img2 = doc.add_paragraph()
             p_img2.alignment = WD_ALIGN_PARAGRAPH.CENTER
             p_img2.add_run().add_picture(img_62, width=Inches(6.0))
@@ -1055,6 +1069,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         # 3. Rajah 6.3 (Asma)
         img_63, start_me_63, end_me_63 = generate_jerebu_chart_image(df_graf_asma, last_epi_num)
         if img_63:
+            doc.add_paragraph()
             p_img3 = doc.add_paragraph()
             p_img3.alignment = WD_ALIGN_PARAGRAPH.CENTER
             p_img3.add_run().add_picture(img_63, width=Inches(6.0))
@@ -1117,6 +1132,7 @@ st.set_page_config(
     layout="centered"
 )
 
+# Deep CSS overrides
 st.markdown("""
     <style>
     /* Paksa Latar Belakang Dark Mode */
@@ -1206,6 +1222,10 @@ f1 = st.file_uploader("Pilih fail Notifikasi Harian", type=["xlsx", "xls"], labe
 
 st.markdown("---")
 
+st.subheader("📋 Tampal (Paste) Data Bacaan APIMS")
+st.info("Sila copy teks jadual dari laman web APIMS dan paste ke dalam kotak di bawah bagi tujuan penjanaan naratif IPU (Jadual 6.1).")
+raw_apims_input = st.text_area("Tampal data APIMS di sini:", height=150, placeholder="Contoh: Shah Alam 180** JOHAN SETIA 189** Petaling Jaya 175**")
+
 if not HAS_MATPLOTLIB:
     st.sidebar.warning("Modul 'matplotlib' tidak dijumpai. Sila masukkan 'matplotlib' dan 'numpy' dalam requirements.txt.")
 
@@ -1220,39 +1240,10 @@ if f1:
     if st.button("🚀 Jana Laporan Lengkap"):
         with st.spinner("Sedang memproses data dan memuat turun jadual/graf secara live..."):
             try:
-                # --- 1. DAPATKAN DATA IPU AUTOMATIK ---
+                # --- 1. DAPATKAN DATA IPU AUTOMATIK DARI TEXTAREA ---
                 parsed_apims = {}
-                try:
-                    sheet_ipu_id = "1rZrd7omTQdqdO5G-39KN8AVLDiTk1sluzu9-2pTTdi8"
-                    df_ipu_raw = read_gsheet_csv(sheet_ipu_id, sheet_name="SISTEM_REKOD_JEREBU_AUTOMATIK.csv", header=None)
-                    
-                    df_ipu_raw['Tarikh_Clean'] = pd.to_datetime(df_ipu_raw.iloc[:, 7].astype(str).str.strip(), dayfirst=True, errors='coerce').dt.date
-                    df_ipu_semalam = df_ipu_raw[df_ipu_raw['Tarikh_Clean'] == yesterday].copy()
-                    df_ipu_semalam['IPU_Val'] = pd.to_numeric(df_ipu_semalam.iloc[:, 5], errors='coerce').fillna(0)
-                    
-                    stations_map = {
-                        "SHAH ALAM": "Shah Alam",
-                        "JOHAN SETIA": "Johan Setia",
-                        "PETALING JAYA": "Petaling Jaya",
-                        "KLANG": "Klang",
-                        "KUALA SELANGOR": "Kuala Selangor",
-                        "BANTING": "Banting",
-                    }
-                    
-                    for index, row in df_ipu_semalam.iterrows():
-                        stesen_raw = str(row.iloc[1]).strip().upper()
-                        ipu_val = int(row['IPU_Val'])
-                        
-                        for key_name, std_name in stations_map.items():
-                            if key_name in stesen_raw:
-                                if key_name == "KLANG" and "JOHAN SETIA" in stesen_raw:
-                                    continue 
-                                    
-                                if std_name not in parsed_apims or ipu_val > parsed_apims[std_name]:
-                                    parsed_apims[std_name] = ipu_val
-                                break
-                except Exception as e:
-                    st.warning(f"Gagal memuat turun rekod IPU Automatik: {e}")
+                if raw_apims_input.strip():
+                    parsed_apims = parse_apims_pasted_text(raw_apims_input)
 
                 # --- 2. PEMPROSESAN EXCEL NOTIFIKASI ---
                 engine_type = "xlrd" if f1.name.endswith(".xls") else "openpyxl"
@@ -1266,6 +1257,12 @@ if f1:
                 col_totals = matrix[TEMPLATE_PKDS + ['Grand Total']].sum(axis=0)
 
                 # --- 3. PROSES PEMBACAAN LIVE GOOGLE SHEET WABAK (HARI INI) ---
+                def find_col(df, keywords):
+                    for col in df.columns:
+                        if any(re.search(kw, str(col), re.IGNORECASE) for kw in keywords):
+                            return col
+                    return None
+
                 df2 = read_gsheet_csv(SHEET_ID_WABAK, sheet_name="lock")
                 df_raw = read_gsheet_csv(SHEET_ID_WABAK, sheet_name="raw")
                 
@@ -1335,6 +1332,7 @@ if f1:
 
                 wb_sum = []
                 
+                # Menggabungkan nama penyakit dari kedua-dua fail
                 all_diseases = set(df2_filt['PENYAKIT'].dropna().unique())
                 if 'PENYAKIT' in df_raw_filt.columns:
                     all_diseases = all_diseases.union(set(df_raw_filt['PENYAKIT'].dropna().unique()))
@@ -1342,10 +1340,12 @@ if f1:
                 for d in all_diseases:
                     if pd.isna(d) or str(d).strip() == "": continue
                     
+                    # 1. Kiraan HARIAN & KUMULATIF dari sheet 'lock'
                     disease_df_lock = df2_filt[df2_filt['PENYAKIT'] == d]
                     h = len(disease_df_lock[disease_df_lock['Timestamp_Date'] == yesterday])
                     k = len(disease_df_lock)
                     
+                    # 2. Kiraan AKTIF dari sheet 'raw'
                     if 'PENYAKIT' in df_raw_filt.columns:
                         disease_df_raw = df_raw_filt[df_raw_filt['PENYAKIT'] == d]
                     else:
@@ -1363,10 +1363,7 @@ if f1:
                     if h > 0 or k > 0 or active_count > 0:
                         wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'AKTIF': active_count, 'KUMULATIF': k})
                 
-                if wb_sum:
-                    wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
-                else:
-                    wabak_df = pd.DataFrame(columns=['PENYAKIT', 'HARIAN', 'AKTIF', 'KUMULATIF']).set_index('PENYAKIT')
+                wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
 
                 # --- PEMPROSESAN DATA GOOGLE SHEET BKK & VECTOR ---
                 raw_gs = read_gsheet_csv(SHEET_ID, GID, header=None)
@@ -1386,7 +1383,7 @@ if f1:
                     'kejadian': r[5], 
                     'alamat': r[8], 
                     'daerah': r[4],
-                    'bil_kes': r[9],     
+                    'bil_kes': r[9],      
                     'bil_kematian': r[10]  
                 } for _, r in insiden_semalam.iterrows()]
                 
@@ -1428,7 +1425,7 @@ if f1:
                             return 0
                         
                         if display_name == "Hospital Shah Alam":
-                            hsa_wad_count = int(safe_sum_jerebu(df_harian, 9))
+                            hsa_wad_count = int(safe_sum_jerebu(df_harian, 9)) # Column J (index 9) for HSA Wad Kemasukan Asma
                             
                             jerebu_data.append({
                                 "Fasiliti": display_name,
