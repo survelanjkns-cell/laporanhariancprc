@@ -1278,9 +1278,6 @@ f1 = st.file_uploader("Pilih fail Notifikasi Harian", type=["xlsx", "xls"], labe
 
 st.markdown("---")
 
-st.subheader("📋 Tampal (Paste) Data Bacaan APIMS")
-st.info("Sila copy teks jadual dari laman web APIMS dan paste ke dalam kotak di bawah bagi tujuan penjanaan naratif IPU (Jadual 6.1).")
-raw_apims_input = st.text_area("Tampal data APIMS di sini:", height=150, placeholder="Contoh: Shah Alam 180** JOHAN SETIA 189** Petaling Jaya 175**")
 
 if not HAS_MATPLOTLIB:
     st.sidebar.warning("Modul 'matplotlib' tidak dijumpai. Sila masukkan 'matplotlib' dan 'numpy' dalam requirements.txt.")
@@ -1298,8 +1295,37 @@ if f1:
             try:
                 # --- 1. DAPATKAN DATA IPU AUTOMATIK DARI TEXTAREA ---
                 parsed_apims = {}
-                if raw_apims_input.strip():
-                    parsed_apims = parse_apims_pasted_text(raw_apims_input)
+                try:
+                    sheet_ipu_id = "1rZrd7omTQdqdO5G-39KN8AVLDiTk1sluzu9-2pTTdi8"
+                    df_ipu_raw = read_gsheet_csv(sheet_ipu_id, sheet_name="SISTEM_REKOD_JEREBU_AUTOMATIK.csv", header=None)
+                    
+                    df_ipu_raw['Tarikh_Clean'] = pd.to_datetime(df_ipu_raw.iloc[:, 7].astype(str).str.strip(), dayfirst=True, errors='coerce').dt.date
+                    df_ipu_semalam = df_ipu_raw[df_ipu_raw['Tarikh_Clean'] == yesterday].copy()
+                    df_ipu_semalam['IPU_Val'] = pd.to_numeric(df_ipu_semalam.iloc[:, 5], errors='coerce').fillna(0)
+                    
+                    stations_map = {
+                        "SHAH ALAM": "Shah Alam",
+                        "JOHAN SETIA": "Johan Setia",
+                        "PETALING JAYA": "Petaling Jaya",
+                        "KLANG": "Klang",
+                        "KUALA SELANGOR": "Kuala Selangor",
+                        "BANTING": "Banting",
+                    }
+                    
+                    for index, row in df_ipu_semalam.iterrows():
+                        stesen_raw = str(row.iloc[1]).strip().upper()
+                        ipu_val = int(row['IPU_Val'])
+                        
+                        for key_name, std_name in stations_map.items():
+                            if key_name in stesen_raw:
+                                if key_name == "KLANG" and "JOHAN SETIA" in stesen_raw:
+                                    continue 
+                                    
+                                if std_name not in parsed_apims or ipu_val > parsed_apims[std_name]:
+                                    parsed_apims[std_name] = ipu_val
+                                break
+                except Exception as e:
+                    st.warning(f"Gagal memuat turun rekod IPU Automatik: {e}")
 
                 # --- 2. PEMPROSESAN EXCEL NOTIFIKASI ---
                 engine_type = "xlrd" if f1.name.endswith(".xls") else "openpyxl"
@@ -1313,6 +1339,12 @@ if f1:
                 col_totals = matrix[TEMPLATE_PKDS + ['Grand Total']].sum(axis=0)
 
                 # --- 3. PROSES PEMBACAAN LIVE GOOGLE SHEET WABAK (HARI INI) ---
+                def find_col(df, keywords):
+                    for col in df.columns:
+                        if any(re.search(kw, str(col), re.IGNORECASE) for kw in keywords):
+                            return col
+                    return None
+
                 df2 = read_gsheet_csv(SHEET_ID_WABAK, sheet_name="lock")
                 df_raw = read_gsheet_csv(SHEET_ID_WABAK, sheet_name="raw")
                 
