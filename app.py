@@ -1313,12 +1313,6 @@ if f1:
                 col_totals = matrix[TEMPLATE_PKDS + ['Grand Total']].sum(axis=0)
 
                 # --- 3. PROSES PEMBACAAN LIVE GOOGLE SHEET WABAK (HARI INI) ---
-                def find_col(df, keywords):
-                    for col in df.columns:
-                        if any(re.search(kw, str(col), re.IGNORECASE) for kw in keywords):
-                            return col
-                    return None
-
                 df2 = read_gsheet_csv(SHEET_ID_WABAK, sheet_name="lock")
                 df_raw = read_gsheet_csv(SHEET_ID_WABAK, sheet_name="raw")
                 
@@ -1364,4 +1358,201 @@ if f1:
 
                 df_yesterday = df2[df2['Timestamp_Date'] == yesterday].copy()
                 
-                col_kes = find_col(df_yester
+                col_kes = find_col(df_yesterday, ['Bilangan Kes', 'Jumlah Kes'])
+                col_dedah = find_col(df_yesterday, ['Bilangan Terdedah', 'Jumlah Terdedah'])
+                
+                if col_kes and col_dedah:
+                    df_yesterday_list = df_yesterday[['PENYAKIT', 'DAERAH (HURUF BESAR)', col_alamat, col_kategori, col_kes, col_dedah]].values.tolist()
+                else:
+                    df_yesterday_list = []
+
+                df2_filt = df2[df2['Timestamp_Date'] <= yesterday].copy()
+                df_raw_filt = df_raw[df_raw['Timestamp_Date'] <= yesterday].copy()
+                
+                def group_inf(n): return "ILI/ Influenza" if any(x in str(n).upper() for x in ["INFLUENZA", "ILI"]) else n
+                
+                df2_filt['PENYAKIT'] = df2_filt['PENYAKIT'].apply(group_inf)
+                
+                if 'PENYAKIT' in df_raw_filt.columns:
+                    df_raw_filt['PENYAKIT'] = df_raw_filt['PENYAKIT'].apply(group_inf)
+                else:
+                    col_penyakit_raw = find_col(df_raw_filt, ['PENYAKIT'])
+                    if col_penyakit_raw:
+                        df_raw_filt['PENYAKIT'] = df_raw_filt[col_penyakit_raw].apply(group_inf)
+
+                wb_sum = []
+                
+                # Menggabungkan nama penyakit dari kedua-dua fail
+                all_diseases = set(df2_filt['PENYAKIT'].dropna().unique())
+                if 'PENYAKIT' in df_raw_filt.columns:
+                    all_diseases = all_diseases.union(set(df_raw_filt['PENYAKIT'].dropna().unique()))
+                    
+                for d in all_diseases:
+                    if pd.isna(d) or str(d).strip() == "": continue
+                    
+                    # 1. Kiraan HARIAN & KUMULATIF dari sheet 'lock'
+                    disease_df_lock = df2_filt[df2_filt['PENYAKIT'] == d]
+                    h = len(disease_df_lock[disease_df_lock['Timestamp_Date'] == yesterday])
+                    k = len(disease_df_lock)
+                    
+                    # 2. Kiraan AKTIF dari sheet 'raw'
+                    if 'PENYAKIT' in df_raw_filt.columns:
+                        disease_df_raw = df_raw_filt[df_raw_filt['PENYAKIT'] == d]
+                    else:
+                        disease_df_raw = pd.DataFrame()
+                        
+                    def check_active(row):
+                        tamat = row['Tarikh Sebenar Tamat Wabak'] if pd.notna(row['Tarikh Sebenar Tamat Wabak']) else row['Tarikh Wabak Dijangka Tamat']
+                        return True if (pd.isna(tamat) or tamat >= today) else False
+                        
+                    if not disease_df_raw.empty:
+                        active_count = disease_df_raw.apply(check_active, axis=1).sum()
+                    else:
+                        active_count = 0
+                        
+                    if h > 0 or k > 0 or active_count > 0:
+                        wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'AKTIF': active_count, 'KUMULATIF': k})
+                
+                if wb_sum:
+                    wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
+                else:
+                    wabak_df = pd.DataFrame(columns=['PENYAKIT', 'HARIAN', 'AKTIF', 'KUMULATIF']).set_index('PENYAKIT')
+
+                # --- PEMPROSESAN DATA GOOGLE SHEET BKK & VECTOR ---
+                raw_gs = read_gsheet_csv(SHEET_ID, GID, header=None)
+                mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
+                v_data = raw_gs.iloc[mask_v.idxmax() : mask_v.idxmax() + 11, 13:20]
+                v_data = v_data.dropna(how='all')
+                v_data = v_data[~v_data.iloc[:, 0].astype(str).str.lower().str.contains('nan')]
+                v_data = v_data[~v_data.iloc[:, 0].astype(str).str.lower().str.contains('dari tarikh|tarikh')]
+
+                df_bkk_raw_data = read_gsheet_csv(BKK_SPREADSHEET_ID, "1352807145", header=None)
+                clean_date_series = df_bkk_raw_data.iloc[:, 2].astype(str).str.strip()
+                df_bkk_raw_data['datetime_lapor'] = pd.to_datetime(clean_date_series, dayfirst=True, errors='coerce').dt.date
+                
+                insiden_semalam = df_bkk_raw_data[df_bkk_raw_data['datetime_lapor'] == yesterday]
+                
+                bkk_details = [{
+                    'kejadian': r[5], 
+                    'alamat': r[8], 
+                    'daerah': r[4],
+                    'bil_kes': r[9],     
+                    'bil_kematian': r[10]  
+                } for _, r in insiden_semalam.iterrows()]
+                
+                df_bkk_jadual_full = read_gsheet_csv(BKK_SPREADSHEET_ID, "1342717767", header=None)
+                
+                bkk_raw = df_bkk_jadual_full.iloc[0:, 33:46].dropna(how='all').reset_index(drop=True)
+                bkk_raw.columns = bkk_raw.iloc[0]
+                
+                new_cols = []
+                for col in bkk_raw.columns:
+                    col_str = str(col).strip()
+                    if re.search(r'(moving|median|4 tahun)', col_str, re.IGNORECASE):
+                        new_cols.append('Purata Bergerak 4 Tahun (2022,2023,2024,2025)')
+                    else:
+                        new_cols.append(col_str)
+                bkk_raw.columns = new_cols
+
+                bkk_table_final = bkk_raw[1:].reset_index(drop=True).rename(columns={
+                    'GOMBAK':'GBK','HULU LANGAT':'HL','HULU SELANGOR':'HS','KLANG':'KLG','KUALA LANGAT':'KL','KUALA SELANGOR':'KS','PETALING':'PTG','SABAK BERNAM':'SB','SEPANG':'SPG',
+                    'PK P.KLANG': 'PK PK'
+                })
+
+                # --- PEMPROSESAN DATA JEREBU ---
+                jerebu_data = []
+                kumulatif_start_jerebu = date(2026, 9, 9)
+                hsa_wad_count = 0
+                
+                for display_name, tab_name in FASILITI_JEREBU:
+                    try:
+                        df_j = read_gsheet_csv(SHEET_ID_JEREBU, sheet_name=tab_name, header=None)
+                        df_j['Tarikh_Clean'] = pd.to_datetime(df_j.iloc[:, 1].astype(str).str.strip(), dayfirst=True, errors='coerce').dt.date
+                        
+                        df_harian = df_j[df_j['Tarikh_Clean'] == yesterday]
+                        df_kumu = df_j[(df_j['Tarikh_Clean'] >= kumulatif_start_jerebu) & (df_j['Tarikh_Clean'] <= yesterday)]
+                        
+                        def safe_sum_jerebu(df_sub, col_idx):
+                            if col_idx < len(df_sub.columns):
+                                return pd.to_numeric(df_sub.iloc[:, col_idx], errors='coerce').fillna(0).sum()
+                            return 0
+                        
+                        if display_name == "Hospital Shah Alam":
+                            hsa_wad_count = int(safe_sum_jerebu(df_harian, 9)) # Column J (index 9) for HSA Wad Kemasukan Asma
+                            
+                            jerebu_data.append({
+                                "Fasiliti": display_name,
+                                "H_Konj": 0, "H_URTI": 0,
+                                "H_Asma": int(safe_sum_jerebu(df_harian, 5)),
+                                "K_Konj": 0, "K_URTI": 0,
+                                "K_Asma": int(safe_sum_jerebu(df_kumu, 5))
+                            })
+                        else:
+                            jerebu_data.append({
+                                "Fasiliti": display_name,
+                                "H_Konj": int(safe_sum_jerebu(df_harian, 5)),  
+                                "H_URTI": int(safe_sum_jerebu(df_harian, 9)),  
+                                "H_Asma": int(safe_sum_jerebu(df_harian, 13)),  
+                                "K_Konj": int(safe_sum_jerebu(df_kumu, 5)),
+                                "K_URTI": int(safe_sum_jerebu(df_kumu, 9)),
+                                "K_Asma": int(safe_sum_jerebu(df_kumu, 13))
+                            })
+                    except Exception:
+                        jerebu_data.append({
+                            "Fasiliti": display_name,
+                            "H_Konj": 0, "H_URTI": 0, "H_Asma": 0,
+                            "K_Konj": 0, "K_URTI": 0, "K_Asma": 0
+                        })
+                        
+                # --- DAPATKAN DATA GRAF JEREBU (RAJAH 6.1, 6.2, 6.3) ---
+                df_graf_konj = None
+                df_graf_urti = None
+                df_graf_asma = None
+                
+                if HAS_MATPLOTLIB:
+                    graf_sheet_id = "1lAOM256C1e7SI8y8EDF0ayc8di-d4yIB5qWjx7IECkI"
+                    
+                    try:
+                        df_graf_konj = read_gsheet_csv(graf_sheet_id, sheet_name="GRAF CONJUNCTIVITIS", range_val="B4:H")
+                    except Exception as e:
+                        st.warning(f"Gagal memuat turun data untuk Graf Konjunktivitis: {e}")
+                        
+                    try:
+                        df_graf_urti = read_gsheet_csv(graf_sheet_id, sheet_name="GRAF URTI", range_val="B4:H")
+                    except Exception as e:
+                        st.warning(f"Gagal memuat turun data untuk Graf URTI: {e}")
+                        
+                    try:
+                        try:
+                            df_graf_asma = read_gsheet_csv(graf_sheet_id, sheet_name="GRAF ASTHMA", range_val="B4:I")
+                        except:
+                            df_graf_asma = read_gsheet_csv(graf_sheet_id, sheet_name="GRAF ASMA", range_val="B4:I")
+                    except Exception as e:
+                        st.warning(f"Gagal memuat turun data untuk Graf Asma: {e}")
+
+                # --- JANA DOKUMEN ---
+                doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, (len(bkk_details)==0), bkk_details, df_yesterday_list, jerebu_data, parsed_apims, hsa_wad_count, df_graf_konj, df_graf_urti, df_graf_asma)
+                
+                file_date = today.strftime("%d.%m.%y")
+                
+                st.session_state.doc_bytes = doc_out.getvalue()
+                st.session_state.file_name_custom = f"Laporan CPRC Selangor ({file_date}).docx"
+                st.session_state.report_generated = True
+                
+                st.success("🎉 Laporan telah berjaya dijana!")
+
+            except Exception as e:
+                st.error(f"Ralat semasa memproses data: {e}")
+
+    # --- PAPARAN HASIL LAPORAN ---
+    if st.session_state.get('report_generated', False):
+        st.markdown("---")
+        st.markdown("### 📥 Muat Turun Hasil Laporan")
+        
+        st.download_button(
+            label="📄 Muat Turun Laporan Word (.docx)", 
+            data=st.session_state.doc_bytes, 
+            file_name=st.session_state.file_name_custom,
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            use_container_width=True
+        )
