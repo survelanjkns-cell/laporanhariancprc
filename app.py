@@ -130,33 +130,14 @@ def generate_jerebu_chart_image(df_graf, last_epi_num):
         plt.rcParams['axes.titleweight'] = 'bold'
 
         fig, ax1 = plt.subplots(figsize=(9, 4.5))
-        
-        # Pemetaan warna khusus bagi setiap fasiliti (KK Kota Damansara ditukar ke Kuning)
-        facility_colors = {
-            'KK TELOK DATOK': '#7030A0',      # Ungu
-            'KK PANDAMARAN': '#C00000',       # Merah
-            'KK SHAH ALAM': '#92D050',        # Hijau
-            'KK KOTA DAMANSARA': '#E6B800',   # Kuning
-            'KK KUALA SELANGOR': '#4BACC6',   # Biru Muda
-            'HOSPITAL SHAH ALAM': '#F79646'   # Jingga
-        }
-        
-        default_colors = ['#7030A0', '#C00000', '#92D050', '#E6B800', '#4BACC6', '#F79646']
+        colors = ['#7030A0', '#C00000', '#92D050', '#8064A2', '#4BACC6', '#F79646']
         
         x_labels = df_plot[me_col].astype(str).tolist()
         x = np.arange(len(x_labels))
         
         for idx, clinic in enumerate(clinics):
             y_data = pd.to_numeric(df_plot[clinic], errors='coerce').fillna(0)
-            
-            clinic_upper = clinic.upper()
-            line_color = default_colors[idx % len(default_colors)]
-            for fac_key, hex_col in facility_colors.items():
-                if fac_key in clinic_upper or clinic_upper in fac_key:
-                    line_color = hex_col
-                    break
-                    
-            ax1.plot(x, y_data, label=clinic, color=line_color, linewidth=2.5)
+            ax1.plot(x, y_data, label=clinic, color=colors[idx % len(colors)], linewidth=2.5)
             
         ax1.set_ylabel("BILANGAN KES", fontname='Arial', fontweight='bold', fontsize=8)
         ax1.set_xticks(x)
@@ -238,6 +219,7 @@ def format_ipu_narrative(data_stesen, tarikh_semalam, epi_week_lepas):
     
     jumlah_stesen = len(data_stesen)
     
+    # Tukar nombor ke perkataan untuk jumlah stesen jika kurang dari 10
     num_word = {1: "satu (1)", 2: "dua (2)", 3: "tiga (3)", 4: "empat (4)", 5: "lima (5)", 6: "enam (6)", 7: "tujuh (7)", 8: "lapan (8)", 9: "sembilan (9)"}
     stesen_str = num_word.get(jumlah_stesen, str(jumlah_stesen))
         
@@ -1053,7 +1035,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         # 2. Rajah 6.2 (URTI)
         img_62, start_me_62, end_me_62 = generate_jerebu_chart_image(df_graf_urti, last_epi_num)
         if img_62:
-            doc.add_paragraph()
             p_img2 = doc.add_paragraph()
             p_img2.alignment = WD_ALIGN_PARAGRAPH.CENTER
             p_img2.add_run().add_picture(img_62, width=Inches(6.0))
@@ -1069,7 +1050,6 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         # 3. Rajah 6.3 (Asma)
         img_63, start_me_63, end_me_63 = generate_jerebu_chart_image(df_graf_asma, last_epi_num)
         if img_63:
-            doc.add_paragraph()
             p_img3 = doc.add_paragraph()
             p_img3.alignment = WD_ALIGN_PARAGRAPH.CENTER
             p_img3.add_run().add_picture(img_63, width=Inches(6.0))
