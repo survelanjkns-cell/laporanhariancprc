@@ -214,29 +214,59 @@ def generate_jerebu_chart_image(df_graf, last_epi_num):
         print("Ralat jana graf:", e)
         return None, None, None
 
+def parse_apims_pasted_text(text):
+    data = {}
+    lines = text.split("**")
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        
+        match = re.search(r'([A-Za-z\s]+)\s+(\d+)', line)
+        if match:
+            stesen = match.group(1).strip()
+            ipu = int(match.group(2))
+            
+            # Standardization stesen (pilihan)
+            if "SHAH ALAM" in stesen.upper(): stesen = "Shah Alam"
+            elif "JOHAN SETIA" in stesen.upper(): stesen = "Johan Setia"
+            elif "PETALING JAYA" in stesen.upper(): stesen = "Petaling Jaya"
+            elif "KUALA SELANGOR" in stesen.upper(): stesen = "Kuala Selangor"
+            elif "BANTING" in stesen.upper(): stesen = "Banting"
+            elif "KLANG" in stesen.upper(): stesen = "Klang"
+            
+            data[stesen] = ipu
+    return data
+
 # --- HELPERS FUNGSI & APIMS ---
 def format_ipu_narrative(data_stesen, tarikh_semalam, epi_week_lepas):
     if not data_stesen:
-        return f"Pada {tarikh_semalam}, tiada rekod bacaan IPU yang tertinggi dikesan untuk stesen pemantauan di Selangor. Perincian kes penyakit berkaitan jerebu yang dilaporkan oleh fasiliti sentinel pada tarikh tersebut adalah seperti di Jadual 6.1, manakala Rajah 6.1 hingga Rajah 6.3 menunjukkan tren mingguan konjunktivitis, URTI dan asma berbanding bacaan IPU tertinggi sehingga ME{epi_week_lepas}."
+        return f"Pada {tarikh_semalam}, tiada rekod bacaan IPU yang tertinggi dikesan untuk stesen pemantauan di Selangor. Perincian kes penyakit berkaitan jerebu yang dilaporkan oleh fasiliti sentinel pada tempoh pelaporan yang sama adalah seperti di Jadual 6.1, manakala Rajah 6.1 hingga Rajah 6.3 menunjukkan tren mingguan konjunktivitis, URTI dan asma berbanding bacaan IPU tertinggi sehingga ME{epi_week_lepas}."
         
     # Susun mengikut bacaan IPU dari tinggi ke rendah
     sorted_stesen = sorted(data_stesen.items(), key=lambda item: item[1], reverse=True)
     
+    # Bina ayat senarai
+    if len(sorted_stesen) > 1:
+        other_parts = [f"{loc} ({val})" for loc, val in sorted_stesen[1:]]
+        other_str = ", ".join(other_parts[:-1]) + " dan " + other_parts[-1] if len(other_parts) > 1 else other_parts[0]
+        teks_ipu = f"diikuti {other_str}"
+    else:
+        teks_ipu = ""
+        
     first_loc, first_val = sorted_stesen[0]
     
-    if len(sorted_stesen) > 1:
-        other_items = [f"{loc} ({val})" for loc, val in sorted_stesen[1:]]
-        if len(other_items) == 1:
-            other_str = other_items[0]
-        else:
-            other_str = ", ".join(other_items[:-1]) + " dan " + other_items[-1]
-            
-        teks_ipu = f"direkodkan di {first_loc} ({first_val}), diikuti {other_str}"
-    else:
-        teks_ipu = f"direkodkan di {first_loc} ({first_val})"
-        
-    teks = f"Pada {tarikh_semalam}, bacaan Indeks Pencemar Udara (IPU) tertinggi di Selangor {teks_ipu}. Perincian kes penyakit berkaitan jerebu yang dilaporkan oleh fasiliti sentinel pada tarikh tersebut adalah seperti di Jadual 6.1, manakala Rajah 6.1 hingga Rajah 6.3 menunjukkan tren mingguan konjunktivitis, URTI dan asma berbanding bacaan IPU tertinggi sehingga ME{epi_week_lepas}."
+    jumlah_stesen = len(data_stesen)
     
+    # Tukar nombor ke perkataan untuk jumlah stesen jika kurang dari 10
+    num_word = {1: "satu (1)", 2: "dua (2)", 3: "tiga (3)", 4: "empat (4)", 5: "lima (5)", 6: "enam (6)", 7: "tujuh (7)", 8: "lapan (8)", 9: "sembilan (9)"}
+    stesen_str = num_word.get(jumlah_stesen, str(jumlah_stesen))
+        
+    if teks_ipu:
+        teks = f"Pada {tarikh_semalam} jam 8.00 pagi, kesemua {stesen_str} stesen pemantauan di Selangor merekodkan bacaan Indeks Pencemar Udara (IPU) tertinggi di {first_loc} ({first_val}), {teks_ipu}. Perincian kes penyakit berkaitan jerebu yang dilaporkan oleh fasiliti sentinel pada tempoh pelaporan yang sama adalah seperti di Jadual 6.1, manakala Rajah 6.1 hingga Rajah 6.3 menunjukkan tren mingguan konjunktivitis, URTI dan asma berbanding bacaan IPU tertinggi sehingga ME{epi_week_lepas}."
+    else:
+        teks = f"Pada {tarikh_semalam} jam 8.00 pagi, stesen pemantauan di Selangor merekodkan bacaan Indeks Pencemar Udara (IPU) tertinggi di {first_loc} ({first_val}). Perincian kes penyakit berkaitan jerebu yang dilaporkan oleh fasiliti sentinel pada tempoh pelaporan yang sama adalah seperti di Jadual 6.1, manakala Rajah 6.1 hingga Rajah 6.3 menunjukkan tren mingguan konjunktivitis, URTI dan asma berbanding bacaan IPU tertinggi sehingga ME{epi_week_lepas}."
+        
     return teks
 
 def format_wad_narrative(wad_count):
@@ -768,6 +798,23 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     doc.add_paragraph()
 
+    # --- TAMBAH RAJAH 3.1 (Tren Denggi) ---
+    graf_denggi_path = "graf_denggi.png" # Ganti dengan nama fail imej graf denggi sebenar anda
+    if os.path.exists(graf_denggi_path):
+        p_img_denggi = doc.add_paragraph()
+        p_img_denggi.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p_img_denggi.add_run().add_picture(graf_denggi_path, width=Inches(6.0))
+        
+        p_cap_denggi = doc.add_paragraph()
+        p_cap_denggi.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        p_cap_denggi.paragraph_format.space_before = Pt(6)
+        
+        run_cap_denggi_label = p_cap_denggi.add_run("Rajah 3.1: ")
+        apply_font(run_cap_denggi_label, 11, bold=True)
+        
+        run_cap_denggi_text = p_cap_denggi.add_run("Tren Kes Mingguan Denggi di Selangor") 
+        apply_font(run_cap_denggi_text, 11, bold=False)
+
     # --- 4.0 Ringkasan Laporan Kejadian Bencana, Kecemasan dan Krisis (BKK) ---
     doc.add_page_break()
     p4_head = doc.add_paragraph()
@@ -1213,6 +1260,10 @@ f1 = st.file_uploader("Pilih fail Notifikasi Harian", type=["xlsx", "xls"], labe
 
 st.markdown("---")
 
+st.subheader("📋 Tampal (Paste) Data Bacaan APIMS")
+st.info("Sila copy teks jadual dari laman web APIMS dan paste ke dalam kotak di bawah bagi tujuan penjanaan naratif IPU (Jadual 6.1).")
+raw_apims_input = st.text_area("Tampal data APIMS di sini:", height=150, placeholder="Contoh: Shah Alam 180** JOHAN SETIA 189** Petaling Jaya 175**")
+
 if not HAS_MATPLOTLIB:
     st.sidebar.warning("Modul 'matplotlib' tidak dijumpai. Sila masukkan 'matplotlib' dan 'numpy' dalam requirements.txt.")
 
@@ -1227,39 +1278,10 @@ if f1:
     if st.button("🚀 Jana Laporan Lengkap"):
         with st.spinner("Sedang memproses data dan memuat turun jadual/graf secara live..."):
             try:
-                # --- 1. DAPATKAN DATA IPU AUTOMATIK ---
+                # --- 1. DAPATKAN DATA IPU AUTOMATIK DARI TEXTAREA ---
                 parsed_apims = {}
-                try:
-                    sheet_ipu_id = "1rZrd7omTQdqdO5G-39KN8AVLDiTk1sluzu9-2pTTdi8"
-                    df_ipu_raw = read_gsheet_csv(sheet_ipu_id, sheet_name="SISTEM_REKOD_JEREBU_AUTOMATIK.csv", header=None)
-                    
-                    df_ipu_raw['Tarikh_Clean'] = pd.to_datetime(df_ipu_raw.iloc[:, 7].astype(str).str.strip(), dayfirst=True, errors='coerce').dt.date
-                    df_ipu_semalam = df_ipu_raw[df_ipu_raw['Tarikh_Clean'] == yesterday].copy()
-                    df_ipu_semalam['IPU_Val'] = pd.to_numeric(df_ipu_semalam.iloc[:, 5], errors='coerce').fillna(0)
-                    
-                    stations_map = {
-                        "SHAH ALAM": "Shah Alam",
-                        "JOHAN SETIA": "Johan Setia",
-                        "PETALING JAYA": "Petaling Jaya",
-                        "KLANG": "Klang",
-                        "KUALA SELANGOR": "Kuala Selangor",
-                        "BANTING": "Banting",
-                    }
-                    
-                    for index, row in df_ipu_semalam.iterrows():
-                        stesen_raw = str(row.iloc[1]).strip().upper()
-                        ipu_val = int(row['IPU_Val'])
-                        
-                        for key_name, std_name in stations_map.items():
-                            if key_name in stesen_raw:
-                                if key_name == "KLANG" and "JOHAN SETIA" in stesen_raw:
-                                    continue 
-                                    
-                                if std_name not in parsed_apims or ipu_val > parsed_apims[std_name]:
-                                    parsed_apims[std_name] = ipu_val
-                                break
-                except Exception as e:
-                    st.warning(f"Gagal memuat turun rekod IPU Automatik: {e}")
+                if raw_apims_input.strip():
+                    parsed_apims = parse_apims_pasted_text(raw_apims_input)
 
                 # --- 2. PEMPROSESAN EXCEL NOTIFIKASI ---
                 engine_type = "xlrd" if f1.name.endswith(".xls") else "openpyxl"
@@ -1273,6 +1295,12 @@ if f1:
                 col_totals = matrix[TEMPLATE_PKDS + ['Grand Total']].sum(axis=0)
 
                 # --- 3. PROSES PEMBACAAN LIVE GOOGLE SHEET WABAK (HARI INI) ---
+                def find_col(df, keywords):
+                    for col in df.columns:
+                        if any(re.search(kw, str(col), re.IGNORECASE) for kw in keywords):
+                            return col
+                    return None
+
                 df2 = read_gsheet_csv(SHEET_ID_WABAK, sheet_name="lock")
                 df_raw = read_gsheet_csv(SHEET_ID_WABAK, sheet_name="raw")
                 
@@ -1342,6 +1370,7 @@ if f1:
 
                 wb_sum = []
                 
+                # Menggabungkan nama penyakit dari kedua-dua fail
                 all_diseases = set(df2_filt['PENYAKIT'].dropna().unique())
                 if 'PENYAKIT' in df_raw_filt.columns:
                     all_diseases = all_diseases.union(set(df_raw_filt['PENYAKIT'].dropna().unique()))
@@ -1349,10 +1378,12 @@ if f1:
                 for d in all_diseases:
                     if pd.isna(d) or str(d).strip() == "": continue
                     
+                    # 1. Kiraan HARIAN & KUMULATIF dari sheet 'lock'
                     disease_df_lock = df2_filt[df2_filt['PENYAKIT'] == d]
                     h = len(disease_df_lock[disease_df_lock['Timestamp_Date'] == yesterday])
                     k = len(disease_df_lock)
                     
+                    # 2. Kiraan AKTIF dari sheet 'raw'
                     if 'PENYAKIT' in df_raw_filt.columns:
                         disease_df_raw = df_raw_filt[df_raw_filt['PENYAKIT'] == d]
                     else:
@@ -1435,7 +1466,7 @@ if f1:
                             return 0
                         
                         if display_name == "Hospital Shah Alam":
-                            hsa_wad_count = int(safe_sum_jerebu(df_harian, 9))
+                            hsa_wad_count = int(safe_sum_jerebu(df_harian, 9)) # Column J (index 9) for HSA Wad Kemasukan Asma
                             
                             jerebu_data.append({
                                 "Fasiliti": display_name,
