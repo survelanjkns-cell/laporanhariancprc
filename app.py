@@ -57,6 +57,23 @@ FASILITI_JEREBU = [
     ("KK Kuala Selangor", "KK KUALA SELANGOR")
 ]
 
+# --- HELPER NUMBER FORMATTER ---
+def format_number_with_comma(val):
+    """Menukar nombor atau string berangka kepada format dengan koma ribuan."""
+    try:
+        if pd.isna(val) or str(val).strip() in ["", "-", "nan", "TIADA", "NA"]:
+            return "-"
+        
+        # Jika nilai sudah berbentuk teks (bukan nombor), kembalikan seperti asal
+        num = float(str(val).replace(',', '').strip())
+        
+        if num.is_integer():
+            return f"{int(num):,}"
+        else:
+            return f"{num:,.2f}"
+    except ValueError:
+        return str(val).strip() if str(val).strip() != "" else "-"
+
 # --- HELPER DUAL-ENDPOINT CSV READER ---
 def read_gsheet_csv(sheet_id, gid="0", sheet_name=None, header='default', range_val=None):
     sheet_id = str(sheet_id).strip()
@@ -214,29 +231,6 @@ def generate_jerebu_chart_image(df_graf, last_epi_num):
         print("Ralat jana graf:", e)
         return None, None, None
 
-def parse_apims_pasted_text(text):
-    data = {}
-    lines = text.split("**")
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-        
-        match = re.search(r'([A-Za-z\s]+)\s+(\d+)', line)
-        if match:
-            stesen = match.group(1).strip()
-            ipu = int(match.group(2))
-            
-            if "SHAH ALAM" in stesen.upper(): stesen = "Shah Alam"
-            elif "JOHAN SETIA" in stesen.upper(): stesen = "Johan Setia"
-            elif "PETALING JAYA" in stesen.upper(): stesen = "Petaling Jaya"
-            elif "KUALA SELANGOR" in stesen.upper(): stesen = "Kuala Selangor"
-            elif "BANTING" in stesen.upper(): stesen = "Banting"
-            elif "KLANG" in stesen.upper(): stesen = "Klang"
-            
-            data[stesen] = ipu
-    return data
-
 # --- HELPERS FUNGSI & APIMS ---
 def format_ipu_narrative(data_stesen, tarikh_semalam, epi_week_lepas):
     if not data_stesen:
@@ -258,9 +252,9 @@ def format_ipu_narrative(data_stesen, tarikh_semalam, epi_week_lepas):
     stesen_str = num_word.get(jumlah_stesen, str(jumlah_stesen))
         
     if teks_ipu:
-        teks = f"Pada {tarikh_semalam} jam 12.00 tengah malam, stesen pemantauan di Selangor merekodkan bacaan Indeks Pencemar Udara (IPU) tertinggi di {first_loc} ({first_val}), {teks_ipu}. Perincian kes penyakit berkaitan jerebu yang dilaporkan oleh fasiliti sentinel pada tempoh pelaporan yang sama adalah seperti di Jadual 6.1, manakala Rajah 6.1 hingga Rajah 6.3 menunjukkan tren mingguan konjunktivitis, URTI dan asma berbanding bacaan IPU tertinggi sehingga ME{epi_week_lepas}."
+        teks = f"Pada {tarikh_semalam} jam 8.00 pagi, kesemua {stesen_str} stesen pemantauan di Selangor merekodkan bacaan Indeks Pencemar Udara (IPU) tertinggi di {first_loc} ({first_val}), {teks_ipu}. Perincian kes penyakit berkaitan jerebu yang dilaporkan oleh fasiliti sentinel pada tempoh pelaporan yang sama adalah seperti di Jadual 6.1, manakala Rajah 6.1 hingga Rajah 6.3 menunjukkan tren mingguan konjunktivitis, URTI dan asma berbanding bacaan IPU tertinggi sehingga ME{epi_week_lepas}."
     else:
-        teks = f"Pada {tarikh_semalam} 12.00 tengah malam, stesen pemantauan di Selangor merekodkan bacaan Indeks Pencemar Udara (IPU) tertinggi di {first_loc} ({first_val}). Perincian kes penyakit berkaitan jerebu yang dilaporkan oleh fasiliti sentinel pada tempoh pelaporan yang sama adalah seperti di Jadual 6.1, manakala Rajah 6.1 hingga Rajah 6.3 menunjukkan tren mingguan konjunktivitis, URTI dan asma berbanding bacaan IPU tertinggi sehingga ME{epi_week_lepas}."
+        teks = f"Pada {tarikh_semalam} jam 8.00 pagi, stesen pemantauan di Selangor merekodkan bacaan Indeks Pencemar Udara (IPU) tertinggi di {first_loc} ({first_val}). Perincian kes penyakit berkaitan jerebu yang dilaporkan oleh fasiliti sentinel pada tempoh pelaporan yang sama adalah seperti di Jadual 6.1, manakala Rajah 6.1 hingga Rajah 6.3 menunjukkan tren mingguan konjunktivitis, URTI dan asma berbanding bacaan IPU tertinggi sehingga ME{epi_week_lepas}."
         
     return teks
 
@@ -500,7 +494,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     total_notifications = int(col_sums['Grand Total'])
     h11 = doc.add_paragraph()
     h11.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
-    h11_text = f"Jadual di bawah menunjukkan jumlah input e-Notifikasi di negeri Selangor yang direkodkan pada {get_malay_date(yesterday)}. Sejumlah {total_notifications} input notifikasi diterima pada tarikh tersebut dengan pecahan mengikut penyakit seperti dalam Jadual 1.1."
+    h11_text = f"Jadual di bawah menunjukkan jumlah input e-Notifikasi di negeri Selangor yang direkodkan pada {get_malay_date(yesterday)}. Sejumlah {format_number_with_comma(total_notifications)} input notifikasi diterima pada tarikh tersebut dengan pecahan mengikut penyakit seperti dalam Jadual 1.1."
     apply_font(h11.add_run(h11_text), 11, bold=False)
 
     add_table_title(doc, "Jadual 1.1", "Jumlah Input e-Notifikasi")
@@ -540,18 +534,18 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
             p = cell.paragraphs[0]
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            apply_font(p.add_run(str(int(row_data[pkd]))), 8, bold=True)
+            apply_font(p.add_run(format_number_with_comma(row_data[pkd])), 8, bold=True)
         
         gt_cell = row[len(TEMPLATE_PKDS)+1]
         gt_cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         gt_cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-        apply_font(gt_cell.paragraphs[0].add_run(str(int(row_data['Grand Total']))), 8, bold=True)
+        apply_font(gt_cell.paragraphs[0].add_run(format_number_with_comma(row_data['Grand Total'])), 8, bold=True)
         set_cell_background(gt_cell, "FFFFB3")
         
         avg_cell = row[len(TEMPLATE_PKDS)+2]
         avg_cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         avg_cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-        apply_font(avg_cell.paragraphs[0].add_run(str(int(row_data.get('Average Harian', 0)))), 8, bold=True)
+        apply_font(avg_cell.paragraphs[0].add_run(format_number_with_comma(row_data.get('Average Harian', 0))), 8, bold=True)
         set_cell_background(avg_cell, "FFC000")
 
     f_cells = t1.rows[-1].cells
@@ -563,12 +557,12 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         cell = f_cells[i+1]
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-        apply_font(cell.paragraphs[0].add_run(str(int(col_sums[pkd]))), 8, bold=True)
+        apply_font(cell.paragraphs[0].add_run(format_number_with_comma(col_sums[pkd])), 8, bold=True)
         set_cell_background(cell, "FFFF00")
 
     f_cells[len(TEMPLATE_PKDS)+1].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
     f_cells[len(TEMPLATE_PKDS)+1].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-    apply_font(f_cells[len(TEMPLATE_PKDS)+1].paragraphs[0].add_run(str(int(col_sums['Grand Total']))), 8, bold=True)
+    apply_font(f_cells[len(TEMPLATE_PKDS)+1].paragraphs[0].add_run(format_number_with_comma(col_sums['Grand Total'])), 8, bold=True)
     set_cell_background(f_cells[len(TEMPLATE_PKDS)+1], "FFFF00")
 
     avg_total_cell = f_cells[len(TEMPLATE_PKDS)+2]
@@ -621,16 +615,16 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
         apply_font(cells[0].paragraphs[0].add_run(str(penyakit)), 8, bold=True)
         set_cell_background(cells[0], "D9E9FF")
         for idx, col_key in enumerate(['HARIAN', 'AKTIF', 'KUMULATIF'], start=1):
-            run = cells[idx].paragraphs[0].add_run(str(int(row_data[col_key])))
+            run = cells[idx].paragraphs[0].add_run(format_number_with_comma(row_data[col_key]))
             apply_font(run, 8, bold=True)
             cells[idx].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     f2_cells = t2.rows[-1].cells
     footer_vals = [
         "Jumlah",
-        str(int(wabak_df['HARIAN'].sum())) if not wabak_df.empty else "0",
-        str(int(wabak_df['AKTIF'].sum())) if not wabak_df.empty else "0",
-        str(int(wabak_df['KUMULATIF'].sum())) if not wabak_df.empty else "0"
+        format_number_with_comma(wabak_df['HARIAN'].sum()) if not wabak_df.empty else "0",
+        format_number_with_comma(wabak_df['AKTIF'].sum()) if not wabak_df.empty else "0",
+        format_number_with_comma(wabak_df['KUMULATIF'].sum()) if not wabak_df.empty else "0"
     ]
     for i, txt in enumerate(footer_vals):
         f2_cells[i].width = col_widths_t2[i]
@@ -691,7 +685,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
             p_ar = row[4].paragraphs[0]
             p_ar.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            run_ar_main = p_ar.add_run(f"{int(n_kes)}/{int(n_dedah)}")
+            run_ar_main = p_ar.add_run(f"{format_number_with_comma(n_kes)}/{format_number_with_comma(n_dedah)}")
             apply_font(run_ar_main, 8, bold=False)
             p_ar.add_run("\n")
             run_ar_pct = p_ar.add_run(f"({pct_str})")
@@ -774,8 +768,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             elif j == 0: 
                 display_val = "Jumlah" if is_jumlah_row else str(val).title()
             else:
-                try: display_val = f"{int(float(val)):,}"
-                except: display_val = str(val)
+                display_val = format_number_with_comma(val)
             
             p = row_cells[j].paragraphs[0]
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT if j == 0 else WD_ALIGN_PARAGRAPH.CENTER
@@ -935,7 +928,13 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             cells[c_idx].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
             p = cells[c_idx].paragraphs[0]
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT if c_idx == 0 else WD_ALIGN_PARAGRAPH.CENTER
-            run = p.add_run(clean_val(val))
+            
+            # Jangan apply koma pada nama daerah/insiden di lajur pertama
+            if c_idx == 0:
+                run = p.add_run(clean_val(val))
+            else:
+                run = p.add_run(format_number_with_comma(clean_val(val)))
+                
             apply_font(run, 8, bold=is_last_row or c_idx == 0)
             if is_last_row: 
                 set_cell_background(cells[c_idx], "FFFF00")
@@ -1004,7 +1003,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             set_cell_background(cells[2], "808080")
             
             cells[3].width = col_widths_6[3]
-            cells[3].text = str(row_data["H_Asma"])
+            cells[3].text = format_number_with_comma(row_data["H_Asma"])
             cells[3].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
             apply_font(cells[3].paragraphs[0].runs[0], 10, bold=False)
             
@@ -1014,7 +1013,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             vals = [row_data["H_Konj"], row_data["H_URTI"], row_data["H_Asma"]]
             for i, val in enumerate(vals):
                 cells[i+1].width = col_widths_6[i+1]
-                cells[i+1].text = str(val)
+                cells[i+1].text = format_number_with_comma(val)
                 cells[i+1].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
                 apply_font(cells[i+1].paragraphs[0].runs[0], 10, bold=False)
                 
@@ -1033,7 +1032,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     
     f1_vals = [sum_h_konj, sum_h_urti, sum_h_asma]
     for i, val in enumerate(f1_vals):
-        f1_cells[i+1].text = str(val)
+        f1_cells[i+1].text = format_number_with_comma(val)
         f1_cells[i+1].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
         apply_font(f1_cells[i+1].paragraphs[0].runs[0], 10, bold=False)
         
@@ -1047,7 +1046,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     
     f2_vals = [sum_k_konj, sum_k_urti, sum_k_asma]
     for i, val in enumerate(f2_vals):
-        f2_cells[i+1].text = str(val)
+        f2_cells[i+1].text = format_number_with_comma(val)
         f2_cells[i+1].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
         apply_font(f2_cells[i+1].paragraphs[0].runs[0], 10, bold=True)
         
@@ -1067,11 +1066,11 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     
     parts_nar = []
     if sum_h_konj > 0:
-        parts_nar.append(f"{sum_h_konj} kes konjunktivitis")
+        parts_nar.append(f"{format_number_with_comma(sum_h_konj)} kes konjunktivitis")
     if sum_h_urti > 0:
-        parts_nar.append(f"{sum_h_urti} kes URTI")
+        parts_nar.append(f"{format_number_with_comma(sum_h_urti)} kes URTI")
     if sum_h_asma > 0:
-        parts_nar.append(f"{sum_h_asma} kes asma")
+        parts_nar.append(f"{format_number_with_comma(sum_h_asma)} kes asma")
         
     if not parts_nar:
         ayat_dinamik = f"Pada {tarikh_semalam_str}, Tiada kes dilaporkan oleh fasiliti sentinel."
@@ -1277,7 +1276,6 @@ st.info(f"**Guideline:** Sila muat turun fail notifikasi pada **{tarikh_guidelin
 f1 = st.file_uploader("Pilih fail Notifikasi Harian", type=["xlsx", "xls"], label_visibility="collapsed")
 
 st.markdown("---")
-
 
 if not HAS_MATPLOTLIB:
     st.sidebar.warning("Modul 'matplotlib' tidak dijumpai. Sila masukkan 'matplotlib' dan 'numpy' dalam requirements.txt.")
