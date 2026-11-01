@@ -1035,6 +1035,16 @@ if f1:
                 df_raw['Tarikh Sebenar Tamat Wabak'] = parse_date_col(raw_cs_series)
                 df_raw['Tarikh Wabak Dijangka Tamat'] = parse_date_col(raw_an_series)
 
+                # HELPER COLUMN: tarikh tamat yang digunakan untuk tentukan wabak aktif
+                #  - CS kosong  -> ambil AN
+                #  - CS ada     -> ambil CS
+                def tentukan_tarikh_tamat(row):
+                    cs = row['Tarikh Sebenar Tamat Wabak']
+                    an = row['Tarikh Wabak Dijangka Tamat']
+                    return an if pd.isna(cs) else cs
+
+                df_raw['Tarikh Tamat Efektif'] = df_raw.apply(tentukan_tarikh_tamat, axis=1)
+
                 df2 = df2.dropna(subset=['Timestamp_Date'])
                 # Sheet 'raw': JANGAN gugurkan baris yang tarikh notifikasinya gagal diparse,
                 # kerana status aktif hanya bergantung pada lajur CS / AN.
@@ -1085,13 +1095,11 @@ if f1:
                 #  - Jika lajur CS kosong -> guna lajur AN (tarikh jangka tamat)
                 #  - Aktif jika tarikh tamat belum lepas (>= hari ini)
                 #  - Jika CS dan AN kedua-duanya kosong -> tidak dapat ditentukan, tidak dikira aktif
-                def check_active(row):
-                    sebenar = row['Tarikh Sebenar Tamat Wabak']
-                    jangka = row['Tarikh Wabak Dijangka Tamat']
-                    tamat = sebenar if pd.notna(sebenar) else jangka
-                    if pd.isna(tamat):
-                        return False
-                    return tamat >= today
+                # Aktif jika 'Tarikh Tamat Efektif' ada dan belum lepas (>= hari ini).
+                # Jika kosong (CS dan AN kedua-duanya kosong) -> tidak dikira aktif.
+                df_raw_filt['AKTIF_FLAG'] = df_raw_filt['Tarikh Tamat Efektif'].apply(
+                    lambda t: bool(pd.notna(t) and t >= today)
+                )
 
                 for d in all_diseases:
                     if pd.isna(d) or str(d).strip() == "": continue
@@ -1108,7 +1116,7 @@ if f1:
                         disease_df_raw = pd.DataFrame()
                         
                     if not disease_df_raw.empty:
-                        active_count = int(disease_df_raw.apply(check_active, axis=1).sum())
+                        active_count = int(disease_df_raw['AKTIF_FLAG'].sum())
                     else:
                         active_count = 0
                         
@@ -1157,6 +1165,7 @@ if f1:
                     st.write(f"CS kosong & AN ada nilai: **{int((cs_kosong & ~an_kosong).sum())}** | CS & AN kedua-dua kosong: **{int((cs_kosong & an_kosong).sum())}**")
                     st.write(f"AKTIF (tafsiran tarikh hari/bulan/tahun): **{aktif_df}** (gagal parse: {gagal_df})")
                     st.write(f"AKTIF (tafsiran tarikh bulan/hari/tahun): **{aktif_mf}** (gagal parse: {gagal_mf})")
+                    st.write(f"AKTIF ikut helper column 'Tarikh Tamat Efektif' (semua baris): **{int(df_raw_filt['AKTIF_FLAG'].sum())}**")
                     st.write(f"AKTIF dalam jadual 2.1 (jumlah mengikut penyakit): **{int(wabak_df['AKTIF'].sum()) if not wabak_df.empty else 0}**")
                     st.write("Contoh nilai mentah CS / AN (10 baris pertama):")
                     st.dataframe(pd.DataFrame({'CS': cs_raw.head(10).values, 'AN': an_raw.head(10).values}))
