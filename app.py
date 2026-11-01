@@ -35,6 +35,13 @@ GID = "0"
 # --- URL GOOGLE SHEET WABAK ---
 SHEET_ID_WABAK = "1SMu8z0MONnxkduZEaRyVNrEnH7KkvnJ9EjuVxSi3WOY"
 
+# --- KEDUDUKAN LAJUR SHEET 'raw' UNTUK PENENTUAN WABAK AKTIF (0-based) ---
+# Lajur CS = Tarikh Sebenar Tamat Wabak
+# Lajur AN = Tarikh Wabak Dijangka Tamat
+# Kiraan: A=0 ... Z=25, AA=26 ... AN=39 ; CS = (3*26 + 19) - 1 = 96
+IDX_CS = 96
+IDX_AN = 39
+
 # --- URL GOOGLE SHEET BKK ---
 BKK_SPREADSHEET_ID = "1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c"
 
@@ -45,6 +52,7 @@ def format_number_with_comma(val):
         if pd.isna(val) or str(val).strip() in ["", "-", "nan", "TIADA", "NA"]:
             return "-"
         
+        # Jika nilai sudah berbentuk teks (bukan nombor), kembalikan seperti asal
         num = float(str(val).replace(',', '').strip())
         
         if num.is_integer():
@@ -53,46 +61,6 @@ def format_number_with_comma(val):
             return f"{num:,.2f}"
     except ValueError:
         return str(val).strip() if str(val).strip() != "" else "-"
-
-# --- HELPER PARSER TARIKH (MENYOKONG TEKS & NOMBOR SIRI EXCEL) ---
-def parse_mixed_date(val):
-    """Menterjemah tarikh sama ada dalam bentuk string atau serial number Excel (contoh: 46470)."""
-    if pd.isna(val) or str(val).strip() in ["", "-", "nan", "NaT", "None"]:
-        return None
-    
-    # Jika sudah bertaraf date atau datetime
-    if isinstance(val, (datetime, pd.Timestamp)):
-        return val.date()
-    if isinstance(val, date):
-        return val
-
-    val_str = str(val).strip()
-
-    # Semak jika nilai adalah nombor siri Excel (biasanya antara 35000 hingga 65000 bagi tahun 1995-2070)
-    try:
-        val_float = float(val_str)
-        if 30000 <= val_float <= 65000:
-            return (pd.to_datetime('1899-12-30') + pd.to_timedelta(val_float, 'D')).date()
-    except (ValueError, TypeError):
-        pass
-
-    # Cuba pelbagai format string tarikh biasa
-    formats = ['%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y', '%d/%m/%y', '%Y/%m/%d']
-    for fmt in formats:
-        try:
-            return datetime.strptime(val_str[:10], fmt).date()
-        except (ValueError, TypeError):
-            continue
-
-    # Fallback menggunakan parser fleksibel pandas
-    try:
-        dt = pd.to_datetime(val_str, dayfirst=True, errors='coerce')
-        if pd.notna(dt):
-            return dt.date()
-    except:
-        pass
-
-    return None
 
 # --- HELPER DUAL-ENDPOINT CSV READER ---
 def read_gsheet_csv(sheet_id, gid="0", sheet_name=None, header='default', range_val=None):
@@ -142,6 +110,15 @@ def safe_float(val):
         return float(str(val).strip())
     except (ValueError, TypeError):
         return 0.0
+
+# --- HELPER PARSE TARIKH (UNTUK LAJUR CS / AN) ---
+def parse_date_col(series):
+    s = series.astype(str).str.replace(r'\s+', ' ', regex=True).str.strip()
+    s = s.replace({'nan': None, 'NaT': None, 'None': None, '': None, '-': None})
+    try:
+        return pd.to_datetime(s, dayfirst=True, format='mixed', errors='coerce').dt.date
+    except Exception:
+        return pd.to_datetime(s, dayfirst=True, errors='coerce').dt.date
 
 def set_repeat_table_header(row):
     tr = row._tr
@@ -992,8 +969,6 @@ if f1:
                 
                 # SETUP BACAAN UNTUK SHEET LOCK
                 col_A = df2.columns[0]
-                col_sebenar = find_col(df2, ['Sebenar', 'Tamat'])
-                col_jangka = find_col(df2, ['Jangka'])
                 col_alamat = find_col(df2, ['Tempat Berlaku', 'Alamat', 'Lokaliti'])
                 col_kategori = find_col(df2, ['Kategori Tempat'])
 
@@ -1004,29 +979,28 @@ if f1:
                     df2['Timestamp_Date'] = pd.to_datetime(df2[col_A], dayfirst=True, errors='coerce').dt.date
 
                 # SETUP BACAAN UNTUK SHEET RAW (UNTUK DATA AKTIF SAHAJA)
+                # PENTING: lajur CS & AN dibaca ikut kedudukan tetap (iloc) SEBELUM
+                # sebarang lajur baharu ditambah, supaya indeks asal tidak berubah.
+                if df_raw.shape[1] > IDX_CS:
+                    raw_cs_series = df_raw.iloc[:, IDX_CS].copy()
+                else:
+                    raw_cs_series = pd.Series([None] * len(df_raw), index=df_raw.index)
+
+                if df_raw.shape[1] > IDX_AN:
+                    raw_an_series = df_raw.iloc[:, IDX_AN].copy()
+                else:
+                    raw_an_series = pd.Series([None] * len(df_raw), index=df_raw.index)
+
                 col_A_raw = df_raw.columns[0]
                 df_raw[col_A_raw] = df_raw[col_A_raw].astype(str).str.replace(r'\s+', ' ', regex=True).str.strip()
-                df_raw['Timestamp_Date'] = df_raw[col_A_raw].apply(parse_mixed_date)
+                try:
+                    df_raw['Timestamp_Date'] = pd.to_datetime(df_raw[col_A_raw], dayfirst=True, format='mixed', errors='coerce').dt.date
+                except:
+                    df_raw['Timestamp_Date'] = pd.to_datetime(df_raw[col_A_raw], dayfirst=True, errors='coerce').dt.date
 
-                # AMBIL LAJUR CS (Indeks 96) & LAJUR AN (Indeks 39)
-                if df_raw.shape[1] > 96:
-                    cs_series = df_raw.iloc[:, 96]
-                else:
-                    col_cs = find_col(df_raw, ['Tarikh Sebenar Tamat', 'Sebenar'])
-                    cs_series = df_raw[col_cs] if col_cs else pd.Series([None] * len(df_raw))
-
-                if df_raw.shape[1] > 39:
-                    an_series = df_raw.iloc[:, 39]
-                else:
-                    col_an = find_col(df_raw, ['Tarikh Wabak Dijangka Tamat', 'Dijangka Tamat', 'Jangka'])
-                    an_series = df_raw[col_an] if col_an else pd.Series([None] * len(df_raw))
-
-                # TERAPKAN PARSER UNTUK MENGELAKKAN ISU SERIAL NUMBER EXCEL
-                df_raw['Tarikh_CS'] = cs_series.apply(parse_mixed_date)
-                df_raw['Tarikh_AN'] = an_series.apply(parse_mixed_date)
-
-                # FORMULA PEMBANTU CU: =IF(CS="", AN, CS)
-                df_raw['Tarikh_Akhir_Wabak'] = df_raw['Tarikh_CS'].combine_first(df_raw['Tarikh_AN'])
+                # CS = Tarikh Sebenar Tamat Wabak ; AN = Tarikh Wabak Dijangka Tamat
+                df_raw['Tarikh Sebenar Tamat Wabak'] = parse_date_col(raw_cs_series)
+                df_raw['Tarikh Wabak Dijangka Tamat'] = parse_date_col(raw_an_series)
 
                 df2 = df2.dropna(subset=['Timestamp_Date'])
                 df_raw = df_raw.dropna(subset=['Timestamp_Date'])
@@ -1057,10 +1031,24 @@ if f1:
 
                 wb_sum = []
                 
+                # Menggabungkan nama penyakit dari kedua-dua fail
                 all_diseases = set(df2_filt['PENYAKIT'].dropna().unique())
                 if 'PENYAKIT' in df_raw_filt.columns:
                     all_diseases = all_diseases.union(set(df_raw_filt['PENYAKIT'].dropna().unique()))
                     
+                # LOGIK WABAK AKTIF:
+                #  - Jika lajur CS (tarikh sebenar tamat) ada nilai -> guna CS
+                #  - Jika lajur CS kosong -> guna lajur AN (tarikh jangka tamat)
+                #  - Aktif jika tarikh tamat belum lepas (>= hari ini)
+                #  - Jika CS dan AN kedua-duanya kosong -> tidak dapat ditentukan, tidak dikira aktif
+                def check_active(row):
+                    sebenar = row['Tarikh Sebenar Tamat Wabak']
+                    jangka = row['Tarikh Wabak Dijangka Tamat']
+                    tamat = sebenar if pd.notna(sebenar) else jangka
+                    if pd.isna(tamat):
+                        return False
+                    return tamat >= today
+
                 for d in all_diseases:
                     if pd.isna(d) or str(d).strip() == "": continue
                     
@@ -1069,20 +1057,14 @@ if f1:
                     h = len(disease_df_lock[disease_df_lock['Timestamp_Date'] == yesterday])
                     k = len(disease_df_lock)
                     
-                    # 2. Kiraan AKTIF dari sheet 'raw' mengikut tarikh CU yang belum luput
+                    # 2. Kiraan AKTIF dari sheet 'raw'
                     if 'PENYAKIT' in df_raw_filt.columns:
                         disease_df_raw = df_raw_filt[df_raw_filt['PENYAKIT'] == d]
                     else:
                         disease_df_raw = pd.DataFrame()
                         
-                    def check_active(row):
-                        tamat = row['Tarikh_Akhir_Wabak']
-                        # Jika tiada tarikh tamat, dianggap masih aktif.
-                        # Jika ada tarikh, aktif sekiranya belum luput (>= today).
-                        return True if (pd.isna(tamat) or tamat is None or tamat >= today) else False
-                        
                     if not disease_df_raw.empty:
-                        active_count = disease_df_raw.apply(check_active, axis=1).sum()
+                        active_count = int(disease_df_raw.apply(check_active, axis=1).sum())
                     else:
                         active_count = 0
                         
@@ -1104,7 +1086,7 @@ if f1:
 
                 df_bkk_raw_data = read_gsheet_csv(BKK_SPREADSHEET_ID, "1352807145", header=None)
                 clean_date_series = df_bkk_raw_data.iloc[:, 2].astype(str).str.strip()
-                df_bkk_raw_data['datetime_lapor'] = clean_date_series.apply(parse_mixed_date)
+                df_bkk_raw_data['datetime_lapor'] = pd.to_datetime(clean_date_series, dayfirst=True, errors='coerce').dt.date
                 
                 insiden_semalam = df_bkk_raw_data[df_bkk_raw_data['datetime_lapor'] == yesterday]
                 
