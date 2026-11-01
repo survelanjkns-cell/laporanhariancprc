@@ -45,6 +45,7 @@ def format_number_with_comma(val):
         if pd.isna(val) or str(val).strip() in ["", "-", "nan", "TIADA", "NA"]:
             return "-"
         
+        # Jika nilai sudah berbentuk teks (bukan nombor), kembalikan seperti asal
         num = float(str(val).replace(',', '').strip())
         
         if num.is_integer():
@@ -944,6 +945,12 @@ if f1:
                 col_totals = matrix[TEMPLATE_PKDS + ['Grand Total']].sum(axis=0)
 
                 # --- 2. PROSES PEMBACAAN LIVE GOOGLE SHEET WABAK (HARI INI) ---
+                def find_col(df, keywords):
+                    for col in df.columns:
+                        if any(re.search(kw, str(col), re.IGNORECASE) for kw in keywords):
+                            return col
+                    return None
+
                 df2 = read_gsheet_csv(SHEET_ID_WABAK, sheet_name="lock")
                 df_raw = read_gsheet_csv(SHEET_ID_WABAK, sheet_name="raw")
                 
@@ -971,32 +978,16 @@ if f1:
                 except:
                     df_raw['Timestamp_Date'] = pd.to_datetime(df_raw[col_A_raw], dayfirst=True, errors='coerce').dt.date
 
-                # MENGGUNAKAN INDEKS TEPAT: LAJUR CS (Indeks 96) & LAJUR AN (Indeks 39)
-                if df_raw.shape[1] > 96:
-                    cs_series = df_raw.iloc[:, 96]
-                else:
-                    col_cs = find_col(df_raw, ['Tarikh Sebenar Tamat', 'Sebenar'])
-                    cs_series = df_raw[col_cs] if col_cs else None
-
-                if df_raw.shape[1] > 39:
-                    an_series = df_raw.iloc[:, 39]
-                else:
-                    col_an = find_col(df_raw, ['Tarikh Wabak Dijangka Tamat', 'Dijangka Tamat', 'Jangka'])
-                    an_series = df_raw[col_an] if col_an else None
-
-                if cs_series is not None:
-                    try:
-                        df_raw['Tarikh Sebenar Tamat Wabak'] = pd.to_datetime(cs_series, dayfirst=True, format='mixed', errors='coerce').dt.date
-                    except:
-                        df_raw['Tarikh Sebenar Tamat Wabak'] = pd.to_datetime(cs_series, dayfirst=True, errors='coerce').dt.date
+                col_sebenar_raw = find_col(df_raw, ['Sebenar', 'Tamat'])
+                col_jangka_raw = find_col(df_raw, ['Jangka'])
+                
+                if col_sebenar_raw:
+                    df_raw['Tarikh Sebenar Tamat Wabak'] = pd.to_datetime(df_raw[col_sebenar_raw], dayfirst=True, errors='coerce').dt.date
                 else:
                     df_raw['Tarikh Sebenar Tamat Wabak'] = pd.NaT
 
-                if an_series is not None:
-                    try:
-                        df_raw['Tarikh Wabak Dijangka Tamat'] = pd.to_datetime(an_series, dayfirst=True, format='mixed', errors='coerce').dt.date
-                    except:
-                        df_raw['Tarikh Wabak Dijangka Tamat'] = pd.to_datetime(an_series, dayfirst=True, errors='coerce').dt.date
+                if col_jangka_raw:
+                    df_raw['Tarikh Wabak Dijangka Tamat'] = pd.to_datetime(df_raw[col_jangka_raw], dayfirst=True, errors='coerce').dt.date
                 else:
                     df_raw['Tarikh Wabak Dijangka Tamat'] = pd.NaT
 
@@ -1029,7 +1020,7 @@ if f1:
 
                 wb_sum = []
                 
-                # Menggabungkan nama penyakit dari kedua-dua helaian
+                # Menggabungkan nama penyakit dari kedua-dua fail
                 all_diseases = set(df2_filt['PENYAKIT'].dropna().unique())
                 if 'PENYAKIT' in df_raw_filt.columns:
                     all_diseases = all_diseases.union(set(df_raw_filt['PENYAKIT'].dropna().unique()))
@@ -1049,14 +1040,21 @@ if f1:
                         disease_df_raw = pd.DataFrame()
                         
                     def check_active(row):
-                        # Jika lajur CS ada tarikh, semak sama ada belum luput
-                        if pd.notna(row['Tarikh Sebenar Tamat Wabak']):
-                            return row['Tarikh Sebenar Tamat Wabak'] >= today
-                        # Jika lajur CS kosong, gunakan tarikh lajur AN
-                        elif pd.notna(row['Tarikh Wabak Dijangka Tamat']):
-                            return row['Tarikh Wabak Dijangka Tamat'] >= today
-                        # Jika kedua-duanya kosong, dianggap masih aktif
-                        return True
+                        # Dapatkan tarikh sebenar tamat (Column CS)
+                        tamat_sebenar = row['Tarikh Sebenar Tamat Wabak']
+                        # Dapatkan tarikh jangka tamat (Column AN)
+                        tamat_jangka = row['Tarikh Wabak Dijangka Tamat']
+                        
+                        # 1. Jika ada Tarikh Sebenar Tamat, semak sama ada belum luput
+                        if pd.notna(tamat_sebenar):
+                            return tamat_sebenar >= today
+                            
+                        # 2. Jika TIADA Tarikh Sebenar Tamat, guna Tarikh Jangka Tamat
+                        if pd.notna(tamat_jangka):
+                            return tamat_jangka >= today
+                            
+                        # 3. Jika kedua-duanya kosong, kita anggap wabak masih aktif
+                        return True 
                         
                     if not disease_df_raw.empty:
                         active_count = disease_df_raw.apply(check_active, axis=1).sum()
