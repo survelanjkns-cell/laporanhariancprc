@@ -1040,8 +1040,21 @@ if f1:
                         disease_df_raw = pd.DataFrame()
                         
                     def check_active(row):
-                        tamat = row['Tarikh Sebenar Tamat Wabak'] if pd.notna(row['Tarikh Sebenar Tamat Wabak']) else row['Tarikh Wabak Dijangka Tamat']
-                        return True if (pd.isna(tamat) or tamat >= today) else False
+                        # Dapatkan tarikh sebenar tamat (Column CS)
+                        tamat_sebenar = row['Tarikh Sebenar Tamat Wabak']
+                        # Dapatkan tarikh jangka tamat (Column AN)
+                        tamat_jangka = row['Tarikh Wabak Dijangka Tamat']
+                        
+                        # 1. Jika ada Tarikh Sebenar Tamat, semak sama ada belum luput
+                        if pd.notna(tamat_sebenar):
+                            return tamat_sebenar >= today
+                            
+                        # 2. Jika TIADA Tarikh Sebenar Tamat, guna Tarikh Jangka Tamat
+                        if pd.notna(tamat_jangka):
+                            return tamat_jangka >= today
+                            
+                        # 3. Jika kedua-duanya kosong, kita anggap wabak masih aktif
+                        return True 
                         
                     if not disease_df_raw.empty:
                         active_count = disease_df_raw.apply(check_active, axis=1).sum()
@@ -1098,7 +1111,6 @@ if f1:
                 })
 
                 # --- 4. JANA DOKUMEN ---
-                # NOTE: pass None untuk graf/data jerebu kerana kita telah membuangnya
                 doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, (len(bkk_details)==0), bkk_details, df_yesterday_list)
                 
                 file_date = today.strftime("%d.%m.%y")
