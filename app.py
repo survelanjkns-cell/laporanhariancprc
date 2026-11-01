@@ -1062,11 +1062,12 @@ if f1:
                     df_yesterday_list = []
 
                 df2_filt = df2[df2['Timestamp_Date'] <= yesterday].copy()
+                # Kiraan AKTIF TIDAK dikaitkan dengan timestamp:
+                # semua baris sheet 'raw' diambil kira, status aktif hanya bergantung pada lajur CS dan AN.
                 pny_col_raw = 'PENYAKIT' if 'PENYAKIT' in df_raw.columns else find_col(df_raw, ['PENYAKIT'])
-                baris_ada_data = df_raw[pny_col_raw].notna() if pny_col_raw else df_raw['Timestamp_Date'].notna()
-                baris_ada_data = baris_ada_data | df_raw['Timestamp_Date'].notna()
-                masa_ok = df_raw['Timestamp_Date'].isna() | (df_raw['Timestamp_Date'] <= yesterday)
-                df_raw_filt = df_raw[baris_ada_data & masa_ok].copy()
+                ada_penyakit = df_raw[pny_col_raw].notna() if pny_col_raw else pd.Series(False, index=df_raw.index)
+                ada_tarikh_tamat = df_raw['Tarikh Tamat Efektif'].notna()
+                df_raw_filt = df_raw[ada_penyakit | ada_tarikh_tamat].copy()
                 if pny_col_raw and pny_col_raw != 'PENYAKIT':
                     df_raw_filt['PENYAKIT'] = df_raw_filt[pny_col_raw]
                 if 'PENYAKIT' in df_raw_filt.columns:
