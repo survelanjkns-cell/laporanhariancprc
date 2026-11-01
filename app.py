@@ -42,6 +42,11 @@ SHEET_ID_WABAK = "1SMu8z0MONnxkduZEaRyVNrEnH7KkvnJ9EjuVxSi3WOY"
 IDX_CS = 96
 IDX_AN = 39
 
+# GID tab "raw" (pilihan, tapi PALING SELAMAT). Buka tab "raw" dalam Google Sheet,
+# salin nombor selepas "#gid=" di URL (contoh: "1234567890") dan letak di bawah.
+# Kalau dibiarkan kosong, skrip cuba cari gid secara automatik.
+GID_RAW_MANUAL = ""
+
 # --- URL GOOGLE SHEET BKK ---
 BKK_SPREADSHEET_ID = "1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c"
 
@@ -95,6 +100,34 @@ def read_gsheet_csv(sheet_id, gid="0", sheet_name=None, header='default', range_
             continue
             
     raise Exception(f"Gagal memuat turun data dari Google Sheet (ID: {sheet_id}, Sheet: {sheet_name or gid}). Ralat: {last_err}")
+
+# --- HELPER BACA TAB SEBAGAI TEKS (TANPA TEKAAN JENIS DATA) ---
+def cari_gid_tab(sheet_id, nama_tab):
+    """Cuba cari gid sesuatu tab melalui halaman htmlview Google Sheet."""
+    try:
+        r = requests.get(f"https://docs.google.com/spreadsheets/d/{sheet_id}/htmlview", timeout=30)
+        html = r.text
+        for m in re.finditer(r'name:\s*"([^"]+)"[^}]{0,400}?gid(?:=|\\x3d|:\s*")(\d+)', html):
+            if m.group(1).strip().lower() == nama_tab.strip().lower():
+                return m.group(2)
+    except Exception:
+        pass
+    return None
+
+def baca_tab_sebagai_teks(sheet_id, nama_tab, gid_manual=""):
+    """
+    Baca tab melalui endpoint export (ikut gid) dengan semua sel sebagai teks.
+    Endpoint gviz akan mengosongkan sel yang jenisnya berbeza daripada majoriti lajur
+    (contoh: tarikh bertaip teks dalam lajur tarikh), jadi ia hanya digunakan sebagai pilihan terakhir.
+    """
+    gid = str(gid_manual).strip() or cari_gid_tab(sheet_id, nama_tab)
+    if gid:
+        url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
+        try:
+            return pd.read_csv(url, dtype=str), f"export (gid={gid}) - semua sel dibaca sebagai teks"
+        except Exception:
+            pass
+    return read_gsheet_csv(sheet_id, sheet_name=nama_tab), "gviz (ikut nama tab) - AMARAN: sel bercampur jenis mungkin hilang"
 
 # --- HELPER PENCARIAN LAJUR DINAMIK ---
 def find_col(df, keywords):
@@ -962,7 +995,7 @@ if f1:
 
                 # --- 2. PROSES PEMBACAAN LIVE GOOGLE SHEET WABAK (HARI INI) ---
                 df2 = read_gsheet_csv(SHEET_ID_WABAK, sheet_name="lock")
-                df_raw = read_gsheet_csv(SHEET_ID_WABAK, sheet_name="raw")
+                df_raw, raw_source_info = baca_tab_sebagai_teks(SHEET_ID_WABAK, "raw", GID_RAW_MANUAL)
                 
                 df2.columns = df2.columns.str.strip()
                 df_raw.columns = df_raw.columns.str.strip()
@@ -1113,6 +1146,9 @@ if f1:
                     aktif_df, gagal_df = _kira_aktif(True)
                     aktif_mf, gagal_mf = _kira_aktif(False)
 
+                    st.write(f"Kaedah baca sheet 'raw': **{raw_source_info}**")
+                    if raw_source_info.startswith("gviz"):
+                        st.warning("Gid tab 'raw' tidak ditemui secara automatik. Isi GID_RAW_MANUAL di bahagian atas skrip (nombor selepas #gid= di URL tab 'raw').")
                     st.write(f"Jumlah baris sheet 'raw' (asal): **{df_raw_total_rows}**")
                     st.write(f"Baris digunakan untuk kiraan: **{len(df_raw_filt)}**")
                     st.write(f"Header lajur CS (idx {IDX_CS}): **{df_raw.columns[IDX_CS] if df_raw.shape[1] > IDX_CS else 'TIADA LAJUR'}**")
