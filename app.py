@@ -1003,7 +1003,10 @@ if f1:
                 df_raw['Tarikh Wabak Dijangka Tamat'] = parse_date_col(raw_an_series)
 
                 df2 = df2.dropna(subset=['Timestamp_Date'])
-                df_raw = df_raw.dropna(subset=['Timestamp_Date'])
+                # Sheet 'raw': JANGAN gugurkan baris yang tarikh notifikasinya gagal diparse,
+                # kerana status aktif hanya bergantung pada lajur CS / AN.
+                # Buang hanya baris yang benar-benar kosong (tiada penyakit & tiada tarikh).
+                df_raw_total_rows = len(df_raw)
 
                 df_yesterday = df2[df2['Timestamp_Date'] == yesterday].copy()
                 
@@ -1016,7 +1019,15 @@ if f1:
                     df_yesterday_list = []
 
                 df2_filt = df2[df2['Timestamp_Date'] <= yesterday].copy()
-                df_raw_filt = df_raw[df_raw['Timestamp_Date'] <= yesterday].copy()
+                pny_col_raw = 'PENYAKIT' if 'PENYAKIT' in df_raw.columns else find_col(df_raw, ['PENYAKIT'])
+                baris_ada_data = df_raw[pny_col_raw].notna() if pny_col_raw else df_raw['Timestamp_Date'].notna()
+                baris_ada_data = baris_ada_data | df_raw['Timestamp_Date'].notna()
+                masa_ok = df_raw['Timestamp_Date'].isna() | (df_raw['Timestamp_Date'] <= yesterday)
+                df_raw_filt = df_raw[baris_ada_data & masa_ok].copy()
+                if pny_col_raw and pny_col_raw != 'PENYAKIT':
+                    df_raw_filt['PENYAKIT'] = df_raw_filt[pny_col_raw]
+                if 'PENYAKIT' in df_raw_filt.columns:
+                    df_raw_filt['PENYAKIT'] = df_raw_filt['PENYAKIT'].fillna("(Tiada Nama Penyakit)")
                 
                 def group_inf(n): return "ILI/ Influenza" if any(x in str(n).upper() for x in ["INFLUENZA", "ILI"]) else n
                 
@@ -1075,6 +1086,44 @@ if f1:
                     wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
                 else:
                     wabak_df = pd.DataFrame(columns=['PENYAKIT', 'HARIAN', 'AKTIF', 'KUMULATIF']).set_index('PENYAKIT')
+
+                # --- DIAGNOSTIK KIRAAN AKTIF (boleh dibuang selepas masalah selesai) ---
+                with st.expander("🔍 Diagnostik kiraan wabak aktif", expanded=True):
+                    idx_f = df_raw_filt.index
+                    cs_raw = raw_cs_series.loc[idx_f]
+                    an_raw = raw_an_series.loc[idx_f]
+
+                    def _kosong(s):
+                        return s.isna() | s.astype(str).str.strip().isin(['', 'nan', 'NaT', 'None', '-'])
+
+                    cs_kosong = _kosong(cs_raw)
+                    an_kosong = _kosong(an_raw)
+
+                    def _kira_aktif(dayfirst_flag):
+                        def _p(s):
+                            t = s.astype(str).str.replace(r'\s+', ' ', regex=True).str.strip()
+                            t = t.where(~_kosong(s), None)
+                            return pd.to_datetime(t, dayfirst=dayfirst_flag, format='mixed', errors='coerce').dt.date
+                        cs_d, an_d = _p(cs_raw), _p(an_raw)
+                        tamat = cs_d.where(cs_d.notna(), an_d)
+                        aktif = tamat.apply(lambda x: pd.notna(x) and x >= today)
+                        gagal = ((~cs_kosong) & cs_d.isna()).sum() + ((cs_kosong) & (~an_kosong) & an_d.isna()).sum()
+                        return int(aktif.sum()), int(gagal)
+
+                    aktif_df, gagal_df = _kira_aktif(True)
+                    aktif_mf, gagal_mf = _kira_aktif(False)
+
+                    st.write(f"Jumlah baris sheet 'raw' (asal): **{df_raw_total_rows}**")
+                    st.write(f"Baris digunakan untuk kiraan: **{len(df_raw_filt)}**")
+                    st.write(f"Header lajur CS (idx {IDX_CS}): **{df_raw.columns[IDX_CS] if df_raw.shape[1] > IDX_CS else 'TIADA LAJUR'}**")
+                    st.write(f"Header lajur AN (idx {IDX_AN}): **{df_raw.columns[IDX_AN] if df_raw.shape[1] > IDX_AN else 'TIADA LAJUR'}**")
+                    st.write(f"CS ada nilai: **{int((~cs_kosong).sum())}** | CS kosong: **{int(cs_kosong.sum())}**")
+                    st.write(f"CS kosong & AN ada nilai: **{int((cs_kosong & ~an_kosong).sum())}** | CS & AN kedua-dua kosong: **{int((cs_kosong & an_kosong).sum())}**")
+                    st.write(f"AKTIF (tafsiran tarikh hari/bulan/tahun): **{aktif_df}** (gagal parse: {gagal_df})")
+                    st.write(f"AKTIF (tafsiran tarikh bulan/hari/tahun): **{aktif_mf}** (gagal parse: {gagal_mf})")
+                    st.write(f"AKTIF dalam jadual 2.1 (jumlah mengikut penyakit): **{int(wabak_df['AKTIF'].sum()) if not wabak_df.empty else 0}**")
+                    st.write("Contoh nilai mentah CS / AN (10 baris pertama):")
+                    st.dataframe(pd.DataFrame({'CS': cs_raw.head(10).values, 'AN': an_raw.head(10).values}))
 
                 # --- 3. PEMPROSESAN DATA GOOGLE SHEET BKK & VECTOR ---
                 raw_gs = read_gsheet_csv(SHEET_ID, GID, header=None)
