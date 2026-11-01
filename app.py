@@ -35,6 +35,18 @@ GID = "0"
 # --- URL GOOGLE SHEET WABAK ---
 SHEET_ID_WABAK = "1SMu8z0MONnxkduZEaRyVNrEnH7KkvnJ9EjuVxSi3WOY"
 
+# --- KEDUDUKAN LAJUR SHEET 'raw' UNTUK PENENTUAN WABAK AKTIF (0-based) ---
+# Lajur CS = Tarikh Sebenar Tamat Wabak
+# Lajur AN = Tarikh Wabak Dijangka Tamat
+# Kiraan: A=0 ... Z=25, AA=26 ... AN=39 ; CS = (3*26 + 19) - 1 = 96
+IDX_CS = 96
+IDX_AN = 39
+
+# GID tab "raw" (pilihan, tapi PALING SELAMAT). Buka tab "raw" dalam Google Sheet,
+# salin nombor selepas "#gid=" di URL (contoh: "1234567890") dan letak di bawah.
+# Kalau dibiarkan kosong, skrip cuba cari gid secara automatik.
+GID_RAW_MANUAL = ""
+
 # --- URL GOOGLE SHEET BKK ---
 BKK_SPREADSHEET_ID = "1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c"
 
@@ -45,6 +57,7 @@ def format_number_with_comma(val):
         if pd.isna(val) or str(val).strip() in ["", "-", "nan", "TIADA", "NA"]:
             return "-"
         
+        # Jika nilai sudah berbentuk teks (bukan nombor), kembalikan seperti asal
         num = float(str(val).replace(',', '').strip())
         
         if num.is_integer():
@@ -54,67 +67,27 @@ def format_number_with_comma(val):
     except ValueError:
         return str(val).strip() if str(val).strip() != "" else "-"
 
-# --- HELPER PARSER TARIKH CAMPURAN & SERIAL EXCEL ---
-def parse_mixed_date(val):
-    """Menterjemah tarikh sama ada dalam bentuk string atau serial number Excel (contoh: 46470)."""
-    if pd.isna(val) or str(val).strip() in ["", "-", "nan", "NaT", "None"]:
-        return None
-    
-    if isinstance(val, (datetime, pd.Timestamp)):
-        return val.date()
-    if isinstance(val, date):
-        return val
-
-    val_str = str(val).strip()
-
-    # Semak jika nilai adalah nombor siri Excel (contoh: 46300 - 46500)
-    try:
-        val_float = float(val_str)
-        if 30000 <= val_float <= 65000:
-            return (pd.to_datetime('1899-12-30') + pd.to_timedelta(val_float, 'D')).date()
-    except (ValueError, TypeError):
-        pass
-
-    # Cuba pelbagai format teks tarikh biasa
-    formats = ['%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y', '%d/%m/%y', '%Y/%m/%d']
-    for fmt in formats:
-        try:
-            return datetime.strptime(val_str[:10], fmt).date()
-        except (ValueError, TypeError):
-            continue
-
-    try:
-        dt = pd.to_datetime(val_str, dayfirst=True, errors='coerce')
-        if pd.notna(dt):
-            return dt.date()
-    except:
-        pass
-
-    return None
-
 # --- HELPER DUAL-ENDPOINT CSV READER ---
-def read_gsheet_csv(sheet_id, gid=None, sheet_name=None, header='default', range_val=None):
+def read_gsheet_csv(sheet_id, gid="0", sheet_name=None, header='default', range_val=None):
     sheet_id = str(sheet_id).strip()
-    url_list = []
     
-    # Jika GID diberi, keutamaan diberikan kepada GID kerana ia 100% tepat ke tab tersebut
-    if gid is not None and str(gid).strip() != "":
-        clean_gid = str(gid).replace("#", "").replace("gid=", "").strip()
-        export_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={clean_gid}"
-        gviz_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&gid={clean_gid}"
-        if range_val:
-            export_url += f"&range={range_val}"
-            gviz_url += f"&range={range_val}"
-        url_list.extend([export_url, gviz_url])
-
-    # Jika nama sheet diberi
     if sheet_name:
-        encoded_name = urllib.parse.quote(str(sheet_name).strip())
+        encoded_name = urllib.parse.quote(sheet_name)
         gviz_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={encoded_name}"
+        export_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&sheet={encoded_name}"
         if range_val:
             gviz_url += f"&range={range_val}"
-        url_list.append(gviz_url)
-
+            export_url += f"&range={range_val}"
+        url_list = [gviz_url, export_url]
+    else:
+        gid = str(gid).replace("#", "").replace("gid=", "").strip()
+        gviz_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&gid={gid}"
+        export_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
+        if range_val:
+            gviz_url += f"&range={range_val}"
+            export_url += f"&range={range_val}"
+        url_list = [export_url, gviz_url]
+    
     last_err = None
     for url in url_list:
         try:
@@ -127,6 +100,34 @@ def read_gsheet_csv(sheet_id, gid=None, sheet_name=None, header='default', range
             continue
             
     raise Exception(f"Gagal memuat turun data dari Google Sheet (ID: {sheet_id}, Sheet: {sheet_name or gid}). Ralat: {last_err}")
+
+# --- HELPER BACA TAB SEBAGAI TEKS (TANPA TEKAAN JENIS DATA) ---
+def cari_gid_tab(sheet_id, nama_tab):
+    """Cuba cari gid sesuatu tab melalui halaman htmlview Google Sheet."""
+    try:
+        r = requests.get(f"https://docs.google.com/spreadsheets/d/{sheet_id}/htmlview", timeout=30)
+        html = r.text
+        for m in re.finditer(r'name:\s*"([^"]+)"[^}]{0,400}?gid(?:=|\\x3d|:\s*")(\d+)', html):
+            if m.group(1).strip().lower() == nama_tab.strip().lower():
+                return m.group(2)
+    except Exception:
+        pass
+    return None
+
+def baca_tab_sebagai_teks(sheet_id, nama_tab, gid_manual=""):
+    """
+    Baca tab melalui endpoint export (ikut gid) dengan semua sel sebagai teks.
+    Endpoint gviz akan mengosongkan sel yang jenisnya berbeza daripada majoriti lajur
+    (contoh: tarikh bertaip teks dalam lajur tarikh), jadi ia hanya digunakan sebagai pilihan terakhir.
+    """
+    gid = str(gid_manual).strip() or cari_gid_tab(sheet_id, nama_tab)
+    if gid:
+        url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
+        try:
+            return pd.read_csv(url, dtype=str), f"export (gid={gid}) - semua sel dibaca sebagai teks"
+        except Exception:
+            pass
+    return read_gsheet_csv(sheet_id, sheet_name=nama_tab), "gviz (ikut nama tab) - AMARAN: sel bercampur jenis mungkin hilang"
 
 # --- HELPER PENCARIAN LAJUR DINAMIK ---
 def find_col(df, keywords):
@@ -142,6 +143,15 @@ def safe_float(val):
         return float(str(val).strip())
     except (ValueError, TypeError):
         return 0.0
+
+# --- HELPER PARSE TARIKH (UNTUK LAJUR CS / AN) ---
+def parse_date_col(series):
+    s = series.astype(str).str.replace(r'\s+', ' ', regex=True).str.strip()
+    s = s.replace({'nan': None, 'NaT': None, 'None': None, '': None, '-': None})
+    try:
+        return pd.to_datetime(s, dayfirst=True, format='mixed', errors='coerce').dt.date
+    except Exception:
+        return pd.to_datetime(s, dayfirst=True, errors='coerce').dt.date
 
 def set_repeat_table_header(row):
     tr = row._tr
@@ -182,6 +192,16 @@ def get_epi_week(target_date):
     if target_date < start_date: return "N/A"
     days_diff = (target_date - start_date).days
     return f"{(days_diff // 7) + 1}/{target_date.year}"
+
+def get_epi_week_last_week(target_date):
+    start_date = date(2026, 1, 4)
+    if target_date < start_date: return "N/A"
+    days_diff = (target_date - start_date).days
+    current_epi = (days_diff // 7) + 1
+    last_epi = current_epi - 1
+    if last_epi == 0:
+        return f"52/{target_date.year - 1}"
+    return f"{last_epi}/{target_date.year}"
 
 def get_malay_date(target_date):
     days_ms = {"Monday": "Isnin", "Tuesday": "Selasa", "Wednesday": "Rabu", "Thursday": "Khamis", "Friday": "Jumaat", "Saturday": "Sabtu", "Sunday": "Ahad"}
@@ -864,15 +884,20 @@ st.set_page_config(
 
 st.markdown("""
     <style>
+    /* Paksa Latar Belakang Dark Mode */
     .stAppViewContainer, .stApp {
         background-color: #0E1117 !important;
         color: #FAFAFA !important;
     }
+    
+    /* Sembunyikan Header & Footer Streamlit */
     #MainMenu, header, .stAppHeader, [data-testid="stHeader"],
     footer, .stAppFooter, [data-testid="stFooter"], .stAppDeployDropdown {
         visibility: hidden !important;
         display: none !important;
     }
+    
+    /* TETAPAN KHUSUS TEXTAREA & INPUT BOX (DARK GREY BACKGROUND + WHITE TEXT) */
     .stTextArea textarea,
     div[data-baseweb="textarea"],
     div[data-baseweb="textarea"] > div,
@@ -882,11 +907,14 @@ st.markdown("""
         color: #FFFFFF !important;
         border-color: #4B5563 !important;
     }
+
     .stTextArea textarea::placeholder,
     div[data-baseweb="textarea"] textarea::placeholder {
         color: #9CA3AF !important;
         opacity: 1 !important;
     }
+
+    /* TETAPAN KHUSUS KOTAK UPLOAD FILE */
     div[data-testid="stFileUploader"] > section {
         background-color: #1E293B !important;
         border: 1px dashed #64748B !important;
@@ -896,6 +924,8 @@ st.markdown("""
     div[data-testid="stFileUploader"] p {
         color: #E2E8F0 !important;
     }
+
+    /* TETAPAN KHUSUS KOTAK MAKLUMAT (st.info, st.success, st.error, st.warning) */
     div[data-testid="stAlert"],
     div[data-testid="stNotification"],
     .stAlert {
@@ -907,6 +937,8 @@ st.markdown("""
     .stAlert p {
         color: #F8FAFC !important;
     }
+
+    /* TETAPAN BUTANG (JANA & DOWNLOAD) */
     div.stButton > button, 
     div.stDownloadButton > button,
     button[kind="primary"],
@@ -916,6 +948,7 @@ st.markdown("""
         border: 1px solid #4B5563 !important;
         font-weight: bold !important;
     }
+
     div.stButton > button:hover, 
     div.stDownloadButton > button:hover {
         background-color: #4B5563 !important;
@@ -961,32 +994,12 @@ if f1:
                 col_totals = matrix[TEMPLATE_PKDS + ['Grand Total']].sum(axis=0)
 
                 # --- 2. PROSES PEMBACAAN LIVE GOOGLE SHEET WABAK (HARI INI) ---
-                # Helaian 'lock' untuk Harian & Kumulatif
                 df2 = read_gsheet_csv(SHEET_ID_WABAK, sheet_name="lock")
-                df2.columns = df2.columns.str.strip()
-
-                # Helaian 'raw' untuk Kiraan Aktif Sebenar
-                # PENTING: Mencuba memuat turun sheet 'raw' / 'SELANGOR 2 (2)'
-                df_raw = None
-                raw_sheet_candidates = ["raw", "RAW", "SELANGOR 2 (2)", "SELANGOR 2"]
+                df_raw, raw_source_info = baca_tab_sebagai_teks(SHEET_ID_WABAK, "raw", GID_RAW_MANUAL)
                 
-                for candidate in raw_sheet_candidates:
-                    try:
-                        df_raw = read_gsheet_csv(SHEET_ID_WABAK, sheet_name=candidate)
-                        if df_raw is not None and len(df_raw) > 1500: # Pastikan fail penuh (> 1054)
-                            break
-                    except:
-                        continue
-
-                # Jika masih gagal muat turun > 1500 baris, cuba via export URL tanpa filter
-                if df_raw is None or len(df_raw) <= 1054:
-                    try:
-                        df_raw = read_gsheet_csv(SHEET_ID_WABAK, sheet_name="raw")
-                    except Exception as e:
-                        st.error(f"Gagal memuat turun sheet 'raw'. Sila semak nama tab di Google Sheet: {e}")
-
+                df2.columns = df2.columns.str.strip()
                 df_raw.columns = df_raw.columns.str.strip()
-
+                
                 # SETUP BACAAN UNTUK SHEET LOCK
                 col_A = df2.columns[0]
                 col_alamat = find_col(df2, ['Tempat Berlaku', 'Alamat', 'Lokaliti'])
@@ -998,7 +1011,36 @@ if f1:
                 except:
                     df2['Timestamp_Date'] = pd.to_datetime(df2[col_A], dayfirst=True, errors='coerce').dt.date
 
+                # SETUP BACAAN UNTUK SHEET RAW (UNTUK DATA AKTIF SAHAJA)
+                # PENTING: lajur CS & AN dibaca ikut kedudukan tetap (iloc) SEBELUM
+                # sebarang lajur baharu ditambah, supaya indeks asal tidak berubah.
+                if df_raw.shape[1] > IDX_CS:
+                    raw_cs_series = df_raw.iloc[:, IDX_CS].copy()
+                else:
+                    raw_cs_series = pd.Series([None] * len(df_raw), index=df_raw.index)
+
+                if df_raw.shape[1] > IDX_AN:
+                    raw_an_series = df_raw.iloc[:, IDX_AN].copy()
+                else:
+                    raw_an_series = pd.Series([None] * len(df_raw), index=df_raw.index)
+
+                col_A_raw = df_raw.columns[0]
+                df_raw[col_A_raw] = df_raw[col_A_raw].astype(str).str.replace(r'\s+', ' ', regex=True).str.strip()
+                try:
+                    df_raw['Timestamp_Date'] = pd.to_datetime(df_raw[col_A_raw], dayfirst=True, format='mixed', errors='coerce').dt.date
+                except:
+                    df_raw['Timestamp_Date'] = pd.to_datetime(df_raw[col_A_raw], dayfirst=True, errors='coerce').dt.date
+
+                # CS = Tarikh Sebenar Tamat Wabak ; AN = Tarikh Wabak Dijangka Tamat
+                df_raw['Tarikh Sebenar Tamat Wabak'] = parse_date_col(raw_cs_series)
+                df_raw['Tarikh Wabak Dijangka Tamat'] = parse_date_col(raw_an_series)
+
                 df2 = df2.dropna(subset=['Timestamp_Date'])
+                # Sheet 'raw': JANGAN gugurkan baris yang tarikh notifikasinya gagal diparse,
+                # kerana status aktif hanya bergantung pada lajur CS / AN.
+                # Buang hanya baris yang benar-benar kosong (tiada penyakit & tiada tarikh).
+                df_raw_total_rows = len(df_raw)
+
                 df_yesterday = df2[df2['Timestamp_Date'] == yesterday].copy()
                 
                 col_kes = find_col(df_yesterday, ['Bilangan Kes', 'Jumlah Kes'])
@@ -1010,57 +1052,65 @@ if f1:
                     df_yesterday_list = []
 
                 df2_filt = df2[df2['Timestamp_Date'] <= yesterday].copy()
+                pny_col_raw = 'PENYAKIT' if 'PENYAKIT' in df_raw.columns else find_col(df_raw, ['PENYAKIT'])
+                baris_ada_data = df_raw[pny_col_raw].notna() if pny_col_raw else df_raw['Timestamp_Date'].notna()
+                baris_ada_data = baris_ada_data | df_raw['Timestamp_Date'].notna()
+                masa_ok = df_raw['Timestamp_Date'].isna() | (df_raw['Timestamp_Date'] <= yesterday)
+                df_raw_filt = df_raw[baris_ada_data & masa_ok].copy()
+                if pny_col_raw and pny_col_raw != 'PENYAKIT':
+                    df_raw_filt['PENYAKIT'] = df_raw_filt[pny_col_raw]
+                if 'PENYAKIT' in df_raw_filt.columns:
+                    df_raw_filt['PENYAKIT'] = df_raw_filt['PENYAKIT'].fillna("(Tiada Nama Penyakit)")
                 
                 def group_inf(n): return "ILI/ Influenza" if any(x in str(n).upper() for x in ["INFLUENZA", "ILI"]) else n
                 
                 df2_filt['PENYAKIT'] = df2_filt['PENYAKIT'].apply(group_inf)
-
-                # PEMPROSESAN AKTIF DARI SHEET RAW (MENGGUNAKAN LAJUR CS & AN DENGAN FORMULA CU)
-                # Dapatkan lajur CS (Sebenar) dan AN (Dijangka)
-                col_cs = find_col(df_raw, ['Tarikh Sebenar Tamat Wabak', 'Sebenar Tamat'])
-                col_an = find_col(df_raw, ['Tarikh Wabak Dijangka Tamat', 'Dijangka Tamat'])
-
-                # Fallback ke indeks jika nama lajur diubah
-                cs_series = df_raw[col_cs] if col_cs else (df_raw.iloc[:, 96] if df_raw.shape[1] > 96 else pd.Series([None]*len(df_raw)))
-                an_series = df_raw[col_an] if col_an else (df_raw.iloc[:, 39] if df_raw.shape[1] > 39 else pd.Series([None]*len(df_raw)))
-
-                # Tukar tarikh serial Excel dan teks kepada objek date
-                df_raw['Tarikh_CS'] = cs_series.apply(parse_mixed_date)
-                df_raw['Tarikh_AN'] = an_series.apply(parse_mixed_date)
-
-                # FORMULA CU: =IF(CS="", AN, CS)
-                df_raw['Tarikh_Akhir_Wabak'] = df_raw['Tarikh_CS'].combine_first(df_raw['Tarikh_AN'])
-
-                # Pastikan Lajur Penyakit diselaraskan di sheet raw
-                col_penyakit_raw = find_col(df_raw, ['PENYAKIT'])
-                if col_penyakit_raw:
-                    df_raw['PENYAKIT_CLEAN'] = df_raw[col_penyakit_raw].apply(group_inf)
+                
+                if 'PENYAKIT' in df_raw_filt.columns:
+                    df_raw_filt['PENYAKIT'] = df_raw_filt['PENYAKIT'].apply(group_inf)
                 else:
-                    df_raw['PENYAKIT_CLEAN'] = df_raw.iloc[:, 5].apply(group_inf)
+                    col_penyakit_raw = find_col(df_raw_filt, ['PENYAKIT'])
+                    if col_penyakit_raw:
+                        df_raw_filt['PENYAKIT'] = df_raw_filt[col_penyakit_raw].apply(group_inf)
 
-                # TENTUKAN WABAK MASIH AKTIF: Tarikh CU >= today ATAU tiada tarikh tamat
-                def is_wabak_aktif(tamat):
-                    if pd.isna(tamat) or tamat is None:
-                        return True
+                wb_sum = []
+                
+                # Menggabungkan nama penyakit dari kedua-dua fail
+                all_diseases = set(df2_filt['PENYAKIT'].dropna().unique())
+                if 'PENYAKIT' in df_raw_filt.columns:
+                    all_diseases = all_diseases.union(set(df_raw_filt['PENYAKIT'].dropna().unique()))
+                    
+                # LOGIK WABAK AKTIF:
+                #  - Jika lajur CS (tarikh sebenar tamat) ada nilai -> guna CS
+                #  - Jika lajur CS kosong -> guna lajur AN (tarikh jangka tamat)
+                #  - Aktif jika tarikh tamat belum lepas (>= hari ini)
+                #  - Jika CS dan AN kedua-duanya kosong -> tidak dapat ditentukan, tidak dikira aktif
+                def check_active(row):
+                    sebenar = row['Tarikh Sebenar Tamat Wabak']
+                    jangka = row['Tarikh Wabak Dijangka Tamat']
+                    tamat = sebenar if pd.notna(sebenar) else jangka
+                    if pd.isna(tamat):
+                        return False
                     return tamat >= today
 
-                df_raw['IS_AKTIF'] = df_raw['Tarikh_Akhir_Wabak'].apply(is_wabak_aktif)
-
-                # KIRAAN JADUAL 2.1
-                wb_sum = []
-                all_diseases = set(df2_filt['PENYAKIT'].dropna().unique()).union(set(df_raw['PENYAKIT_CLEAN'].dropna().unique()))
-                    
                 for d in all_diseases:
                     if pd.isna(d) or str(d).strip() == "": continue
                     
-                    # 1. Harian & Kumulatif dari sheet 'lock'
+                    # 1. Kiraan HARIAN & KUMULATIF dari sheet 'lock'
                     disease_df_lock = df2_filt[df2_filt['PENYAKIT'] == d]
                     h = len(disease_df_lock[disease_df_lock['Timestamp_Date'] == yesterday])
                     k = len(disease_df_lock)
                     
-                    # 2. Aktif dari sheet 'raw'
-                    disease_df_raw = df_raw[df_raw['PENYAKIT_CLEAN'] == d]
-                    active_count = int(disease_df_raw['IS_AKTIF'].sum()) if not disease_df_raw.empty else 0
+                    # 2. Kiraan AKTIF dari sheet 'raw'
+                    if 'PENYAKIT' in df_raw_filt.columns:
+                        disease_df_raw = df_raw_filt[df_raw_filt['PENYAKIT'] == d]
+                    else:
+                        disease_df_raw = pd.DataFrame()
+                        
+                    if not disease_df_raw.empty:
+                        active_count = int(disease_df_raw.apply(check_active, axis=1).sum())
+                    else:
+                        active_count = 0
                         
                     if h > 0 or k > 0 or active_count > 0:
                         wb_sum.append({'PENYAKIT': d, 'HARIAN': h, 'AKTIF': active_count, 'KUMULATIF': k})
@@ -1070,17 +1120,58 @@ if f1:
                 else:
                     wabak_df = pd.DataFrame(columns=['PENYAKIT', 'HARIAN', 'AKTIF', 'KUMULATIF']).set_index('PENYAKIT')
 
+                # --- DIAGNOSTIK KIRAAN AKTIF (boleh dibuang selepas masalah selesai) ---
+                with st.expander("🔍 Diagnostik kiraan wabak aktif", expanded=True):
+                    idx_f = df_raw_filt.index
+                    cs_raw = raw_cs_series.loc[idx_f]
+                    an_raw = raw_an_series.loc[idx_f]
+
+                    def _kosong(s):
+                        return s.isna() | s.astype(str).str.strip().isin(['', 'nan', 'NaT', 'None', '-'])
+
+                    cs_kosong = _kosong(cs_raw)
+                    an_kosong = _kosong(an_raw)
+
+                    def _kira_aktif(dayfirst_flag):
+                        def _p(s):
+                            t = s.astype(str).str.replace(r'\s+', ' ', regex=True).str.strip()
+                            t = t.where(~_kosong(s), None)
+                            return pd.to_datetime(t, dayfirst=dayfirst_flag, format='mixed', errors='coerce').dt.date
+                        cs_d, an_d = _p(cs_raw), _p(an_raw)
+                        tamat = cs_d.where(cs_d.notna(), an_d)
+                        aktif = tamat.apply(lambda x: pd.notna(x) and x >= today)
+                        gagal = ((~cs_kosong) & cs_d.isna()).sum() + ((cs_kosong) & (~an_kosong) & an_d.isna()).sum()
+                        return int(aktif.sum()), int(gagal)
+
+                    aktif_df, gagal_df = _kira_aktif(True)
+                    aktif_mf, gagal_mf = _kira_aktif(False)
+
+                    st.write(f"Kaedah baca sheet 'raw': **{raw_source_info}**")
+                    if raw_source_info.startswith("gviz"):
+                        st.warning("Gid tab 'raw' tidak ditemui secara automatik. Isi GID_RAW_MANUAL di bahagian atas skrip (nombor selepas #gid= di URL tab 'raw').")
+                    st.write(f"Jumlah baris sheet 'raw' (asal): **{df_raw_total_rows}**")
+                    st.write(f"Baris digunakan untuk kiraan: **{len(df_raw_filt)}**")
+                    st.write(f"Header lajur CS (idx {IDX_CS}): **{df_raw.columns[IDX_CS] if df_raw.shape[1] > IDX_CS else 'TIADA LAJUR'}**")
+                    st.write(f"Header lajur AN (idx {IDX_AN}): **{df_raw.columns[IDX_AN] if df_raw.shape[1] > IDX_AN else 'TIADA LAJUR'}**")
+                    st.write(f"CS ada nilai: **{int((~cs_kosong).sum())}** | CS kosong: **{int(cs_kosong.sum())}**")
+                    st.write(f"CS kosong & AN ada nilai: **{int((cs_kosong & ~an_kosong).sum())}** | CS & AN kedua-dua kosong: **{int((cs_kosong & an_kosong).sum())}**")
+                    st.write(f"AKTIF (tafsiran tarikh hari/bulan/tahun): **{aktif_df}** (gagal parse: {gagal_df})")
+                    st.write(f"AKTIF (tafsiran tarikh bulan/hari/tahun): **{aktif_mf}** (gagal parse: {gagal_mf})")
+                    st.write(f"AKTIF dalam jadual 2.1 (jumlah mengikut penyakit): **{int(wabak_df['AKTIF'].sum()) if not wabak_df.empty else 0}**")
+                    st.write("Contoh nilai mentah CS / AN (10 baris pertama):")
+                    st.dataframe(pd.DataFrame({'CS': cs_raw.head(10).values, 'AN': an_raw.head(10).values}))
+
                 # --- 3. PEMPROSESAN DATA GOOGLE SHEET BKK & VECTOR ---
-                raw_gs = read_gsheet_csv(SHEET_ID, gid="0", header=None)
+                raw_gs = read_gsheet_csv(SHEET_ID, GID, header=None)
                 mask_v = raw_gs.apply(lambda r: r.astype(str).str.contains('Petaling').any(), axis=1)
                 v_data = raw_gs.iloc[mask_v.idxmax() : mask_v.idxmax() + 11, 13:20]
                 v_data = v_data.dropna(how='all')
                 v_data = v_data[~v_data.iloc[:, 0].astype(str).str.lower().str.contains('nan')]
                 v_data = v_data[~v_data.iloc[:, 0].astype(str).str.lower().str.contains('dari tarikh|tarikh')]
 
-                df_bkk_raw_data = read_gsheet_csv(BKK_SPREADSHEET_ID, gid="1352807145", header=None)
+                df_bkk_raw_data = read_gsheet_csv(BKK_SPREADSHEET_ID, "1352807145", header=None)
                 clean_date_series = df_bkk_raw_data.iloc[:, 2].astype(str).str.strip()
-                df_bkk_raw_data['datetime_lapor'] = clean_date_series.apply(parse_mixed_date)
+                df_bkk_raw_data['datetime_lapor'] = pd.to_datetime(clean_date_series, dayfirst=True, errors='coerce').dt.date
                 
                 insiden_semalam = df_bkk_raw_data[df_bkk_raw_data['datetime_lapor'] == yesterday]
                 
@@ -1092,7 +1183,7 @@ if f1:
                     'bil_kematian': r[10]  
                 } for _, r in insiden_semalam.iterrows()]
                 
-                df_bkk_jadual_full = read_gsheet_csv(BKK_SPREADSHEET_ID, gid="1342717767", header=None)
+                df_bkk_jadual_full = read_gsheet_csv(BKK_SPREADSHEET_ID, "1342717767", header=None)
                 
                 bkk_raw = df_bkk_jadual_full.iloc[0:, 33:46].dropna(how='all').reset_index(drop=True)
                 bkk_raw.columns = bkk_raw.iloc[0]
