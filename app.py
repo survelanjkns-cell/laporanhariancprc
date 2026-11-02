@@ -1193,8 +1193,8 @@ if f1:
                     'bil_kematian': r[10]  
                 } for _, r in insiden_semalam.iterrows()]
                 
-                # --- JADUAL 4.1: range diambil terus dari Google Sheet (A2:N) ---
-                df_bkk_jadual_full = read_gsheet_csv(BKK_SPREADSHEET_ID, "1342717767", header=None, range_val="A2:N")
+                # --- JADUAL 4.1: range diambil terus dari Google Sheet (A2:M) ---
+                df_bkk_jadual_full = read_gsheet_csv(BKK_SPREADSHEET_ID, "1342717767", header=None, range_val="A2:M")
                 
                 bkk_raw = df_bkk_jadual_full.dropna(how='all').reset_index(drop=True)
                 bkk_raw.columns = bkk_raw.iloc[0]
