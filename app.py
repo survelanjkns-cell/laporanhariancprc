@@ -50,6 +50,14 @@ GID_RAW_MANUAL = ""
 # --- URL GOOGLE SHEET BKK ---
 BKK_SPREADSHEET_ID = "1Fp6IORRfdWSJCTC8vqSSoQz6RpCpNXHzO6jj0tHEf2c"
 
+# --- KONFIGURASI PPS BANJIR ---
+DAERAH_SELANGOR = [
+    'Petaling', 'Gombak', 'Klang', 'Sepang', 'Hulu Langat',
+    'Kuala Langat', 'Hulu Selangor', 'Kuala Selangor', 'Sabak Bernam'
+]
+SHEET_ID_KECEDERAAN = "1mmR26ClNxWDhax92CYGGzOkKVqcXMDLg6gRcfmD_xhQ"
+TARIKH_MULA_BANJIR = "2 November 2026"   # fix
+
 # --- HELPER NUMBER FORMATTER ---
 def format_number_with_comma(val):
     """Menukar nombor atau string berangka kepada format dengan koma ribuan."""
@@ -210,6 +218,12 @@ def get_malay_date(target_date):
     month_name = months_ms.get(target_date.month, "")
     return f"{target_date.day:02d} {month_name} {target_date.year} ({day_name})"
 
+def get_malay_date_short(target_date):
+    """Format tarikh tanpa hari & tanpa sifar di depan, cth: 13 November 2026"""
+    months_ms = {1: "Januari", 2: "Februari", 3: "Mac", 4: "April", 5: "Mei", 6: "Jun",
+                 7: "Julai", 8: "Ogos", 9: "September", 10: "Oktober", 11: "November", 12: "Disember"}
+    return f"{target_date.day} {months_ms[target_date.month]} {target_date.year}"
+
 def apply_font(run, size, bold=True):
     run.font.name = 'Arial'
     run.font.size = Pt(size)
@@ -283,8 +297,117 @@ def format_bkk_number(val, is_person=False):
     
     return num_word.get(num, str(num))
 
+# --- HELPER PPS BANJIR ---
+def join_malay(items):
+    """['A'] -> 'A' ; ['A','B'] -> 'A dan B' ; ['A','B','C'] -> 'A, B dan C'"""
+    items = list(items)
+    if len(items) <= 1:
+        return "".join(items)
+    return ", ".join(items[:-1]) + " dan " + items[-1]
+
+def parse_pps_data(text):
+    """Parse data PPS yang ditampal. Hanya daerah Selangor dikira."""
+    if not text or not text.strip():
+        return None
+
+    rows = []
+    for line in text.replace("\\'", "'").splitlines():
+        if not line.strip():
+            continue
+
+        # Baris data PPS ada tarikh 'Buka' (cth: 06 Nov)
+        m = re.search(r'(\d{1,2}\s+[A-Za-z]{3})\b(.*)$', line)
+        if not m:
+            continue
+
+        pre = line[:m.start()]
+        daerah = None
+        if '\t' in line:
+            first = pre.split('\t')[0].strip()
+            daerah = next((d for d in DAERAH_SELANGOR if first.lower() == d.lower()), None)
+        else:  # fallback jika tab bertukar jadi ruang
+            for d in sorted(DAERAH_SELANGOR, key=len, reverse=True):
+                if re.match(rf'{re.escape(d)}\b', pre.strip(), re.IGNORECASE):
+                    daerah = d
+                    break
+        if not daerah:
+            continue  # bukan Selangor / bukan baris data
+
+        # Selepas tarikh: [%kapasiti] [Mangsa] [Keluarga] [Lelaki Dewasa] ...
+        nums = re.findall(r'\d[\d,]*(?:\.\d+)?%?', m.group(2))
+        mangsa = keluarga = None
+        if len(nums) >= 3 and nums[0].endswith('%'):
+            try:
+                mangsa = int(float(nums[1].replace(',', '')))
+                keluarga = int(float(nums[2].replace(',', '')))
+            except ValueError:
+                mangsa = keluarga = None
+
+        rows.append({'daerah': daerah, 'mangsa': mangsa, 'keluarga': keluarga})
+
+    if not rows:
+        return None
+
+    with_stats = [r for r in rows if r['mangsa'] is not None]
+    return {
+        'daerah': list(dict.fromkeys(r['daerah'] for r in rows)),   # ikut turutan muncul
+        'jumlah_pps': len(rows),
+        'pps_statistik': len(with_stats),
+        'mangsa': sum(r['mangsa'] for r in with_stats),
+        'keluarga': sum(r['keluarga'] for r in with_stats),
+    }
+
+def get_kecederaan_pps():
+    """Ambil nombor di sel H15 (Sheet1). Pulang None jika gagal."""
+    sid = SHEET_ID_KECEDERAAN
+    # Cara 1: terus ambil sel H15
+    try:
+        url = (f"https://docs.google.com/spreadsheets/d/{sid}/gviz/tq"
+               f"?tqx=out:csv&sheet=Sheet1&range=H15&headers=0")
+        r = requests.get(url, timeout=30)
+        r.raise_for_status()
+        lines = [l.strip().strip('"') for l in r.text.splitlines() if l.strip().strip('"')]
+        return int(float(lines[-1].replace(',', '')))
+    except Exception:
+        pass
+    # Cara 2 (fallback): baca keseluruhan sheet, ambil baris 15 lajur H
+    try:
+        df = read_gsheet_csv(sid, gid="0", header=None)
+        val = df.iloc[14, 7]
+        if pd.isna(val) or str(val).strip() in ["", "-"]:
+            return 0
+        return int(float(str(val).replace(',', '').strip()))
+    except Exception:
+        return None
+
+def bina_perenggan_pps(pps, kecederaan, tarikh):
+    daerah_str = join_malay(pps['daerah'])
+    pkd_str = join_malay([f"PKD {d}" for d in pps['daerah']])
+
+    if kecederaan is None:
+        kec_str = "xx kecederaan dilaporkan berdasarkan statistik PPS yang diterima."
+    elif kecederaan == 0:
+        kec_str = "Tiada kecederaan dilaporkan berdasarkan statistik PPS yang diterima."
+    else:
+        kec_str = f"{format_bkk_number(kecederaan)} kecederaan dilaporkan berdasarkan statistik PPS yang diterima."
+
+    p2 = (
+        f"Kejadian banjir yang bermula sejak {TARIKH_MULA_BANJIR} masih berterusan. "
+        f"Setakat {get_malay_date_short(tarikh)} jam 10.00 pagi, "
+        f"{format_bkk_number(pps['jumlah_pps'])} PPS aktif di {daerah_str} dengan sekurang-kurangnya "
+        f"{format_number_with_comma(pps['mangsa'])} penghuni daripada "
+        f"{format_number_with_comma(pps['keluarga'])} keluarga berdasarkan statistik "
+        f"{format_bkk_number(pps['pps_statistik'])} PPS. {kec_str}"
+    )
+    p3 = (
+        f"Bilik Gerakan Banjir {pkd_str} kekal aktif, manakala CPRC JKN Selangor dengan penglibatan "
+        f"Unit KPAS dan Unit Survelan berada pada tahap kesiapsiagaan tinggi (high alert) bagi memantau "
+        f"perkembangan dan menyelaras respons kesihatan awam di peringkat negeri."
+    )
+    return p2, p3
+
 # --- DOCX GENERATOR ---
-def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty, bkk_details, df_yesterday_list):
+def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty, bkk_details, df_yesterday_list, pps_info=None, kecederaan_pps=None):
     doc = Document()
     now_msia = get_msia_time()
     today = now_msia.date()
@@ -780,6 +903,17 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
 
     apply_font(h41.add_run(h41_text), 11, bold=False)
 
+    # --- PERENGGAN 2 & 3: PPS BANJIR (jika data PPS ditampal) ---
+    if pps_info:
+        h41.paragraph_format.space_after = Pt(6)
+        p2_text, p3_text = bina_perenggan_pps(pps_info, kecederaan_pps, today)
+        for teks in (p2_text, p3_text):
+            p_pps = doc.add_paragraph()
+            p_pps.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+            p_pps.paragraph_format.space_before = Pt(0)
+            p_pps.paragraph_format.space_after = Pt(6)
+            apply_font(p_pps.add_run(teks), 11, bold=False)
+
     add_table_title(doc, "Jadual 4.1", "Jumlah Kejadian Bencana, Kecemasan dan Krisis (BKK) di Selangor Pada Tahun 2026 Mengikut Daerah")
     t4 = doc.add_table(rows=len(bkk_table_df) + 1, cols=len(bkk_table_df.columns))
     t4.style = 'Table Grid'
@@ -968,6 +1102,24 @@ tarikh_guideline = get_malay_date(yesterday)
 st.subheader("📁 Muat Naik Excel Notifikasi Harian")
 st.info(f"**Guideline:** Sila muat turun fail notifikasi pada **{tarikh_guideline}** dari sistem eNotifikasi dan muat naik di sini.")
 f1 = st.file_uploader("Pilih fail Notifikasi Harian", type=["xlsx", "xls"], label_visibility="collapsed")
+
+# --- KOTAK DATA PPS BANJIR ---
+st.subheader("🌊 Data PPS Banjir (pilihan)")
+st.caption("Tampal data PPS dari sistem. Hanya 9 daerah Selangor akan dikira. Kosongkan jika tiada banjir.")
+pps_text = st.text_area(
+    "Data PPS", height=180, label_visibility="collapsed",
+    placeholder="Nama\tDaerah\tMukim\tBuka\tKapasiti\tMangsa\tKeluarga ..."
+)
+
+if pps_text.strip():
+    _pps_preview = parse_pps_data(pps_text)
+    if _pps_preview:
+        st.success(
+            f"Dikesan: {_pps_preview['jumlah_pps']} PPS di {join_malay(_pps_preview['daerah'])} | "
+            f"{_pps_preview['mangsa']:,} mangsa | {_pps_preview['keluarga']:,} keluarga"
+        )
+    else:
+        st.warning("Tiada PPS di Selangor dikesan. Perenggan banjir tidak akan dimasukkan.")
 
 st.markdown("---")
 
@@ -1192,6 +1344,14 @@ if f1:
                     'bil_kes': r[9],     
                     'bil_kematian': r[10]  
                 } for _, r in insiden_semalam.iterrows()]
+
+                # --- DATA PPS BANJIR ---
+                pps_info = parse_pps_data(pps_text)
+                kecederaan_pps = None
+                if pps_info:
+                    kecederaan_pps = get_kecederaan_pps()
+                    if kecederaan_pps is None:
+                        st.warning("Gagal baca sel H15 (Sheet1). Ayat kecederaan ditulis 'xx', sila semak manual. Pastikan sheet dikongsi 'Anyone with the link'.")
                 
                 # --- JADUAL 4.1: range diambil terus dari Google Sheet (A2:M) ---
                 df_bkk_jadual_full = read_gsheet_csv(BKK_SPREADSHEET_ID, "1342717767", header=None, range_val="A2:M")
@@ -1214,7 +1374,9 @@ if f1:
                 })
 
                 # --- 4. JANA DOKUMEN ---
-                doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final, (len(bkk_details)==0), bkk_details, df_yesterday_list)
+                doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final,
+                                        (len(bkk_details)==0), bkk_details, df_yesterday_list,
+                                        pps_info=pps_info, kecederaan_pps=kecederaan_pps)
                 
                 file_date = today.strftime("%d.%m.%y")
                 
