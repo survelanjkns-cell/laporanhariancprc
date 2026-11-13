@@ -1061,15 +1061,34 @@ st.markdown("""
 
     /* TETAPAN KHUSUS KOTAK MAKLUMAT (st.info, st.success, st.error, st.warning) */
     div[data-testid="stAlert"],
+    div[data-testid="stAlertContainer"],
     div[data-testid="stNotification"],
+    div[data-baseweb="notification"],
     .stAlert {
         background-color: #1E293B !important;
+        background: #1E293B !important;
         border: 1px solid #334155 !important;
+        border-radius: 8px !important;
     }
-    div[data-testid="stAlert"] p,
-    div[data-testid="stNotification"] p,
-    .stAlert p {
+    /* Semua elemen dalam kotak: paksa teks cerah & latar lutsinar
+       (versi Streamlit baharu letak warna latar pada elemen dalaman) */
+    div[data-testid="stAlert"] *,
+    div[data-testid="stAlertContainer"] *,
+    div[data-testid="stNotification"] *,
+    div[data-baseweb="notification"] *,
+    .stAlert * {
         color: #F8FAFC !important;
+        background-color: transparent !important;
+    }
+    /* Garis warna di kiri mengikut jenis kotak */
+    div[data-testid="stAlert"]:has([data-testid="stAlertContentInfo"]) { border-left: 5px solid #38BDF8 !important; }
+    div[data-testid="stAlert"]:has([data-testid="stAlertContentSuccess"]) { border-left: 5px solid #4ADE80 !important; }
+    div[data-testid="stAlert"]:has([data-testid="stAlertContentWarning"]) { border-left: 5px solid #FBBF24 !important; }
+    div[data-testid="stAlert"]:has([data-testid="stAlertContentError"]) { border-left: 5px solid #F87171 !important; }
+
+    /* Caption / teks kecil supaya jelas di latar gelap */
+    div[data-testid="stCaptionContainer"], .stCaption, small {
+        color: #CBD5E1 !important;
     }
 
     /* TETAPAN BUTANG (JANA & DOWNLOAD) */
