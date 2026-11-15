@@ -195,6 +195,11 @@ def clean_val(val):
     cleaned = re.sub(r'\s*\(.*?\)', '', str(val)).strip()
     return cleaned if cleaned != "" else "-"
 
+def capitalize_each_word(text):
+    """Huruf besar di awal setiap perkataan, selebihnya huruf kecil. Cth: 'JALAN BRP 7' -> 'Jalan Brp 7'"""
+    t = str(text).strip().lower()
+    return re.sub(r"(?<!')\b[a-z]+", lambda m: m.group(0).capitalize(), t)
+
 def get_epi_week(target_date):
     start_date = date(2026, 1, 4)
     if target_date < start_date: return "N/A"
@@ -674,7 +679,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
             apply_font(run_cat, 8, bold=False)
 
             row[2].text = str(item[1]).title() 
-            row[3].text = str(item[2]) 
+            row[3].text = capitalize_each_word(item[2])
 
             n_kes = safe_float(item[4])
             n_dedah = safe_float(item[5])
@@ -1299,48 +1304,6 @@ if f1:
                     wabak_df = pd.DataFrame(wb_sum).set_index('PENYAKIT').sort_values(by='KUMULATIF', ascending=False)
                 else:
                     wabak_df = pd.DataFrame(columns=['PENYAKIT', 'HARIAN', 'AKTIF', 'KUMULATIF']).set_index('PENYAKIT')
-
-                # --- DIAGNOSTIK KIRAAN AKTIF (boleh dibuang selepas masalah selesai) ---
-                with st.expander("🔍 Diagnostik kiraan wabak aktif", expanded=True):
-                    idx_f = df_raw_filt.index
-                    cs_raw = raw_cs_series.loc[idx_f]
-                    an_raw = raw_an_series.loc[idx_f]
-
-                    def _kosong(s):
-                        return s.isna() | s.astype(str).str.strip().isin(['', 'nan', 'NaT', 'None', '-'])
-
-                    cs_kosong = _kosong(cs_raw)
-                    an_kosong = _kosong(an_raw)
-
-                    def _kira_aktif(dayfirst_flag):
-                        def _p(s):
-                            t = s.astype(str).str.replace(r'\s+', ' ', regex=True).str.strip()
-                            t = t.where(~_kosong(s), None)
-                            return pd.to_datetime(t, dayfirst=dayfirst_flag, format='mixed', errors='coerce').dt.date
-                        cs_d, an_d = _p(cs_raw), _p(an_raw)
-                        tamat = cs_d.where(cs_d.notna(), an_d)
-                        aktif = tamat.apply(lambda x: pd.notna(x) and x >= today)
-                        gagal = ((~cs_kosong) & cs_d.isna()).sum() + ((cs_kosong) & (~an_kosong) & an_d.isna()).sum()
-                        return int(aktif.sum()), int(gagal)
-
-                    aktif_df, gagal_df = _kira_aktif(True)
-                    aktif_mf, gagal_mf = _kira_aktif(False)
-
-                    st.write(f"Kaedah baca sheet 'raw': **{raw_source_info}**")
-                    if raw_source_info.startswith("gviz"):
-                        st.warning("Gid tab 'raw' tidak ditemui secara automatik. Isi GID_RAW_MANUAL di bahagian atas skrip (nombor selepas #gid= di URL tab 'raw').")
-                    st.write(f"Jumlah baris sheet 'raw' (asal): **{df_raw_total_rows}**")
-                    st.write(f"Baris digunakan untuk kiraan: **{len(df_raw_filt)}**")
-                    st.write(f"Header lajur CS (idx {IDX_CS}): **{df_raw.columns[IDX_CS] if df_raw.shape[1] > IDX_CS else 'TIADA LAJUR'}**")
-                    st.write(f"Header lajur AN (idx {IDX_AN}): **{df_raw.columns[IDX_AN] if df_raw.shape[1] > IDX_AN else 'TIADA LAJUR'}**")
-                    st.write(f"CS ada nilai: **{int((~cs_kosong).sum())}** | CS kosong: **{int(cs_kosong.sum())}**")
-                    st.write(f"CS kosong & AN ada nilai: **{int((cs_kosong & ~an_kosong).sum())}** | CS & AN kedua-dua kosong: **{int((cs_kosong & an_kosong).sum())}**")
-                    st.write(f"AKTIF (tafsiran tarikh hari/bulan/tahun): **{aktif_df}** (gagal parse: {gagal_df})")
-                    st.write(f"AKTIF (tafsiran tarikh bulan/hari/tahun): **{aktif_mf}** (gagal parse: {gagal_mf})")
-                    st.write(f"AKTIF ikut helper column 'Tarikh Tamat Efektif' (semua baris): **{int(df_raw_filt['AKTIF_FLAG'].sum())}**")
-                    st.write(f"AKTIF dalam jadual 2.1 (jumlah mengikut penyakit): **{int(wabak_df['AKTIF'].sum()) if not wabak_df.empty else 0}**")
-                    st.write("Contoh nilai mentah CS / AN (10 baris pertama):")
-                    st.dataframe(pd.DataFrame({'CS': cs_raw.head(10).values, 'AN': an_raw.head(10).values}))
 
                 # --- 3. PEMPROSESAN DATA GOOGLE SHEET BKK & VECTOR ---
                 raw_gs = read_gsheet_csv(SHEET_ID, GID, header=None)
