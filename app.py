@@ -58,6 +58,11 @@ DAERAH_SELANGOR = [
 SHEET_ID_KECEDERAAN = "1mmR26ClNxWDhax92CYGGzOkKVqcXMDLg6gRcfmD_xhQ"
 TARIKH_MULA_BANJIR = "2 November 2026"   # fix
 
+# Terjemahan nama penyakit (Sheet2) ke Bahasa Melayu dalam laporan. Ubah di sini jika perlu.
+TERJEMAH_PENYAKIT_PPS = {
+    "other notifiable diseases": "Penyakit Wajib Notifikasi Lain",
+}
+
 # --- HELPER NUMBER FORMATTER ---
 def format_number_with_comma(val):
     """Menukar nombor atau string berangka kepada format dengan koma ribuan."""
@@ -362,39 +367,75 @@ def parse_pps_data(text):
         'keluarga': sum(r['keluarga'] for r in with_stats),
     }
 
-def get_kecederaan_pps():
-    """Ambil nombor di sel H15 (Sheet1). Pulang None jika gagal."""
+def get_penyakit_berjangkit_pps():
+    """
+    Baca Sheet2 (Jadual 7.1 Kejadian Penyakit Berjangkit di Kalangan Mangsa Banjir).
+    Ambil baris 'Jumlah hari ini' bagi setiap lajur 'Bil' penyakit (lajur kuning).
+    Pulang senarai [(nama_penyakit, bilangan), ...] atau None jika gagal.
+    """
     sid = SHEET_ID_KECEDERAAN
-    # Cara 1: terus ambil sel H15
+    df = None
+
+    # Cara 1: export ikut gid (semua sel sebagai teks, kedudukan baris tepat)
+    gid = cari_gid_tab(sid, "Sheet2")
+    if gid:
+        try:
+            df = pd.read_csv(
+                f"https://docs.google.com/spreadsheets/d/{sid}/export?format=csv&gid={gid}",
+                header=None, dtype=str
+            )
+        except Exception:
+            df = None
+
+    # Cara 2 (fallback): ikut nama tab
+    if df is None:
+        try:
+            df = read_gsheet_csv(sid, sheet_name="Sheet2", header=None)
+        except Exception:
+            return None
+
     try:
-        url = (f"https://docs.google.com/spreadsheets/d/{sid}/gviz/tq"
-               f"?tqx=out:csv&sheet=Sheet1&range=H15&headers=0")
-        r = requests.get(url, timeout=30)
-        r.raise_for_status()
-        lines = [l.strip().strip('"') for l in r.text.splitlines() if l.strip().strip('"')]
-        return int(float(lines[-1].replace(',', '')))
-    except Exception:
-        pass
-    # Cara 2 (fallback): baca keseluruhan sheet, ambil baris 15 lajur H
-    try:
-        df = read_gsheet_csv(sid, gid="0", header=None)
-        val = df.iloc[14, 7]
-        if pd.isna(val) or str(val).strip() in ["", "-"]:
-            return 0
-        return int(float(str(val).replace(',', '').strip()))
+        df = df.fillna("").astype(str)
+
+        def norm(x):
+            return re.sub(r'\s+', ' ', str(x)).strip()
+
+        # Cari baris 'Jumlah hari ini' dan baris header 'Bil / Kum' secara dinamik
+        r_jumlah = next(i for i in range(len(df)) if norm(df.iat[i, 0]).lower().startswith("jumlah hari ini"))
+        r_bil = next(i for i in range(len(df)) if sum(norm(v).lower() == "bil" for v in df.iloc[i]) >= 3)
+
+        hasil = []
+        for c in range(df.shape[1]):
+            if norm(df.iat[r_bil, c]).lower() != "bil":
+                continue
+            nama = norm(df.iat[r_bil - 1, c]) if r_bil > 0 else ""
+            # Abaikan lajur jumlah keseluruhan (dikira sendiri)
+            if not nama or "keseluruhan" in nama.lower() or "jumlah" in nama.lower():
+                continue
+            try:
+                n = int(float(norm(df.iat[r_jumlah, c]).replace(',', '')))
+            except ValueError:
+                n = 0
+            hasil.append((nama, n))
+        return hasil if hasil else None
     except Exception:
         return None
 
-def bina_perenggan_pps(pps, kecederaan, tarikh):
+def bina_perenggan_pps(pps, penyakit, tarikh):
     daerah_str = join_malay(pps['daerah'])
     pkd_str = join_malay([f"PKD {d}" for d in pps['daerah']])
 
-    if kecederaan is None:
-        kec_str = "xx kecederaan dilaporkan berdasarkan statistik PPS yang diterima."
-    elif kecederaan == 0:
-        kec_str = "Tiada kecederaan dilaporkan berdasarkan statistik PPS yang diterima."
+    if penyakit is None:
+        kec_str = "xx kes penyakit berjangkit di PPS yang dilaporkan dalam tarikh pelaporan iaitu xx."
     else:
-        kec_str = f"{format_bkk_number(kecederaan)} kecederaan dilaporkan berdasarkan statistik PPS yang diterima."
+        ada_kes = [(n, k) for n, k in penyakit if k > 0]
+        if not ada_kes:
+            kec_str = "Tiada kes penyakit berjangkit di PPS yang dilaporkan dalam tarikh pelaporan."
+        else:
+            jumlah_kes = sum(k for _, k in ada_kes)
+            senarai = join_malay([f"{TERJEMAH_PENYAKIT_PPS.get(n.lower(), n)} ({format_number_with_comma(k)} kes)" for n, k in ada_kes])
+            kec_str = (f"Terdapat {format_bkk_number(jumlah_kes)} kes penyakit berjangkit di PPS yang "
+                       f"dilaporkan dalam tarikh pelaporan iaitu {senarai}.")
 
     p2 = (
         f"Kejadian banjir yang bermula sejak {TARIKH_MULA_BANJIR} masih berterusan. "
@@ -412,7 +453,7 @@ def bina_perenggan_pps(pps, kecederaan, tarikh):
     return p2, p3
 
 # --- DOCX GENERATOR ---
-def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty, bkk_details, df_yesterday_list, pps_info=None, kecederaan_pps=None):
+def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty, bkk_details, df_yesterday_list, pps_info=None, penyakit_pps=None):
     doc = Document()
     now_msia = get_msia_time()
     today = now_msia.date()
@@ -911,7 +952,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     # --- PERENGGAN 2 & 3: PPS BANJIR (jika data PPS ditampal) ---
     if pps_info:
         h41.paragraph_format.space_after = Pt(6)
-        p2_text, p3_text = bina_perenggan_pps(pps_info, kecederaan_pps, today)
+        p2_text, p3_text = bina_perenggan_pps(pps_info, penyakit_pps, today)
         for teks in (p2_text, p3_text):
             p_pps = doc.add_paragraph()
             p_pps.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
@@ -1329,11 +1370,11 @@ if f1:
 
                 # --- DATA PPS BANJIR ---
                 pps_info = parse_pps_data(pps_text)
-                kecederaan_pps = None
+                penyakit_pps = None
                 if pps_info:
-                    kecederaan_pps = get_kecederaan_pps()
-                    if kecederaan_pps is None:
-                        st.warning("Gagal baca sel H15 (Sheet1). Ayat kecederaan ditulis 'xx', sila semak manual. Pastikan sheet dikongsi 'Anyone with the link'.")
+                    penyakit_pps = get_penyakit_berjangkit_pps()
+                    if penyakit_pps is None:
+                        st.warning("Gagal baca Sheet2 (penyakit berjangkit di PPS). Ayat ditulis 'xx', sila semak manual. Pastikan sheet dikongsi 'Anyone with the link'.")
                 
                 # --- JADUAL 4.1: range diambil terus dari Google Sheet (A2:M) ---
                 df_bkk_jadual_full = read_gsheet_csv(BKK_SPREADSHEET_ID, "1342717767", header=None, range_val="A2:M")
@@ -1358,7 +1399,7 @@ if f1:
                 # --- 4. JANA DOKUMEN ---
                 doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final,
                                         (len(bkk_details)==0), bkk_details, df_yesterday_list,
-                                        pps_info=pps_info, kecederaan_pps=kecederaan_pps)
+                                        pps_info=pps_info, penyakit_pps=penyakit_pps)
                 
                 file_date = today.strftime("%d.%m.%y")
                 
