@@ -59,6 +59,9 @@ SHEET_ID_KECEDERAAN = "1mmR26ClNxWDhax92CYGGzOkKVqcXMDLg6gRcfmD_xhQ"
 TARIKH_MULA_BANJIR = "2 November 2026"   # fix
 
 # Terjemahan nama penyakit (Sheet2) ke Bahasa Melayu dalam laporan. Ubah di sini jika perlu.
+# Penyakit di Sheet2 yang TIDAK dikira dalam laporan (bukan lajur kuning). Padan ikut awalan nama (huruf kecil).
+PENYAKIT_PPS_DIKECUALIKAN = ["ari", "demam"]
+
 TERJEMAH_PENYAKIT_PPS = {
     "other notifiable diseases": "Penyakit Wajib Notifikasi Lain",
 }
@@ -411,6 +414,9 @@ def get_penyakit_berjangkit_pps():
             nama = norm(df.iat[r_bil - 1, c]) if r_bil > 0 else ""
             # Abaikan lajur jumlah keseluruhan (dikira sendiri)
             if not nama or "keseluruhan" in nama.lower() or "jumlah" in nama.lower():
+                continue
+            nama_l = nama.lower()
+            if any(nama_l == k or nama_l.startswith(k + " ") for k in PENYAKIT_PPS_DIKECUALIKAN):
                 continue
             try:
                 n = int(float(norm(df.iat[r_jumlah, c]).replace(',', '')))
