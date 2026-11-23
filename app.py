@@ -57,10 +57,11 @@ DAERAH_SELANGOR = [
 ]
 SHEET_ID_KECEDERAAN = "1mmR26ClNxWDhax92CYGGzOkKVqcXMDLg6gRcfmD_xhQ"
 TARIKH_MULA_BANJIR = "2 November 2026"   # fix
+TARIKH_BUKA_BILIK_GERAKAN = "19 November 2026"   # fix
 
 # Terjemahan nama penyakit (Sheet2) ke Bahasa Melayu dalam laporan. Ubah di sini jika perlu.
 # Penyakit di Sheet2 yang TIDAK dikira dalam laporan (bukan lajur kuning). Padan ikut awalan nama (huruf kecil).
-PENYAKIT_PPS_DIKECUALIKAN = ["ari", "demam"]
+PENYAKIT_PPS_DIKECUALIKAN = ["ari", "demam", "skin infection"]
 
 TERJEMAH_PENYAKIT_PPS = {
     "other notifiable diseases": "Penyakit Wajib Notifikasi Lain",
@@ -427,7 +428,33 @@ def get_penyakit_berjangkit_pps():
     except Exception:
         return None
 
-def bina_perenggan_pps(pps, penyakit, tarikh):
+def get_kejadian_wabak_pps():
+    """Ambil bilangan kejadian wabak (Sheet1, sel J15 'Jumlah Hari Ini'). Pulang None jika gagal."""
+    sid = SHEET_ID_KECEDERAAN
+    # Cara 1: export tab pertama (gid=0), kedudukan baris/lajur tepat: J15 -> baris 14, lajur 9
+    try:
+        df = pd.read_csv(
+            f"https://docs.google.com/spreadsheets/d/{sid}/export?format=csv&gid=0",
+            header=None, dtype=str
+        )
+        val = df.iat[14, 9]
+        if pd.isna(val) or str(val).strip() in ["", "-"]:
+            return 0
+        return int(float(str(val).replace(',', '').strip()))
+    except Exception:
+        pass
+    # Cara 2 (fallback): terus ambil sel J15 melalui gviz
+    try:
+        url = (f"https://docs.google.com/spreadsheets/d/{sid}/gviz/tq"
+               f"?tqx=out:csv&sheet=Sheet1&range=J15&headers=0")
+        r = requests.get(url, timeout=30)
+        r.raise_for_status()
+        lines = [l.strip().strip('"') for l in r.text.splitlines() if l.strip().strip('"')]
+        return int(float(lines[-1].replace(',', '')))
+    except Exception:
+        return None
+
+def bina_perenggan_pps(pps, penyakit, tarikh, kejadian_wabak=None):
     daerah_str = join_malay(pps['daerah'])
     pkd_str = join_malay([f"PKD {d}" for d in pps['daerah']])
 
@@ -443,23 +470,30 @@ def bina_perenggan_pps(pps, penyakit, tarikh):
             kec_str = (f"Terdapat {format_bkk_number(jumlah_kes)} kes penyakit berjangkit di PPS yang "
                        f"dilaporkan dalam tarikh pelaporan iaitu {senarai}.")
 
+    if kejadian_wabak is None:
+        wabak_str = "xx kejadian wabak dilaporkan dalam tempoh pelaporan."
+    elif kejadian_wabak == 0:
+        wabak_str = "Tiada kejadian wabak dilaporkan dalam tempoh pelaporan."
+    else:
+        wabak_str = f"Terdapat {format_bkk_number(kejadian_wabak)} kejadian wabak dilaporkan dalam tempoh pelaporan."
+
     p2 = (
         f"Kejadian banjir yang bermula sejak {TARIKH_MULA_BANJIR} masih berterusan. "
         f"Setakat {get_malay_date_short(tarikh)} jam 10.00 pagi, "
         f"{format_bkk_number(pps['jumlah_pps'])} PPS aktif di {daerah_str} dengan sekurang-kurangnya "
         f"{format_number_with_comma(pps['mangsa'])} penghuni daripada "
         f"{format_number_with_comma(pps['keluarga'])} keluarga berdasarkan statistik "
-        f"{format_bkk_number(pps['pps_statistik'])} PPS. {kec_str}"
+        f"{format_bkk_number(pps['pps_statistik'])} PPS. {kec_str} {wabak_str}"
     )
     p3 = (
-        f"Bilik Gerakan Banjir {pkd_str} kekal aktif, manakala CPRC JKN Selangor dengan penglibatan "
-        f"Unit KPAS dan Unit Survelan berada pada tahap kesiapsiagaan tinggi (high alert) bagi memantau "
-        f"perkembangan dan menyelaras respons kesihatan awam di peringkat negeri."
+        f"Bilik Gerakan Banjir CPRC JKN Selangor telah dibuka pada {TARIKH_BUKA_BILIK_GERAKAN} bagi memantau "
+        f"perkembangan dan menyelaras respons kesihatan awam di peringkat negeri, manakala "
+        f"Bilik Gerakan Banjir {pkd_str} kekal aktif."
     )
     return p2, p3
 
 # --- DOCX GENERATOR ---
-def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty, bkk_details, df_yesterday_list, pps_info=None, penyakit_pps=None):
+def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk_empty, bkk_details, df_yesterday_list, pps_info=None, penyakit_pps=None, wabak_pps=None):
     doc = Document()
     now_msia = get_msia_time()
     today = now_msia.date()
@@ -533,7 +567,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     p_nota.paragraph_format.space_after = Pt(6)
     p_nota.paragraph_format.line_spacing = 1.15  
 
-    ayat_baris1 = f"Data harian adalah berdasarkan input yang direkodkan pada {get_malay_date(yesterday)}\n"
+    ayat_baris1 = f"Data harian adalah berdasarkan input yang direkodkan pada {get_malay_date(yesterday)}, bermula jam 12.00am sehingga 11.59pm.\n"
     ayat_baris2 = f"Dimuat turun dan disemak pada {get_malay_date(today)}, jam 8.00 pagi"
     
     run_nota = p_nota.add_run(ayat_baris1 + ayat_baris2)
@@ -639,10 +673,10 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     h21.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY 
     
     if harian_total == 0:
-        h21_text = f"Jadual di bawah menunjukkan jumlah wabak harian, aktif dan kumulatif di negeri Selangor. Tiada wabak telah direkodkan pada {get_malay_date(yesterday)}."
+        h21_text = f"Jadual di bawah menunjukkan jumlah wabak harian, aktif dan kumulatif di negeri Selangor. Tiada wabak telah direkodkan pada {get_malay_date(yesterday)}. Data input notifikasi wabak yang dilaporkan dalam jadual di bawah adalah berdasarkan pelaporan rasmi PKD kepada CPRC Kebangsaan."
     else:
         harian_total_str = format_bkk_number(harian_total, is_person=False)
-        h21_text = f"Jadual di bawah menunjukkan jumlah wabak harian, aktif dan kumulatif di negeri Selangor. Sejumlah {harian_total_str} input notifikasi wabak telah direkodkan pada {get_malay_date(yesterday)}."
+        h21_text = f"Jadual di bawah menunjukkan jumlah wabak harian, aktif dan kumulatif di negeri Selangor. Sejumlah {harian_total_str} input notifikasi wabak telah direkodkan pada {get_malay_date(yesterday)}. Data input notifikasi wabak yang dilaporkan dalam jadual di bawah adalah berdasarkan pelaporan rasmi PKD kepada CPRC Kebangsaan."
         
     apply_font(h21.add_run(h21_text), 11, bold=False)
 
@@ -958,7 +992,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     # --- PERENGGAN 2 & 3: PPS BANJIR (jika data PPS ditampal) ---
     if pps_info:
         h41.paragraph_format.space_after = Pt(6)
-        p2_text, p3_text = bina_perenggan_pps(pps_info, penyakit_pps, today)
+        p2_text, p3_text = bina_perenggan_pps(pps_info, penyakit_pps, today, wabak_pps)
         for teks in (p2_text, p3_text):
             p_pps = doc.add_paragraph()
             p_pps.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
@@ -1377,10 +1411,14 @@ if f1:
                 # --- DATA PPS BANJIR ---
                 pps_info = parse_pps_data(pps_text)
                 penyakit_pps = None
+                wabak_pps = None
                 if pps_info:
                     penyakit_pps = get_penyakit_berjangkit_pps()
                     if penyakit_pps is None:
                         st.warning("Gagal baca Sheet2 (penyakit berjangkit di PPS). Ayat ditulis 'xx', sila semak manual. Pastikan sheet dikongsi 'Anyone with the link'.")
+                    wabak_pps = get_kejadian_wabak_pps()
+                    if wabak_pps is None:
+                        st.warning("Gagal baca Sheet1!J15 (kejadian wabak di PPS). Ayat ditulis 'xx', sila semak manual.")
                 
                 # --- JADUAL 4.1: range diambil terus dari Google Sheet (A2:M) ---
                 df_bkk_jadual_full = read_gsheet_csv(BKK_SPREADSHEET_ID, "1342717767", header=None, range_val="A2:M")
@@ -1405,7 +1443,7 @@ if f1:
                 # --- 4. JANA DOKUMEN ---
                 doc_out = generate_docx(matrix, col_totals, wabak_df, v_data, bkk_table_final,
                                         (len(bkk_details)==0), bkk_details, df_yesterday_list,
-                                        pps_info=pps_info, penyakit_pps=penyakit_pps)
+                                        pps_info=pps_info, penyakit_pps=penyakit_pps, wabak_pps=wabak_pps)
                 
                 file_date = today.strftime("%d.%m.%y")
                 
