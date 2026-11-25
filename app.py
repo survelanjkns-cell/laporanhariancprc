@@ -656,7 +656,7 @@ def generate_docx(matrix_df, col_sums, wabak_df, vector_df, bkk_table_df, is_bkk
     avg_total_cell = f_cells[len(TEMPLATE_PKDS)+2]
     avg_total_cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
     avg_total_cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-    apply_font(avg_total_cell.paragraphs[0].add_run("647"), 8, bold=True)
+    apply_font(avg_total_cell.paragraphs[0].add_run(format_number_with_comma(matrix_df['Average Harian'].sum())), 8, bold=True)
     set_cell_background(avg_total_cell, "FFC000")
 
     add_pkd_note(doc)
