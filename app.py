@@ -365,6 +365,7 @@ def parse_pps_data(text):
     with_stats = [r for r in rows if r['mangsa'] is not None]
     return {
         'daerah': list(dict.fromkeys(r['daerah'] for r in rows)),   # ikut turutan muncul
+        'per_daerah': {d: sum(1 for r in rows if r['daerah'] == d) for d in dict.fromkeys(r['daerah'] for r in rows)},
         'jumlah_pps': len(rows),
         'pps_statistik': len(with_stats),
         'mangsa': sum(r['mangsa'] for r in with_stats),
@@ -455,7 +456,10 @@ def get_kejadian_wabak_pps():
         return None
 
 def bina_perenggan_pps(pps, penyakit, tarikh, kejadian_wabak=None):
-    daerah_str = join_malay(pps['daerah'])
+    if len(pps['daerah']) > 1:
+        daerah_str = join_malay([f"{d} ({pps['per_daerah'][d]})" for d in pps['daerah']])
+    else:
+        daerah_str = join_malay(pps['daerah'])
     pkd_str = join_malay([f"PKD {d}" for d in pps['daerah']])
 
     if penyakit is None:
